@@ -370,9 +370,9 @@ styleSheet.textContent = `
 `;
 document.head.appendChild(styleSheet);
 
-const tenets = {{ tenets | tojson }};
-const allPeople = {{ all_people | tojson }};
-const existingFeedback = {{ existing_feedback | tojson }};
+const tenets = {{ tenets | tojson | safe }};
+const allPeople = {{ all_people | tojson | safe }};
+const existingFeedback = {{ existing_feedback | tojson | safe }};
 
 let selectedColleague = null;
 let selectedStrengths = [];

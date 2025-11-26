@@ -7,15 +7,14 @@
 <style>
     .tenet-selector {
         display: grid;
-        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-        gap: 10px;
+        gap: 8px;
         margin-bottom: 20px;
     }
 
     .tenet-item {
         border: 2px solid #ddd;
         border-radius: 6px;
-        padding: 12px;
+        padding: 10px;
         cursor: pointer;
         transition: all 0.2s;
     }
@@ -35,12 +34,35 @@
         background: #f8d7da;
     }
 
+    .tenet-name {
+        font-weight: 600;
+        margin-bottom: 4px;
+    }
+
+    .tenet-description {
+        font-size: 12px;
+        color: #666;
+    }
+
     .feedback-text-item {
         background: #f8f9fa;
         padding: 12px;
         border-radius: 6px;
         margin-bottom: 10px;
         border-left: 4px solid #667eea;
+    }
+
+    .save-indicator {
+        display: inline-block;
+        margin-left: 12px;
+        color: #28a745;
+        font-weight: 600;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .save-indicator.show {
+        opacity: 1;
     }
 </style>
 {% endblock %}
@@ -108,9 +130,8 @@
     <div class="form-group">
         <label>Your Feedback Text</label>
         <textarea id="managerFeedbackText" placeholder="Write your feedback for this team member...">{{ manager_feedback.feedback_text if manager_feedback else '' }}</textarea>
+        <span id="saveIndicator" class="save-indicator">✓ Saved</span>
     </div>
-
-    <button onclick="saveManagerFeedback()" class="btn">Save Manager Feedback</button>
 </div>
 
 <div class="card">
@@ -126,19 +147,43 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
-const butterflyData = {{ butterfly_data | tojson }};
-const tenets = {{ tenets | tojson }};
+// Force apply two-column grid layout (CSS injection workaround)
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+    .tenet-selector {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+        margin-bottom: 20px !important;
+        width: 100% !important;
+    }
+`;
+document.head.appendChild(styleSheet);
+
+const butterflyData = {{ butterfly_data | tojson | safe }};
+const tenets = {{ tenets | tojson | safe }};
 const teamMemberId = "{{ team_member.user_id }}";
 
-let managerSelectedStrengths = {{ manager_feedback.selected_strengths if manager_feedback else [] | tojson }};
-let managerSelectedImprovements = {{ manager_feedback.selected_improvements if manager_feedback else [] | tojson }};
+let managerSelectedStrengths = {{ (manager_feedback.selected_strengths if manager_feedback else []) | tojson | safe }};
+let managerSelectedImprovements = {{ (manager_feedback.selected_improvements if manager_feedback else []) | tojson | safe }};
+
+// Auto-save state
+let autoSaveTimer = null;
 
 // Render butterfly chart
 function renderButterflyChart() {
     const container = document.getElementById('butterflyChart');
     container.innerHTML = '';
 
+    // Check if we have data
+    if (!butterflyData || butterflyData.length === 0) {
+        container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No feedback data available yet.</p>';
+        return;
+    }
+
+    // Calculate max value, ensure minimum of 1 for proper scaling
     const maxValue = Math.max(
+        1,  // Minimum value to prevent chart issues
         ...butterflyData.map(t => Math.max(t.strength_count, t.improvement_count))
     );
 
@@ -197,10 +242,29 @@ function renderButterflyChart() {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {legend: {display: false}, tooltip: {enabled: true}},
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Improvements: ' + context.parsed.x;
+                            }
+                        }
+                    }
+                },
                 scales: {
-                    x: {reverse: true, max: maxValue, display: true, grid: {display: false}},
-                    y: {display: false}
+                    x: {
+                        min: 0,
+                        max: maxValue,
+                        reverse: true,
+                        display: false,
+                        grid: { display: false },
+                        ticks: { display: false }
+                    },
+                    y: {
+                        display: false,
+                        grid: { display: false }
+                    }
                 }
             }
         });
@@ -220,10 +284,28 @@ function renderButterflyChart() {
                 indexAxis: 'y',
                 responsive: true,
                 maintainAspectRatio: false,
-                plugins: {legend: {display: false}, tooltip: {enabled: true}},
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Strengths: ' + context.parsed.x;
+                            }
+                        }
+                    }
+                },
                 scales: {
-                    x: {max: maxValue, display: true, grid: {display: false}},
-                    y: {display: false}
+                    x: {
+                        min: 0,
+                        max: maxValue,
+                        display: false,
+                        grid: { display: false },
+                        ticks: { display: false }
+                    },
+                    y: {
+                        display: false,
+                        grid: { display: false }
+                    }
                 }
             }
         });
@@ -276,6 +358,7 @@ function toggleManagerStrength(tenetId) {
     }
     renderManagerTenetSelectors();
     renderButterflyChart();
+    scheduleAutoSave();
 }
 
 function toggleManagerImprovement(tenetId) {
@@ -287,6 +370,24 @@ function toggleManagerImprovement(tenetId) {
     }
     renderManagerTenetSelectors();
     renderButterflyChart();
+    scheduleAutoSave();
+}
+
+function scheduleAutoSave() {
+    if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer);
+    }
+    autoSaveTimer = setTimeout(() => {
+        saveManagerFeedback();
+    }, 2000);
+}
+
+function showSaveIndicator() {
+    const indicator = document.getElementById('saveIndicator');
+    indicator.classList.add('show');
+    setTimeout(() => {
+        indicator.classList.remove('show');
+    }, 2000);
 }
 
 function saveManagerFeedback() {
@@ -305,10 +406,13 @@ function saveManagerFeedback() {
     .then(r => r.json())
     .then(data => {
         if (data.success) {
-            alert('Manager feedback saved!');
+            showSaveIndicator();
         } else {
-            alert('Error: ' + data.error);
+            console.error('Error saving manager feedback:', data.error);
         }
+    })
+    .catch(error => {
+        console.error('Error saving manager feedback:', error);
     });
 }
 
@@ -317,7 +421,21 @@ function exportPDF() {
 }
 
 // Initialize
-renderButterflyChart();
-renderManagerTenetSelectors();
+try {
+    console.log('Butterfly data:', butterflyData);
+    console.log('Tenets:', tenets);
+    renderButterflyChart();
+    renderManagerTenetSelectors();
+} catch (error) {
+    console.error('Error initializing charts:', error);
+    document.getElementById('butterflyChart').innerHTML =
+        '<p style="color: #dc3545; padding: 20px;">Error loading chart: ' + error.message + '</p>';
+}
+
+// Add auto-save to feedback text
+const feedbackTextArea = document.getElementById('managerFeedbackText');
+feedbackTextArea.addEventListener('input', () => {
+    scheduleAutoSave();
+});
 </script>
 {% endblock %}
