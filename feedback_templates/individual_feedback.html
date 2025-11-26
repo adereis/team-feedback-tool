@@ -61,12 +61,81 @@
 
     .feedback-item {
         background: #f8f9fa;
-        padding: 12px;
+        padding: 16px;
         border-radius: 6px;
-        margin-bottom: 10px;
+        margin-bottom: 12px;
+    }
+
+    .feedback-item-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
+        margin-bottom: 8px;
+    }
+
+    .feedback-item-name {
+        font-weight: 600;
+        font-size: 15px;
+        color: #2c3e50;
+    }
+
+    .feedback-tenets {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 12px;
+        margin-top: 8px;
+        font-size: 13px;
+    }
+
+    .tenet-group {
+        padding: 8px;
+        background: white;
+        border-radius: 4px;
+    }
+
+    .tenet-group-title {
+        font-weight: 600;
+        margin-bottom: 4px;
+        font-size: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .tenet-group.strengths .tenet-group-title {
+        color: #28a745;
+    }
+
+    .tenet-group.improvements .tenet-group-title {
+        color: #dc3545;
+    }
+
+    .tenet-list {
+        list-style: none;
+        padding: 0;
+        margin: 4px 0 0 0;
+    }
+
+    .tenet-list li {
+        padding: 2px 0 2px 16px;
+        position: relative;
+        color: #495057;
+        line-height: 1.4;
+    }
+
+    .tenet-list.strengths li::before {
+        content: '✓';
+        position: absolute;
+        left: 0;
+        color: #28a745;
+        font-weight: bold;
+    }
+
+    .tenet-list.improvements li::before {
+        content: '▸';
+        position: absolute;
+        left: 0;
+        color: #dc3545;
+        font-weight: bold;
     }
 
     .manager-group {
@@ -539,15 +608,39 @@ function renderFeedbackList() {
         const person = allPeople.find(p => p.user_id === fb.to_user_id);
         const personName = person ? person.name : fb.to_user_id;
 
+        // Get tenet names
+        const strengthTenets = fb.strengths.map(id => {
+            const tenet = tenets.find(t => t.id === id);
+            return tenet ? tenet.name : id;
+        });
+
+        const improvementTenets = fb.improvements.map(id => {
+            const tenet = tenets.find(t => t.id === id);
+            return tenet ? tenet.name : id;
+        });
+
         return `
             <div class="feedback-item">
-                <div>
-                    <strong>${personName}</strong>
-                    - ${fb.strengths.length} strengths, ${fb.improvements.length} improvements
+                <div class="feedback-item-header">
+                    <div class="feedback-item-name">${personName}</div>
+                    <div>
+                        <button onclick="editFeedback('${fb.to_user_id}')" class="btn btn-secondary" style="padding: 6px 12px; margin-right: 8px;">Edit</button>
+                        <button onclick="deleteFeedback('${fb.to_user_id}')" class="btn btn-danger" style="padding: 6px 12px;">Delete</button>
+                    </div>
                 </div>
-                <div>
-                    <button onclick="editFeedback('${fb.to_user_id}')" class="btn btn-secondary" style="padding: 6px 12px; margin-right: 8px;">Edit</button>
-                    <button onclick="deleteFeedback('${fb.to_user_id}')" class="btn btn-danger" style="padding: 6px 12px;">Delete</button>
+                <div class="feedback-tenets">
+                    <div class="tenet-group strengths">
+                        <div class="tenet-group-title">Strengths (${fb.strengths.length})</div>
+                        <ul class="tenet-list strengths">
+                            ${strengthTenets.map(name => `<li>${name}</li>`).join('')}
+                        </ul>
+                    </div>
+                    <div class="tenet-group improvements">
+                        <div class="tenet-group-title">Improvements (${fb.improvements.length})</div>
+                        <ul class="tenet-list improvements">
+                            ${improvementTenets.map(name => `<li>${name}</li>`).join('')}
+                        </ul>
+                    </div>
                 </div>
             </div>
         `;
