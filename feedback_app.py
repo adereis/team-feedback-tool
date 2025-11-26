@@ -468,6 +468,13 @@ def view_report(user_id):
         team_member_uid=user_id
     ).first()
 
+    # Add manager's selections to the counts (manager's input counts as +1)
+    if manager_feedback:
+        for tenet_id in manager_feedback.get_selected_strengths():
+            tenet_strengths[tenet_id] += 1
+        for tenet_id in manager_feedback.get_selected_improvements():
+            tenet_improvements[tenet_id] += 1
+
     tenets = load_tenets()
 
     # Build butterfly chart data

@@ -32,4 +32,4 @@ All development instructions and context for the Team Feedback Tool project.
 - Never commit REAL-*.csv, feedback.db, or tenets.json (see .gitignore)
 - Use tenets-sample.json as template for tenets.json
 - Port 5001 (different from bonus tool which used 5000)
-- Manager feedback highlighting doesn't affect bar lengths (peer counts only)
+- Manager selections count in butterfly chart (+1 per selected tenet)
