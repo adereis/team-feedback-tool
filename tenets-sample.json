@@ -1,0 +1,101 @@
+{
+  "version": "2025-Q4",
+  "tenets": [
+    {
+      "id": "delete_more",
+      "name": "Delete More Than You Add",
+      "category": "Craftsmanship",
+      "description": "The best code is no code. We value refactoring and simplification over complex gymnastics.",
+      "active": true
+    },
+    {
+      "id": "campfire_cleaner",
+      "name": "Leave the Campfire Cleaner",
+      "category": "Craftsmanship",
+      "description": "Every pull request should fix a typo, clarify a variable name, or improve a doc. Fight entropy daily.",
+      "active": true
+    },
+    {
+      "id": "tests_or_hallucination",
+      "name": "Tests or It's a Hallucination",
+      "category": "Craftsmanship",
+      "description": "If it isn't tested, it doesn't exist. We don't accept 'it works on my machine' as a valid defense.",
+      "active": true
+    },
+    {
+      "id": "comments_apologies",
+      "name": "Comments are Apologies",
+      "category": "Craftsmanship",
+      "description": "Write code that explains itself. If you have to write a paragraph explaining function x(), rename the function instead.",
+      "active": true
+    },
+    {
+      "id": "ship_to_learn",
+      "name": "Ship It to Learn It",
+      "category": "Velocity",
+      "description": "A feature in production is worth ten on a whiteboard. We value iteration over delayed perfection.",
+      "active": true
+    },
+    {
+      "id": "yagni",
+      "name": "YAGNI (You Ain't Gonna Need It)",
+      "category": "Velocity",
+      "description": "Don't build generic solutions for theoretical problems we might have in 2030. Solve the problem in front of you.",
+      "active": true
+    },
+    {
+      "id": "fail_fast",
+      "name": "Fail Fast, Fix Faster",
+      "category": "Velocity",
+      "description": "Breaking things is allowed, provided you fix them immediately and learn something cool from the explosion.",
+      "active": true
+    },
+    {
+      "id": "sleep_feature",
+      "name": "Sleep is a Feature",
+      "category": "Reliability",
+      "description": "We engineer systems so that nobody gets paged at 3 AM. If the system requires a human hero, the system is broken.",
+      "active": true
+    },
+    {
+      "id": "automate_job",
+      "name": "Automate Yourself Out of a Job",
+      "category": "Reliability",
+      "description": "If you have to do it twice, write a script. If you have to do it three times, write a controller.",
+      "active": true
+    },
+    {
+      "id": "cattle_not_pets",
+      "name": "Treat Servers Like Cattle, Not Pets",
+      "category": "Reliability",
+      "description": "Don't give your servers cute names and nurse them back to health. If they get sick, replace them.",
+      "active": true
+    },
+    {
+      "id": "rubber_duck",
+      "name": "Be a Rubber Duck",
+      "category": "Collaboration",
+      "description": "Be available to listen to your peers. Sometimes the best way to debug is just to explain the problem to a human statue.",
+      "active": true
+    },
+    {
+      "id": "blame_process",
+      "name": "Blame the Process, Not the Person",
+      "category": "Collaboration",
+      "description": "If Ty Po took down production, don't yell at Ty. Ask why the CI/CD pipeline let Ty do that.",
+      "active": true
+    },
+    {
+      "id": "strong_opinions",
+      "name": "Strong Opinions, Loosely Held",
+      "category": "Collaboration",
+      "description": "Argue passionately for your solution, but be the first to change your mind when better data shows up.",
+      "active": true
+    }
+  ],
+  "selection_config": {
+    "strengths_count": 3,
+    "improvement_count": 3,
+    "allow_duplicates": false
+  }
+}

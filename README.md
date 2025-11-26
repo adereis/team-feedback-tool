@@ -1,0 +1,267 @@
+# Team Feedback Tool
+
+A privacy-focused local web application for collecting and aggregating peer feedback based on team tenets.
+
+## Overview
+
+This tool enables teams to:
+- **Individuals**: Provide structured feedback to colleagues using team tenets
+- **Managers**: Aggregate anonymous peer feedback, add their own insights, and generate reports
+
+All data stays local—no cloud sync, no external dependencies.
+
+## Features
+
+### For Individuals
+- Select 3 tenet strengths and 2-3 areas for improvement for each colleague
+- Two-column compact tenet layout for faster selection
+- Auto-save with 2-second debounce (no manual save needed)
+- Visual progress checklist (yellow → green when complete)
+- Export feedback as CSV files (one per manager)
+- Browser-based downloads (no server-side files)
+- Support for external feedback providers (not in orgchart)
+
+### For Managers
+- One-time identity selection with session persistence
+- Direct URL access: `http://localhost:5001/manager/[your-user-id]`
+- Import feedback CSVs from team members
+- Sortable team table (name, job title, feedback count)
+- Butterfly chart visualization of aggregated peer feedback
+- Highlight specific tenets for emphasis in reports
+- Add manager's own feedback and comments
+- Export PDF reports (browser print-to-PDF)
+- Anonymous peer feedback display
+
+## Quick Start
+
+### 1. Generate Sample Data
+
+Try the tool with fictitious data:
+
+```bash
+# Generate large org (50 employees, 5 managers) with ~80% feedback coverage
+python3 create_sample_feedback_data.py --large --with-feedback
+
+# Import the generated orgchart
+python3 import_orgchart.py sample-feedback-orgchart-large.csv
+
+# Start the app
+python3 feedback_app.py
+```
+
+Access at: http://localhost:5001
+
+Sample managers include: Della Gate (dgate), Rhoda Map (rmap), Kay P. Eye (keye), Agie Enda (aenda), Mai Stone (mstone)
+
+### 2. Use with Real Data
+
+```bash
+# Import your organization's data
+python3 import_orgchart.py REAL-orgchart-export.csv
+
+# Start the application
+python3 feedback_app.py
+```
+
+## Workflows
+
+### Individual Workflow
+
+1. Visit http://localhost:5001
+2. Click "Start Giving Feedback"
+3. Select your name (or enter custom ID if not in orgchart)
+4. For each colleague:
+   - Select their name from the organized dropdown
+   - Choose exactly 3 tenet strengths
+   - Choose 2-3 tenets for improvement
+   - Add text explanations
+   - Auto-saves after 2 seconds (watch for "✓ Saved")
+5. Click "Export Feedback CSVs"
+6. Download CSV for each manager
+7. Share CSVs with respective managers
+
+### Manager Workflow
+
+1. **First Time**: Visit http://localhost:5001/manager
+   - Select your name from the dropdown
+   - Bookmark the direct URL for future use
+2. **Subsequent Visits**: Go directly to http://localhost:5001/manager/[your-user-id]
+3. Import feedback CSVs received from team members
+4. Click on team member names to view their reports
+5. Review the butterfly chart (aggregated peer feedback)
+6. Select tenets to highlight (shown with brighter colors)
+7. Add your own feedback text
+8. Auto-saves after 2 seconds
+9. Export PDF using browser's Print feature
+
+## Requirements
+
+```bash
+pip install flask sqlalchemy
+```
+
+Or install from requirements.txt:
+```bash
+pip install -r requirements.txt
+```
+
+## CSV Formats
+
+### Orgchart Import Format
+
+```csv
+Name,User ID,Job Title,Location,Email,Manager UID
+Paige Duty,pduty,Staff SRE,RH - Boston,pduty@example.com,dgate
+Della Gate,dgate,Engineering Manager,RH - Raleigh,dgate@example.com,
+```
+
+### Feedback Export Format
+
+```csv
+From User ID,To User ID,Strengths (Tenet IDs),Improvements (Tenet IDs),Strengths Text,Improvements Text
+pduty,llatency,"ownership,quality,collaboration","communication,innovation","Lee excels...","I see opportunities..."
+```
+
+## Tenets Configuration
+
+The application looks for tenets in this order:
+1. `tenets.json` (your organization's customized tenets)
+2. `tenets-sample.json` (fallback with tech-themed examples)
+
+To customize tenets for your organization:
+
+```bash
+# Copy the sample file
+cp tenets-sample.json tenets.json
+
+# Edit tenets.json with your organization's values
+# (This file is in .gitignore, so it stays private)
+```
+
+Tenet format:
+
+```json
+{
+  "tenets": [
+    {
+      "id": "ownership",
+      "name": "Ownership & Accountability",
+      "description": "Takes responsibility for outcomes",
+      "active": true
+    }
+  ]
+}
+```
+
+Set `"active": false` to temporarily disable a tenet without deleting it.
+
+## Architecture
+
+- **Flask**: Web framework (port 5001)
+- **SQLAlchemy**: ORM for database operations
+- **SQLite**: Local database (feedback.db)
+- **Jinja2**: Template engine
+- **Chart.js**: Butterfly chart visualizations
+- **Vanilla JavaScript**: No frameworks, simple and maintainable
+
+### Database Schema
+
+**persons**: Imported from orgchart
+- user_id (PK), name, job_title, location, email, manager_uid (FK)
+
+**feedback**: Peer feedback entries
+- id (PK), from_user_id (FK), to_user_id (FK)
+- strengths (JSON array of tenet IDs)
+- improvements (JSON array of tenet IDs)
+- strengths_text, improvements_text
+
+**manager_feedback**: Manager's feedback
+- id (PK), manager_uid (FK), team_member_uid (FK)
+- selected_strengths, selected_improvements (JSON arrays)
+- feedback_text
+
+## Privacy & Security
+
+- **Local-first**: All data stays on your machine
+- **No authentication**: Designed for single-user local execution
+- **No telemetry**: No external API calls or cloud sync
+- **Anonymous peer feedback**: Manager reports don't show who gave feedback
+- **CSV includes provider ID**: For accountability during collection
+- **.gitignore**: Protects REAL-*.csv, feedback.db, tenets.json
+
+## Development
+
+### Project Structure
+
+```
+.
+├── feedback_app.py              # Flask application
+├── feedback_models.py           # SQLAlchemy models
+├── import_orgchart.py           # CSV import utility
+├── create_sample_feedback_data.py  # Sample data generator
+├── feedback_templates/          # Jinja2 templates
+│   ├── base.html
+│   ├── index.html
+│   ├── individual_feedback.html
+│   ├── manager_select.html
+│   ├── manager_dashboard.html
+│   ├── export_list.html
+│   └── report.html
+├── tenets-sample.json           # Sample tenets configuration
+├── FEEDBACK_QUICKSTART.md       # Quick reference guide
+└── README.md                    # This file
+```
+
+### Auto-Save Pattern
+
+Used consistently across the application:
+- 2-second debounce on all changes
+- Visual "✓ Saved" indicator
+- Silent error handling (logs to console)
+- No manual save buttons or popups
+
+### UI Patterns
+
+- **Two-column layout**: Compact tenet selectors
+- **Sortable tables**: Click headers to sort (↑↓)
+- **Context banners**: Show current user/manager identity
+- **Progress indicators**: Checklist with yellow → green states
+- **Inline editing**: No separate forms or modals
+
+## Troubleshooting
+
+**Port conflict**
+- Feedback tool uses port 5001
+- Change in feedback_app.py if needed: `app.run(port=5002)`
+
+**No managers found**
+- Make sure orgchart CSV has people with direct reports
+- Managers are auto-detected (people referenced in Manager UID column)
+
+**Auto-save not working**
+- Check browser console for errors
+- Verify JavaScript is enabled
+- Try hard refresh: Ctrl+Shift+R
+
+**Butterfly chart not rendering**
+- Check browser console for JavaScript errors
+- Verify Chart.js CDN is accessible
+- Try clearing browser cache
+
+**Database locked**
+- Close any other processes using feedback.db
+- Restart the Flask app
+
+## Contributing
+
+This tool was developed with AI assistance (Claude Code by Anthropic) to accelerate development while maintaining code quality.
+
+## License
+
+MIT License - See LICENSE file for details
+
+## Acknowledgments
+
+- Sample employee names are tech-themed puns for demo purposes
+- Butterfly chart pattern adapted from performance analytics tools
+- Built with Flask, SQLAlchemy, and Chart.js

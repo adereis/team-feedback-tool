@@ -1,0 +1,323 @@
+{% extends "base.html" %}
+
+{% block title %}Feedback Report - {{ team_member.name }}{% endblock %}
+{% block header %}Feedback Report{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .tenet-selector {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+        gap: 10px;
+        margin-bottom: 20px;
+    }
+
+    .tenet-item {
+        border: 2px solid #ddd;
+        border-radius: 6px;
+        padding: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .tenet-item:hover {
+        border-color: #667eea;
+        background: #f8f9ff;
+    }
+
+    .tenet-item.selected-strength {
+        border-color: #28a745;
+        background: #d4edda;
+    }
+
+    .tenet-item.selected-improvement {
+        border-color: #dc3545;
+        background: #f8d7da;
+    }
+
+    .feedback-text-item {
+        background: #f8f9fa;
+        padding: 12px;
+        border-radius: 6px;
+        margin-bottom: 10px;
+        border-left: 4px solid #667eea;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <a href="/manager" class="btn btn-secondary" style="margin-bottom: 16px;">← Back to Dashboard</a>
+
+    <h2>{{ team_member.name }}</h2>
+    <p style="color: #666; margin-bottom: 20px;">
+        {{ team_member.job_title }} | {{ team_member.email }}
+    </p>
+
+    <div class="info-box">
+        <strong>{{ feedbacks|length }} peer feedback(s) received</strong>
+    </div>
+</div>
+
+<div class="card">
+    <h2>Team Tenets - Butterfly Chart</h2>
+    <p style="margin-bottom: 20px; color: #666;">
+        Aggregated feedback from all peers. Strengths shown in green (right), improvements in red (left).
+    </p>
+    <div id="butterflyChart"></div>
+</div>
+
+<div class="card">
+    <h2>Peer Feedback Comments</h2>
+
+    <h3>Strengths</h3>
+    {% if feedbacks|length == 0 %}
+    <p style="color: #999;">No feedback received yet.</p>
+    {% else %}
+    {% for fb in feedbacks %}
+    {% if fb.strengths_text %}
+    <div class="feedback-text-item">
+        {{ fb.strengths_text }}
+    </div>
+    {% endif %}
+    {% endfor %}
+    {% endif %}
+
+    <h3 style="margin-top: 24px;">Areas for Improvement</h3>
+    {% for fb in feedbacks %}
+    {% if fb.improvements_text %}
+    <div class="feedback-text-item">
+        {{ fb.improvements_text }}
+    </div>
+    {% endif %}
+    {% endfor %}
+</div>
+
+<div class="card">
+    <h2>Your Feedback (Manager)</h2>
+    <p style="margin-bottom: 16px; color: #666;">
+        Select tenets to highlight in the report and add your own feedback text.
+    </p>
+
+    <h3>Select Strengths to Highlight</h3>
+    <div id="managerStrengthsSelector" class="tenet-selector"></div>
+
+    <h3>Select Improvements to Highlight</h3>
+    <div id="managerImprovementsSelector" class="tenet-selector"></div>
+
+    <div class="form-group">
+        <label>Your Feedback Text</label>
+        <textarea id="managerFeedbackText" placeholder="Write your feedback for this team member...">{{ manager_feedback.feedback_text if manager_feedback else '' }}</textarea>
+    </div>
+
+    <button onclick="saveManagerFeedback()" class="btn">Save Manager Feedback</button>
+</div>
+
+<div class="card">
+    <h2>Export Report</h2>
+    <p style="margin-bottom: 16px;">
+        Generate a PDF report with the butterfly chart and all feedback (peer feedback anonymous, your feedback attributed).
+    </p>
+    <button onclick="exportPDF()" class="btn">Export PDF Report (Coming Soon)</button>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script>
+const butterflyData = {{ butterfly_data | tojson }};
+const tenets = {{ tenets | tojson }};
+const teamMemberId = "{{ team_member.user_id }}";
+
+let managerSelectedStrengths = {{ manager_feedback.selected_strengths if manager_feedback else [] | tojson }};
+let managerSelectedImprovements = {{ manager_feedback.selected_improvements if manager_feedback else [] | tojson }};
+
+// Render butterfly chart
+function renderButterflyChart() {
+    const container = document.getElementById('butterflyChart');
+    container.innerHTML = '';
+
+    const maxValue = Math.max(
+        ...butterflyData.map(t => Math.max(t.strength_count, t.improvement_count))
+    );
+
+    butterflyData.forEach((tenet, index) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display: grid; grid-template-columns: 1fr 300px 1fr; gap: 8px; align-items: center; margin-bottom: 4px; padding: 2px 0;';
+
+        // Left - Improvements (red)
+        const improvementDiv = document.createElement('div');
+        improvementDiv.style.cssText = 'text-align: right;';
+        const improvementCanvas = document.createElement('canvas');
+        improvementCanvas.id = `improvement-${index}`;
+        improvementCanvas.height = 25;
+        improvementDiv.appendChild(improvementCanvas);
+
+        // Center - Tenet name
+        const labelDiv = document.createElement('div');
+        labelDiv.style.cssText = 'font-weight: 600; color: #2c3e50; padding: 0 10px; text-align: center; overflow: hidden; text-overflow: ellipsis; font-size: 14px;';
+
+        // Highlight if manager selected
+        const isStrengthSelected = managerSelectedStrengths.includes(tenet.id);
+        const isImprovementSelected = managerSelectedImprovements.includes(tenet.id);
+
+        if (isStrengthSelected || isImprovementSelected) {
+            labelDiv.style.cssText += ' background: #fff3cd; border: 2px solid #ffc107; border-radius: 4px; padding: 4px 10px;';
+        }
+
+        labelDiv.textContent = tenet.name;
+
+        // Right - Strengths (green)
+        const strengthDiv = document.createElement('div');
+        strengthDiv.style.cssText = 'text-align: left;';
+        const strengthCanvas = document.createElement('canvas');
+        strengthCanvas.id = `strength-${index}`;
+        strengthCanvas.height = 25;
+        strengthDiv.appendChild(strengthCanvas);
+
+        row.appendChild(improvementDiv);
+        row.appendChild(labelDiv);
+        row.appendChild(strengthDiv);
+        container.appendChild(row);
+
+        // Create charts
+        new Chart(improvementCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: [''],
+                datasets: [{
+                    data: [tenet.improvement_count],
+                    backgroundColor: isImprovementSelected ? '#ff6b6b' : '#dc3545',
+                    borderColor: isImprovementSelected ? '#ff0000' : '#c82333',
+                    borderWidth: isImprovementSelected ? 3 : 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {legend: {display: false}, tooltip: {enabled: true}},
+                scales: {
+                    x: {reverse: true, max: maxValue, display: true, grid: {display: false}},
+                    y: {display: false}
+                }
+            }
+        });
+
+        new Chart(strengthCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: [''],
+                datasets: [{
+                    data: [tenet.strength_count],
+                    backgroundColor: isStrengthSelected ? '#51cf66' : '#28a745',
+                    borderColor: isStrengthSelected ? '#00ff00' : '#1e7e34',
+                    borderWidth: isStrengthSelected ? 3 : 1
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {legend: {display: false}, tooltip: {enabled: true}},
+                scales: {
+                    x: {max: maxValue, display: true, grid: {display: false}},
+                    y: {display: false}
+                }
+            }
+        });
+    });
+}
+
+// Render manager tenet selectors
+function renderManagerTenetSelectors() {
+    const strengthsDiv = document.getElementById('managerStrengthsSelector');
+    const improvementsDiv = document.getElementById('managerImprovementsSelector');
+
+    strengthsDiv.innerHTML = '';
+    improvementsDiv.innerHTML = '';
+
+    tenets.forEach(tenet => {
+        // Strength selector
+        const strengthItem = document.createElement('div');
+        strengthItem.className = 'tenet-item';
+        if (managerSelectedStrengths.includes(tenet.id)) {
+            strengthItem.classList.add('selected-strength');
+        }
+        strengthItem.innerHTML = `
+            <div class="tenet-name">${tenet.name}</div>
+            <div class="tenet-description" style="font-size: 12px; color: #666;">${tenet.description}</div>
+        `;
+        strengthItem.onclick = () => toggleManagerStrength(tenet.id);
+        strengthsDiv.appendChild(strengthItem);
+
+        // Improvement selector
+        const improvementItem = document.createElement('div');
+        improvementItem.className = 'tenet-item';
+        if (managerSelectedImprovements.includes(tenet.id)) {
+            improvementItem.classList.add('selected-improvement');
+        }
+        improvementItem.innerHTML = `
+            <div class="tenet-name">${tenet.name}</div>
+            <div class="tenet-description" style="font-size: 12px; color: #666;">${tenet.description}</div>
+        `;
+        improvementItem.onclick = () => toggleManagerImprovement(tenet.id);
+        improvementsDiv.appendChild(improvementItem);
+    });
+}
+
+function toggleManagerStrength(tenetId) {
+    const index = managerSelectedStrengths.indexOf(tenetId);
+    if (index > -1) {
+        managerSelectedStrengths.splice(index, 1);
+    } else {
+        managerSelectedStrengths.push(tenetId);
+    }
+    renderManagerTenetSelectors();
+    renderButterflyChart();
+}
+
+function toggleManagerImprovement(tenetId) {
+    const index = managerSelectedImprovements.indexOf(tenetId);
+    if (index > -1) {
+        managerSelectedImprovements.splice(index, 1);
+    } else {
+        managerSelectedImprovements.push(tenetId);
+    }
+    renderManagerTenetSelectors();
+    renderButterflyChart();
+}
+
+function saveManagerFeedback() {
+    const data = {
+        team_member_uid: teamMemberId,
+        selected_strengths: managerSelectedStrengths,
+        selected_improvements: managerSelectedImprovements,
+        feedback_text: document.getElementById('managerFeedbackText').value
+    };
+
+    fetch('/api/manager-feedback', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(data)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            alert('Manager feedback saved!');
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+}
+
+function exportPDF() {
+    alert('PDF export will be implemented next. For now, you can use your browser\'s Print to PDF feature.');
+}
+
+// Initialize
+renderButterflyChart();
+renderManagerTenetSelectors();
+</script>
+{% endblock %}

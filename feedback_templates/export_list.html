@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+
+{% block title %}Export Feedback{% endblock %}
+{% block header %}Export Feedback{% endblock %}
+
+{% block content %}
+<div class="card">
+    <a href="/individual" class="btn btn-secondary" style="margin-bottom: 16px;">← Back to Feedback</a>
+
+    <h2>Download Feedback CSVs</h2>
+    <p style="margin-bottom: 20px;">
+        Click to download a CSV file for each manager. Share each file with the respective manager.
+    </p>
+
+    <table>
+        <thead>
+            <tr>
+                <th>Manager</th>
+                <th>Feedback Count</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in export_list %}
+            <tr>
+                <td><strong>{{ item.manager_name }}</strong> ({{ item.manager_uid }})</td>
+                <td>{{ item.feedback_count }} feedback(s)</td>
+                <td>
+                    <a href="/individual/export/{{ item.manager_uid }}" class="btn" style="padding: 6px 16px;">
+                        Download CSV
+                    </a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

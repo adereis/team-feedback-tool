@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+
+{% block title %}Manager Dashboard{% endblock %}
+{% block header %}Manager Dashboard{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Select Manager Identity</h2>
+    <div class="form-group">
+        <label>Who are you?</label>
+        <select id="managerSelect" onchange="setManager()">
+            <option value="">-- Select your name --</option>
+            {% for person in all_people %}
+            <option value="{{ person.user_id }}" {% if manager and manager.user_id == person.user_id %}selected{% endif %}>
+                {{ person.name }} ({{ person.user_id }})
+            </option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+{% if manager %}
+<div class="card">
+    <h2>Import Feedback</h2>
+    <p style="margin-bottom: 16px;">Upload CSV files that individuals have shared with you.</p>
+
+    <div class="form-group">
+        <input type="file" id="feedbackFile" accept=".csv" />
+    </div>
+    <button onclick="importFeedback()" class="btn">Import Feedback CSV</button>
+    <div id="importStatus" style="margin-top: 12px;"></div>
+</div>
+
+<div class="card">
+    <h2>Your Team</h2>
+
+    {% if team_members|length == 0 %}
+    <p style="color: #999;">No team members found. Make sure the orgchart has been imported correctly.</p>
+    {% else %}
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Job Title</th>
+                <th>Feedback Count</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for member in team_members %}
+            <tr>
+                <td><strong>{{ member.name }}</strong></td>
+                <td>{{ member.job_title }}</td>
+                <td>{{ member.feedback_count }} feedback(s)</td>
+                <td>
+                    <a href="/manager/report/{{ member.user_id }}" class="btn" style="padding: 6px 16px;">View Report</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+function setManager() {
+    const managerId = document.getElementById('managerSelect').value;
+    if (!managerId) return;
+
+    fetch('/api/set-manager', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({manager_uid: managerId})
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            location.reload();
+        } else {
+            alert('Error: ' + data.error);
+        }
+    });
+}
+
+function importFeedback() {
+    const fileInput = document.getElementById('feedbackFile');
+    const file = fileInput.files[0];
+
+    if (!file) {
+        alert('Please select a file');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', file);
+
+    document.getElementById('importStatus').innerHTML = '<p>Importing...</p>';
+
+    fetch('/manager/import', {
+        method: 'POST',
+        body: formData
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            document.getElementById('importStatus').innerHTML =
+                `<div class="success-message">✓ Imported ${data.count} feedback entries</div>`;
+            setTimeout(() => location.reload(), 2000);
+        } else {
+            document.getElementById('importStatus').innerHTML =
+                `<div class="error-message">Error: ${data.error}</div>`;
+        }
+    })
+    .catch(err => {
+        document.getElementById('importStatus').innerHTML =
+            `<div class="error-message">Error: ${err.message}</div>`;
+    });
+}
+</script>
+{% endblock %}
