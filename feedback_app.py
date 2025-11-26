@@ -44,24 +44,29 @@ def index():
 @app.route('/individual')
 def individual_feedback():
     """Individual feedback collection page"""
-    session = init_db()
-
-    # Get current user from session (or set default for testing)
     current_user_id = flask_session.get('user_id')
-    current_user = None
 
-    if current_user_id:
-        current_user = session.query(Person).filter_by(user_id=current_user_id).first()
-        # If not in database, create a mock user object
-        if not current_user:
-            current_user = type('obj', (object,), {
-                'user_id': current_user_id,
-                'name': current_user_id,
-                'email': '',
-                'job_title': 'External'
-            })
+    # If no user selected, show selection page
+    if not current_user_id:
+        session = init_db()
+        all_people = session.query(Person).order_by(Person.name).all()
+        session.close()
+        return render_template('individual_select.html', all_people=[p.to_dict() for p in all_people])
 
-    # Get all people (for selection)
+    # User selected - show feedback page
+    session = init_db()
+    current_user = session.query(Person).filter_by(user_id=current_user_id).first()
+
+    # If not in database, create a mock user object (external provider)
+    if not current_user:
+        current_user = type('obj', (object,), {
+            'user_id': current_user_id,
+            'name': current_user_id,
+            'email': '',
+            'job_title': 'External'
+        })
+
+    # Get all people (for feedback recipients)
     all_people = session.query(Person).order_by(Person.name).all()
 
     # Group people by manager for organized dropdown
@@ -110,6 +115,21 @@ def individual_feedback():
         existing_feedback=[f.to_dict() for f in existing_feedback],
         tenets=tenets
     )
+
+
+@app.route('/individual/<user_id>')
+def individual_login(user_id):
+    """Direct individual login via URL - sets session and redirects to feedback page"""
+    # Allow any user_id (even if not in database) for external providers
+    flask_session['user_id'] = user_id
+    return redirect('/individual')
+
+
+@app.route('/individual/switch')
+def individual_switch():
+    """Clear user session and return to selection"""
+    flask_session.pop('user_id', None)
+    return redirect('/individual')
 
 
 @app.route('/api/set-user', methods=['POST'])
@@ -227,16 +247,25 @@ def export_feedback_list():
     for feedback in feedbacks:
         receiver = session.query(Person).filter_by(user_id=feedback.to_user_id).first()
         if receiver and receiver.manager_uid:
-            feedback_by_manager[receiver.manager_uid].append(feedback)
+            feedback_by_manager[receiver.manager_uid].append({
+                'feedback': feedback,
+                'receiver': receiver
+            })
 
-    # Build list of managers with feedback counts
+    # Build list of managers with feedback counts and associate names
     export_list = []
     for manager_uid, feedback_list in feedback_by_manager.items():
         manager = session.query(Person).filter_by(user_id=manager_uid).first()
+
+        # Get list of unique associates (receivers)
+        associates = list({item['receiver'].name for item in feedback_list})
+        associates.sort()
+
         export_list.append({
             'manager_uid': manager_uid,
             'manager_name': manager.name if manager else manager_uid,
-            'feedback_count': len(feedback_list)
+            'feedback_count': len(feedback_list),
+            'associates': associates
         })
 
     session.close()

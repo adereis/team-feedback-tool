@@ -43,6 +43,18 @@
         background: #f8d7da;
     }
 
+    .tenet-item.disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        background: #f5f5f5;
+        border-color: #ccc;
+    }
+
+    .tenet-item.disabled:hover {
+        border-color: #ccc;
+        background: #f5f5f5;
+    }
+
     .tenet-name {
         font-weight: 600;
         margin-bottom: 2px;
@@ -156,13 +168,6 @@
         padding-left: 24px;
     }
 
-    .custom-user-input {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 10px;
-        margin-top: 10px;
-    }
-
     .save-indicator {
         display: inline-block;
         margin-left: 12px;
@@ -245,48 +250,20 @@
 {% endblock %}
 
 {% block content %}
-{% if current_user %}
 <div class="user-context">
-    <strong>Providing feedback as:</strong>
-    {% if current_user.name %}
-        {{ current_user.name }} ({{ current_user.user_id }})
-    {% else %}
-        {{ current_user.user_id }}
-    {% endif %}
-</div>
-{% endif %}
-
-<div class="card">
-    <h2>Select Your Identity</h2>
-    <div class="form-group">
-        <label>Who are you?</label>
-        <select id="userSelect" onchange="handleUserSelection()">
-            <option value="">-- Select your name --</option>
-            <option value="__CUSTOM__">[ Not in list - Enter custom ID ]</option>
-            {% for person in all_people %}
-            <option value="{{ person.user_id }}" {% if current_user and current_user.user_id == person.user_id %}selected{% endif %}>
-                {{ person.name }} ({{ person.user_id }})
-            </option>
-            {% endfor %}
-        </select>
-    </div>
-
-    <div id="customUserInput" class="custom-user-input" style="display: none;">
-        <div class="form-group">
-            <label>Your User ID</label>
-            <input type="text" id="customUserId" placeholder="e.g., jdoe">
+    <div style="display: flex; justify-content: space-between; align-items: center;">
+        <div>
+            <strong>Providing feedback as:</strong>
+            {% if current_user.name %}
+                {{ current_user.name }} ({{ current_user.user_id }})
+            {% else %}
+                {{ current_user.user_id }}
+            {% endif %}
         </div>
-        <div class="form-group">
-            <label>Your Name (optional)</label>
-            <input type="text" id="customUserName" placeholder="e.g., John Doe">
-        </div>
-        <div style="grid-column: 1 / -1;">
-            <button onclick="setCustomUser()" class="btn">Confirm Identity</button>
-        </div>
+        <a href="/individual/switch" style="color: #667eea; text-decoration: none; font-size: 13px;">Switch User</a>
     </div>
 </div>
 
-{% if current_user %}
 <div class="card">
     <h2>Provide Feedback</h2>
     <p style="margin-bottom: 20px;">
@@ -295,14 +272,15 @@
     </p>
 
     <div class="form-group">
-        <label>Select Colleague</label>
+        <label>Select Colleague <span style="color: #666; font-weight: normal; font-size: 12px;">(✓ feedback provided, ○ pending)</span></label>
         <select id="colleagueSelect" onchange="selectColleague()">
             <option value="">-- Select someone to give feedback to --</option>
             {% for manager_group in people_by_manager %}
             <optgroup label="{{ manager_group.manager_name }}">
                 {% for person in manager_group.people %}
                 {% if not current_user or person.user_id != current_user.user_id %}
-                <option value="{{ person.user_id }}">{{ person.name }} - {{ person.job_title }}</option>
+                {% set has_feedback = existing_feedback|selectattr('to_user_id', 'equalto', person.user_id)|list|length > 0 %}
+                <option value="{{ person.user_id }}">{% if has_feedback %}✓{% else %}○{% endif %} {{ person.name }} - {{ person.job_title }}</option>
                 {% endif %}
                 {% endfor %}
             </optgroup>
@@ -370,7 +348,6 @@
         <a href="/individual/export-list" class="btn">Export Feedback CSVs</a>
     </div>
 </div>
-{% endif %}
 
 {% endblock %}
 
@@ -403,48 +380,6 @@ let selectedStrengths = [];
 let selectedImprovements = [];
 let autoSaveTimer = null;
 
-function handleUserSelection() {
-    const select = document.getElementById('userSelect');
-    const value = select.value;
-
-    if (value === '__CUSTOM__') {
-        document.getElementById('customUserInput').style.display = 'grid';
-    } else if (value) {
-        document.getElementById('customUserInput').style.display = 'none';
-        setUser(value);
-    } else {
-        document.getElementById('customUserInput').style.display = 'none';
-    }
-}
-
-function setCustomUser() {
-    const userId = document.getElementById('customUserId').value.trim();
-    const userName = document.getElementById('customUserName').value.trim();
-
-    if (!userId) {
-        alert('Please enter a User ID');
-        return;
-    }
-
-    setUser(userId);
-}
-
-function setUser(userId) {
-    fetch('/api/set-user', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({user_id: userId})
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Error: ' + data.error);
-        }
-    });
-}
-
 function renderTenets() {
     const strengthsDiv = document.getElementById('strengthsSelector');
     const improvementsDiv = document.getElementById('improvementsSelector');
@@ -459,6 +394,10 @@ function renderTenets() {
         if (selectedStrengths.includes(tenet.id)) {
             strengthItem.classList.add('selected-strength');
         }
+        // Disable if already selected as improvement
+        if (selectedImprovements.includes(tenet.id)) {
+            strengthItem.classList.add('disabled');
+        }
         strengthItem.innerHTML = `
             <div class="tenet-name">${tenet.name}</div>
             <div class="tenet-description">${tenet.description}</div>
@@ -471,6 +410,10 @@ function renderTenets() {
         improvementItem.className = 'tenet-item';
         if (selectedImprovements.includes(tenet.id)) {
             improvementItem.classList.add('selected-improvement');
+        }
+        // Disable if already selected as strength
+        if (selectedStrengths.includes(tenet.id)) {
+            improvementItem.classList.add('disabled');
         }
         improvementItem.innerHTML = `
             <div class="tenet-name">${tenet.name}</div>
@@ -486,6 +429,11 @@ function toggleStrength(tenetId) {
     if (index > -1) {
         selectedStrengths.splice(index, 1);
     } else {
+        // Check if already selected as improvement
+        if (selectedImprovements.includes(tenetId)) {
+            // Don't allow selecting same tenet for both
+            return;
+        }
         if (selectedStrengths.length < 3) {
             selectedStrengths.push(tenetId);
         } else {
@@ -503,6 +451,11 @@ function toggleImprovement(tenetId) {
     if (index > -1) {
         selectedImprovements.splice(index, 1);
     } else {
+        // Check if already selected as strength
+        if (selectedStrengths.includes(tenetId)) {
+            // Don't allow selecting same tenet for both
+            return;
+        }
         if (selectedImprovements.length < 3) {
             selectedImprovements.push(tenetId);
         } else {
@@ -596,6 +549,26 @@ function saveFeedback() {
     });
 }
 
+function updateColleagueDropdownIndicators() {
+    // Update the checkmarks/circles in the colleague dropdown
+    const select = document.getElementById('colleagueSelect');
+    const options = select.querySelectorAll('option[value]');
+
+    options.forEach(option => {
+        const userId = option.value;
+        if (!userId) return; // Skip the placeholder option
+
+        const hasFeedback = existingFeedback.some(f => f.to_user_id === userId);
+        const text = option.textContent;
+
+        // Remove any existing indicator
+        const cleanText = text.replace(/^[✓○]\s/, '');
+
+        // Add appropriate indicator
+        option.textContent = (hasFeedback ? '✓' : '○') + ' ' + cleanText;
+    });
+}
+
 function updateFeedbackList() {
     // Update the existing feedback entry in the list without full page reload
     const existing = existingFeedback.find(f => f.to_user_id === selectedColleague);
@@ -618,6 +591,7 @@ function updateFeedbackList() {
     }
 
     renderFeedbackList();
+    updateColleagueDropdownIndicators();
 }
 
 function renderFeedbackList() {
@@ -775,6 +749,7 @@ function deleteFeedback(userId) {
                 existingFeedback.splice(index, 1);
             }
             renderFeedbackList();
+            updateColleagueDropdownIndicators();
         }
     });
 }
@@ -782,6 +757,7 @@ function deleteFeedback(userId) {
 // Initialize feedback list rendering on page load
 if (existingFeedback.length > 0) {
     renderFeedbackList();
+    updateColleagueDropdownIndicators();
 }
 </script>
 {% endblock %}

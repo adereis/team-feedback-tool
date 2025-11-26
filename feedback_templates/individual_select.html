@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+
+{% block title %}Individual Feedback - Team Feedback{% endblock %}
+{% block header %}Individual Feedback{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 500px; margin: 60px auto;">
+    <h2 style="text-align: center; margin-bottom: 24px;">Select Your Identity</h2>
+
+    <p style="color: #666; margin-bottom: 24px; text-align: center;">
+        Choose your name to start providing feedback to colleagues
+    </p>
+
+    <div class="form-group">
+        <label>Your Name:</label>
+        <select id="userSelect">
+            <option value="">-- Select your name --</option>
+            <option value="__CUSTOM__">[ Not in list - Enter custom ID ]</option>
+            {% for person in all_people %}
+            <option value="{{ person.user_id }}">{{ person.name }} ({{ person.user_id }})</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <div id="customUserInput" style="display: none;">
+        <div class="form-group">
+            <label>Your User ID:</label>
+            <input type="text" id="customUserId" placeholder="e.g., jdoe">
+        </div>
+        <p style="color: #999; font-size: 13px; margin-bottom: 16px;">
+            For external feedback providers not in the orgchart
+        </p>
+    </div>
+
+    <button onclick="continueAsUser()" class="btn" style="width: 100%;">Continue</button>
+
+    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; text-align: center;">
+        <p style="color: #999; font-size: 13px; margin-bottom: 8px;">
+            Tip: Bookmark your direct URL for faster access
+        </p>
+        <p style="color: #999; font-size: 12px; font-family: monospace;">
+            http://localhost:5001/individual/[your-user-id]
+        </p>
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="/" style="color: #667eea; text-decoration: none; font-size: 14px;">← Back to Home</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// Handle dropdown selection
+document.getElementById('userSelect').addEventListener('change', function() {
+    const customInput = document.getElementById('customUserInput');
+    if (this.value === '__CUSTOM__') {
+        customInput.style.display = 'block';
+    } else {
+        customInput.style.display = 'none';
+    }
+});
+
+function continueAsUser() {
+    const select = document.getElementById('userSelect');
+    let userId = select.value;
+
+    if (!userId) {
+        alert('Please select your name or enter a custom ID');
+        return;
+    }
+
+    // Handle custom ID
+    if (userId === '__CUSTOM__') {
+        userId = document.getElementById('customUserId').value.trim();
+        if (!userId) {
+            alert('Please enter your User ID');
+            return;
+        }
+    }
+
+    // Redirect to individual URL (will set session and show feedback page)
+    window.location.href = '/individual/' + userId;
+}
+
+// Allow Enter key to submit
+document.getElementById('userSelect').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        continueAsUser();
+    }
+});
+
+document.getElementById('customUserId')?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        continueAsUser();
+    }
+});
+</script>
+{% endblock %}
