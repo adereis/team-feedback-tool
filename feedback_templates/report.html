@@ -64,12 +64,44 @@
     .save-indicator.show {
         opacity: 1;
     }
+
+    .manager-context {
+        background: #e7f3ff;
+        border-left: 4px solid #2196F3;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .manager-context strong {
+        color: #1976D2;
+        font-size: 15px;
+    }
+
+    .manager-context a {
+        color: #667eea;
+        text-decoration: none;
+        font-size: 13px;
+    }
+
+    .manager-context a:hover {
+        text-decoration: underline;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
+<div class="manager-context">
+    <div>
+        <strong>Viewing report as:</strong> {{ team_member.name }}
+    </div>
+    <a href="/manager">← Back to Dashboard</a>
+</div>
+
 <div class="card">
-    <a href="/manager" class="btn btn-secondary" style="margin-bottom: 16px;">← Back to Dashboard</a>
 
     <h2>{{ team_member.name }}</h2>
     <p style="color: #666; margin-bottom: 20px;">
@@ -83,9 +115,13 @@
 
 <div class="card">
     <h2>Team Tenets - Butterfly Chart</h2>
-    <p style="margin-bottom: 20px; color: #666;">
+    <p style="margin-bottom: 12px; color: #666;">
         Aggregated feedback from all peers. Strengths shown in green (right), improvements in red (left).
     </p>
+    <div style="background: #fff3cd; border-left: 4px solid #ffc107; padding: 10px 14px; margin-bottom: 20px; border-radius: 4px; font-size: 13px;">
+        <strong>Legend:</strong> Highlighted tenets (brighter color, thicker border) were selected by your manager for emphasis.
+        The bar lengths show peer feedback counts only.
+    </div>
     <div id="butterflyChart"></div>
 </div>
 

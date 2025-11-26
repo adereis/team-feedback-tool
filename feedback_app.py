@@ -11,7 +11,7 @@ Routes:
 - /manager/export-pdf/<user_id> : Export PDF report
 """
 
-from flask import Flask, render_template, request, jsonify, send_file, session as flask_session
+from flask import Flask, render_template, request, jsonify, send_file, session as flask_session, redirect
 from feedback_models import init_db, Person, Feedback, ManagerFeedback
 import json
 import csv
@@ -304,31 +304,67 @@ def export_feedback_csv(manager_uid):
 def manager_dashboard():
     """Manager dashboard - view team and feedback"""
     manager_uid = flask_session.get('manager_uid')
+
+    # If no manager selected, show selection page
+    if not manager_uid:
+        session = init_db()
+        # Get all managers (people who have direct reports)
+        managers = session.query(Person).filter(Person.direct_reports.any()).order_by(Person.name).all()
+        session.close()
+        return render_template('manager_select.html', managers=[m.to_dict() for m in managers])
+
+    # Manager selected - show dashboard
     manager = None
     team_members = []
 
     session = init_db()
+    manager = session.query(Person).filter_by(user_id=manager_uid).first()
 
-    if manager_uid:
-        manager = session.query(Person).filter_by(user_id=manager_uid).first()
-        if manager:
-            team_members_objs = session.query(Person).filter_by(manager_uid=manager_uid).all()
+    if not manager:
+        # Invalid manager_uid in session - clear it
+        flask_session.pop('manager_uid', None)
+        session.close()
+        return redirect('/manager')
 
-            # Convert to dicts and add feedback count
-            for tm in team_members_objs:
-                tm_dict = tm.to_dict()
-                tm_dict['feedback_count'] = session.query(Feedback).filter_by(to_user_id=tm.user_id).count()
-                team_members.append(tm_dict)
+    team_members_objs = session.query(Person).filter_by(manager_uid=manager_uid).all()
 
-    all_people = session.query(Person).order_by(Person.name).all()
+    # Convert to dicts and add feedback count
+    for tm in team_members_objs:
+        tm_dict = tm.to_dict()
+        tm_dict['feedback_count'] = session.query(Feedback).filter_by(to_user_id=tm.user_id).count()
+        team_members.append(tm_dict)
+
     session.close()
 
     return render_template(
         'manager_dashboard.html',
-        manager=manager,
-        team_members=team_members,
-        all_people=[p.to_dict() for p in all_people]
+        manager=manager.to_dict(),
+        team_members=team_members
     )
+
+
+@app.route('/manager/<manager_uid>')
+def manager_login(manager_uid):
+    """Direct manager login via URL - sets session and redirects to dashboard"""
+    session = init_db()
+    manager = session.query(Person).filter_by(user_id=manager_uid).first()
+    session.close()
+
+    if not manager:
+        return "Manager not found", 404
+
+    # Set manager in session
+    flask_session['manager_uid'] = manager_uid
+
+    # Redirect to dashboard
+    return redirect('/manager')
+
+
+@app.route('/manager/switch')
+def manager_switch():
+    """Clear manager session and return to selection"""
+    flask_session.pop('manager_uid', None)
+    return redirect('/manager')
 
 
 @app.route('/api/set-manager', methods=['POST'])

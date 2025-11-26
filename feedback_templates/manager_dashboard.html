@@ -1,25 +1,76 @@
 {% extends "base.html" %}
 
-{% block title %}Manager Dashboard{% endblock %}
+{% block title %}Manager Dashboard - {{ manager.name }}{% endblock %}
 {% block header %}Manager Dashboard{% endblock %}
 
+{% block extra_styles %}
+<style>
+    .manager-context {
+        background: #e7f3ff;
+        border-left: 4px solid #2196F3;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+
+    .manager-context strong {
+        color: #1976D2;
+        font-size: 15px;
+    }
+
+    .manager-context a {
+        color: #667eea;
+        text-decoration: none;
+        font-size: 13px;
+    }
+
+    .manager-context a:hover {
+        text-decoration: underline;
+    }
+
+    th.sortable {
+        cursor: pointer;
+        user-select: none;
+        position: relative;
+        padding-right: 25px;
+    }
+
+    th.sortable:hover {
+        background: #e9ecef;
+    }
+
+    th.sortable::after {
+        content: '↕';
+        position: absolute;
+        right: 8px;
+        opacity: 0.3;
+        font-size: 12px;
+    }
+
+    th.sortable.asc::after {
+        content: '↑';
+        opacity: 1;
+    }
+
+    th.sortable.desc::after {
+        content: '↓';
+        opacity: 1;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card">
-    <h2>Select Manager Identity</h2>
-    <div class="form-group">
-        <label>Who are you?</label>
-        <select id="managerSelect" onchange="setManager()">
-            <option value="">-- Select your name --</option>
-            {% for person in all_people %}
-            <option value="{{ person.user_id }}" {% if manager and manager.user_id == person.user_id %}selected{% endif %}>
-                {{ person.name }} ({{ person.user_id }})
-            </option>
-            {% endfor %}
-        </select>
+<div class="manager-context">
+    <div>
+        <strong>Managing team for:</strong> {{ manager.name }} ({{ manager.user_id }})
+        <span style="color: #666; margin-left: 12px;">{{ team_members|length }} direct reports</span>
     </div>
+    <a href="/manager/switch">Switch Manager</a>
 </div>
 
-{% if manager %}
 <div class="card">
     <h2>Import Feedback</h2>
     <p style="margin-bottom: 16px;">Upload CSV files that individuals have shared with you.</p>
@@ -40,15 +91,15 @@
     <table>
         <thead>
             <tr>
-                <th>Name</th>
-                <th>Job Title</th>
-                <th>Feedback Count</th>
+                <th class="sortable" data-sort="name">Name</th>
+                <th class="sortable" data-sort="job">Job Title</th>
+                <th class="sortable" data-sort="feedback">Feedback Count</th>
                 <th>Actions</th>
             </tr>
         </thead>
         <tbody>
             {% for member in team_members %}
-            <tr>
+            <tr data-name="{{ member.name }}" data-job="{{ member.job_title }}" data-feedback="{{ member.feedback_count }}">
                 <td><strong>{{ member.name }}</strong></td>
                 <td>{{ member.job_title }}</td>
                 <td>{{ member.feedback_count }} feedback(s)</td>
@@ -61,31 +112,10 @@
     </table>
     {% endif %}
 </div>
-{% endif %}
-
 {% endblock %}
 
 {% block scripts %}
 <script>
-function setManager() {
-    const managerId = document.getElementById('managerSelect').value;
-    if (!managerId) return;
-
-    fetch('/api/set-manager', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({manager_uid: managerId})
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            location.reload();
-        } else {
-            alert('Error: ' + data.error);
-        }
-    });
-}
-
 function importFeedback() {
     const fileInput = document.getElementById('feedbackFile');
     const file = fileInput.files[0];
@@ -120,5 +150,61 @@ function importFeedback() {
             `<div class="error-message">Error: ${err.message}</div>`;
     });
 }
+
+// Table sorting functionality
+document.addEventListener('DOMContentLoaded', function() {
+    const headers = document.querySelectorAll('th.sortable');
+    let currentSort = { column: 'name', direction: 'asc' };
+
+    headers.forEach(header => {
+        header.addEventListener('click', function() {
+            const sortKey = this.getAttribute('data-sort');
+            sortTable(sortKey);
+        });
+    });
+
+    function sortTable(column) {
+        const table = document.querySelector('table tbody');
+        const rows = Array.from(table.querySelectorAll('tr'));
+
+        // Toggle direction if same column, otherwise default to ascending
+        if (currentSort.column === column) {
+            currentSort.direction = currentSort.direction === 'asc' ? 'desc' : 'asc';
+        } else {
+            currentSort.column = column;
+            currentSort.direction = 'asc';
+        }
+
+        // Update header classes
+        document.querySelectorAll('th.sortable').forEach(th => {
+            th.classList.remove('asc', 'desc');
+        });
+        document.querySelector(`th[data-sort="${column}"]`).classList.add(currentSort.direction);
+
+        // Sort rows
+        rows.sort((a, b) => {
+            let aVal = a.getAttribute(`data-${column}`);
+            let bVal = b.getAttribute(`data-${column}`);
+
+            // Convert to numbers for feedback count
+            if (column === 'feedback') {
+                aVal = parseInt(aVal);
+                bVal = parseInt(bVal);
+            }
+
+            if (currentSort.direction === 'asc') {
+                return aVal > bVal ? 1 : -1;
+            } else {
+                return aVal < bVal ? 1 : -1;
+            }
+        });
+
+        // Re-append rows in sorted order
+        rows.forEach(row => table.appendChild(row));
+    }
+
+    // Set initial sort indicator
+    document.querySelector('th[data-sort="name"]').classList.add('asc');
+});
 </script>
 {% endblock %}

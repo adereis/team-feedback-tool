@@ -228,10 +228,34 @@
         content: '✓';
         color: #28a745;
     }
+
+    .user-context {
+        background: #e7f3ff;
+        border-left: 4px solid #2196F3;
+        padding: 12px 16px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+        font-size: 14px;
+    }
+
+    .user-context strong {
+        color: #1976D2;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
+{% if current_user %}
+<div class="user-context">
+    <strong>Providing feedback as:</strong>
+    {% if current_user.name %}
+        {{ current_user.name }} ({{ current_user.user_id }})
+    {% else %}
+        {{ current_user.user_id }}
+    {% endif %}
+</div>
+{% endif %}
+
 <div class="card">
     <h2>Select Your Identity</h2>
     <div class="form-group">

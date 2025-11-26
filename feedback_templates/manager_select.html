@@ -1,0 +1,63 @@
+{% extends "base.html" %}
+
+{% block title %}Manager Access - Team Feedback{% endblock %}
+{% block header %}Manager Access{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 500px; margin: 60px auto;">
+    <h2 style="text-align: center; margin-bottom: 24px;">Select Your Manager Profile</h2>
+
+    <p style="color: #666; margin-bottom: 24px; text-align: center;">
+        Choose your name to access your team's feedback reports
+    </p>
+
+    <div class="form-group">
+        <label>Manager Name:</label>
+        <select id="managerSelect">
+            <option value="">-- Select your name --</option>
+            {% for manager in managers %}
+            <option value="{{ manager.user_id }}">{{ manager.name }} ({{ manager.user_id }})</option>
+            {% endfor %}
+        </select>
+    </div>
+
+    <button onclick="continueAsManager()" class="btn" style="width: 100%;">Continue</button>
+
+    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; text-align: center;">
+        <p style="color: #999; font-size: 13px; margin-bottom: 8px;">
+            Tip: Bookmark your direct URL for faster access
+        </p>
+        <p style="color: #999; font-size: 12px; font-family: monospace;">
+            http://localhost:5001/manager/[your-user-id]
+        </p>
+    </div>
+
+    <div style="margin-top: 20px; text-align: center;">
+        <a href="/" style="color: #667eea; text-decoration: none; font-size: 14px;">← Back to Home</a>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+function continueAsManager() {
+    const select = document.getElementById('managerSelect');
+    const managerUid = select.value;
+
+    if (!managerUid) {
+        alert('Please select your name');
+        return;
+    }
+
+    // Redirect to manager URL (will set session and show dashboard)
+    window.location.href = '/manager/' + managerUid;
+}
+
+// Allow Enter key to submit
+document.getElementById('managerSelect').addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+        continueAsManager();
+    }
+});
+</script>
+{% endblock %}
