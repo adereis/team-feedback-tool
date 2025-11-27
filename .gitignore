@@ -23,6 +23,12 @@ env/
 venv/
 *.egg-info/
 
+# Testing
+.pytest_cache/
+htmlcov/
+.coverage
+*.db-test
+
 # IDE
 .vscode/
 .idea/
