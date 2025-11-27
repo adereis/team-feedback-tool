@@ -643,3 +643,124 @@ class TestSessionManagement:
         with client.session_transaction() as sess:
             assert 'user_id' not in sess
             assert sess.get('manager_uid') == 'mgr001'
+
+
+class TestPDFExport:
+    """Test PDF report export functionality"""
+
+    def test_export_pdf_returns_pdf_file(self, client):
+        """Test PDF export returns PDF file with correct content type"""
+        with client.session_transaction() as sess:
+            sess['manager_uid'] = 'mgr001'
+
+        response = client.get('/manager/export-pdf/emp001')
+        assert response.status_code == 200
+        assert response.content_type == 'application/pdf'
+        assert response.headers['Content-Disposition'].startswith('attachment')
+        assert b'%PDF' in response.data  # PDF file signature
+
+    def test_export_pdf_requires_manager_session(self, client):
+        """Test PDF export requires manager session"""
+        response = client.get('/manager/export-pdf/emp001')
+        assert response.status_code == 400
+
+    def test_export_pdf_validates_team_membership(self, client):
+        """Test manager can only export PDFs for their team members"""
+        with client.session_transaction() as sess:
+            sess['manager_uid'] = 'mgr001'
+
+        # Try to export emp003 who belongs to mgr002
+        response = client.get('/manager/export-pdf/emp003')
+        assert response.status_code == 403
+
+    def test_export_pdf_includes_team_member_info(self, client):
+        """Test exported PDF filename includes team member name"""
+        with client.session_transaction() as sess:
+            sess['manager_uid'] = 'mgr001'
+
+        response = client.get('/manager/export-pdf/emp001')
+        assert response.status_code == 200
+
+        # Check filename contains sanitized name and date
+        content_disposition = response.headers['Content-Disposition']
+        assert 'Feedback_Report_' in content_disposition
+        assert '.pdf' in content_disposition
+
+    def test_butterfly_chart_generation(self):
+        """Test butterfly chart image generation"""
+        from feedback_app import generate_butterfly_chart_image
+
+        butterfly_data = [
+            {'id': 'tenet1', 'name': 'Test Tenet 1', 'strength_count': 5, 'improvement_count': 2},
+            {'id': 'tenet2', 'name': 'Test Tenet 2', 'strength_count': 3, 'improvement_count': 4},
+        ]
+
+        manager_selected_strengths = ['tenet1']
+        manager_selected_improvements = ['tenet2']
+
+        # Generate chart
+        image_base64 = generate_butterfly_chart_image(
+            butterfly_data,
+            manager_selected_strengths,
+            manager_selected_improvements
+        )
+
+        # Verify it's a valid base64 string
+        assert isinstance(image_base64, str)
+        assert len(image_base64) > 0
+
+        # Verify it can be decoded
+        import base64
+        decoded = base64.b64decode(image_base64)
+        assert len(decoded) > 0
+        assert decoded.startswith(b'\x89PNG')  # PNG file signature
+
+    def test_butterfly_chart_with_no_data(self):
+        """Test butterfly chart handles empty data gracefully"""
+        from feedback_app import generate_butterfly_chart_image
+
+        image_base64 = generate_butterfly_chart_image([], [], [])
+
+        # Should still return a valid image
+        assert isinstance(image_base64, str)
+        assert len(image_base64) > 0
+
+    def test_export_pdf_with_manager_feedback(self, client, db_session):
+        """Test PDF export includes manager feedback when present"""
+        with client.session_transaction() as sess:
+            sess['manager_uid'] = 'mgr001'
+
+        # Add manager feedback
+        mgr_feedback = ManagerFeedback(
+            manager_uid='mgr001',
+            team_member_uid='emp002',
+            feedback_text='Excellent work this quarter'
+        )
+        mgr_feedback.set_selected_strengths(['tenet1'])
+        mgr_feedback.set_selected_improvements(['tenet2'])
+        db_session.add(mgr_feedback)
+        db_session.commit()
+
+        response = client.get('/manager/export-pdf/emp002')
+        assert response.status_code == 200
+        assert response.content_type == 'application/pdf'
+
+    def test_export_pdf_without_feedback(self, client, db_session):
+        """Test PDF export works even without peer feedback"""
+        with client.session_transaction() as sess:
+            sess['manager_uid'] = 'mgr001'
+
+        # Create a new team member with no feedback
+        new_person = Person(
+            user_id='emp999',
+            name='Test Person',
+            job_title='Test Role',
+            email='test@example.com',
+            manager_uid='mgr001'
+        )
+        db_session.add(new_person)
+        db_session.commit()
+
+        response = client.get('/manager/export-pdf/emp999')
+        assert response.status_code == 200
+        assert response.content_type == 'application/pdf'

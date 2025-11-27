@@ -17,8 +17,14 @@ import json
 import csv
 import io
 import os
+import base64
 from collections import defaultdict
 from sqlalchemy import func
+from weasyprint import HTML, CSS
+import matplotlib
+matplotlib.use('Agg')  # Non-interactive backend
+import matplotlib.pyplot as plt
+from datetime import datetime
 
 app = Flask(__name__, template_folder='feedback_templates')
 app.secret_key = 'feedback-tool-secret-key-change-in-production'
@@ -576,6 +582,195 @@ def save_manager_feedback():
     session.close()
 
     return jsonify({"success": True})
+
+
+def generate_butterfly_chart_image(butterfly_data, manager_selected_strengths, manager_selected_improvements):
+    """
+    Generate butterfly chart as base64-encoded PNG image using matplotlib
+
+    Args:
+        butterfly_data: List of dicts with tenet data
+        manager_selected_strengths: List of tenet IDs selected by manager
+        manager_selected_improvements: List of tenet IDs selected by manager
+
+    Returns:
+        Base64-encoded PNG image string
+    """
+    if not butterfly_data:
+        # Return empty/placeholder image
+        fig, ax = plt.subplots(figsize=(10, 1))
+        ax.text(0.5, 0.5, 'No feedback data available', ha='center', va='center')
+        ax.axis('off')
+    else:
+        # Prepare data
+        tenet_names = [t['name'] for t in butterfly_data]
+        strength_counts = [t['strength_count'] for t in butterfly_data]
+        improvement_counts = [-t['improvement_count'] for t in butterfly_data]  # Negative for left side
+
+        # Determine which bars should be highlighted
+        strength_colors = []
+        improvement_colors = []
+
+        for t in butterfly_data:
+            is_strength_selected = t['id'] in manager_selected_strengths
+            is_improvement_selected = t['id'] in manager_selected_improvements
+
+            strength_colors.append('#51cf66' if is_strength_selected else '#28a745')
+            improvement_colors.append('#ff6b6b' if is_improvement_selected else '#dc3545')
+
+        # Create figure
+        fig_height = max(6, len(butterfly_data) * 0.4)
+        fig, ax = plt.subplots(figsize=(10, fig_height))
+
+        # Create horizontal bar chart
+        y_pos = range(len(tenet_names))
+
+        # Plot improvements (left, negative values)
+        bars_left = ax.barh(y_pos, improvement_counts, color=improvement_colors,
+                           edgecolor='black', linewidth=0.5)
+
+        # Plot strengths (right, positive values)
+        bars_right = ax.barh(y_pos, strength_counts, color=strength_colors,
+                            edgecolor='black', linewidth=0.5)
+
+        # Highlight manager-selected bars with thicker border
+        for i, t in enumerate(butterfly_data):
+            if t['id'] in manager_selected_improvements:
+                bars_left[i].set_linewidth(2.5)
+                bars_left[i].set_edgecolor('#ff0000')
+            if t['id'] in manager_selected_strengths:
+                bars_right[i].set_linewidth(2.5)
+                bars_right[i].set_edgecolor('#00ff00')
+
+        # Set labels
+        ax.set_yticks(y_pos)
+        ax.set_yticklabels(tenet_names)
+        ax.set_xlabel('Count')
+        ax.axvline(x=0, color='black', linewidth=1)
+
+        # Invert y-axis so highest scores (strengths) appear at top
+        ax.invert_yaxis()
+
+        ax.set_title('Team Tenets - Butterfly Chart\n(Strengths right, Improvements left)',
+                     fontsize=12, fontweight='bold')
+
+        plt.tight_layout()
+
+    # Convert to base64
+    buffer = io.BytesIO()
+    plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
+    buffer.seek(0)
+    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+    plt.close(fig)
+
+    return image_base64
+
+
+@app.route('/manager/export-pdf/<user_id>')
+def export_pdf_report(user_id):
+    """Export feedback report as PDF"""
+    manager_uid = flask_session.get('manager_uid')
+    if not manager_uid:
+        return "Please select your manager ID first", 400
+
+    session = init_db()
+
+    # Get team member
+    team_member = session.query(Person).filter_by(user_id=user_id).first()
+    if not team_member or team_member.manager_uid != manager_uid:
+        session.close()
+        return "Team member not found or not in your team", 403
+
+    # Get manager info
+    manager = session.query(Person).filter_by(user_id=manager_uid).first()
+
+    # Get all feedback for this person
+    feedbacks = session.query(Feedback).filter_by(to_user_id=user_id).all()
+
+    # Aggregate tenet counts
+    tenet_strengths = defaultdict(int)
+    tenet_improvements = defaultdict(int)
+
+    for fb in feedbacks:
+        for tenet_id in fb.get_strengths():
+            tenet_strengths[tenet_id] += 1
+        for tenet_id in fb.get_improvements():
+            tenet_improvements[tenet_id] += 1
+
+    # Get manager's own feedback
+    manager_feedback = session.query(ManagerFeedback).filter_by(
+        manager_uid=manager_uid,
+        team_member_uid=user_id
+    ).first()
+
+    # Add manager's selections to the counts
+    manager_selected_strengths = []
+    manager_selected_improvements = []
+
+    if manager_feedback:
+        manager_selected_strengths = manager_feedback.get_selected_strengths()
+        manager_selected_improvements = manager_feedback.get_selected_improvements()
+
+        for tenet_id in manager_selected_strengths:
+            tenet_strengths[tenet_id] += 1
+        for tenet_id in manager_selected_improvements:
+            tenet_improvements[tenet_id] += 1
+
+    tenets = load_tenets()
+
+    # Build butterfly chart data
+    butterfly_data = []
+    for tenet in tenets:
+        butterfly_data.append({
+            'id': tenet['id'],
+            'name': tenet['name'],
+            'strength_count': tenet_strengths.get(tenet['id'], 0),
+            'improvement_count': tenet_improvements.get(tenet['id'], 0)
+        })
+
+    # Sort by net score
+    butterfly_data.sort(key=lambda x: (x['strength_count'] - x['improvement_count']), reverse=True)
+
+    # Generate butterfly chart image
+    chart_image = generate_butterfly_chart_image(
+        butterfly_data,
+        manager_selected_strengths,
+        manager_selected_improvements
+    )
+
+    # Organize feedback comments
+    strengths_comments = [fb.strengths_text for fb in feedbacks if fb.strengths_text]
+    improvements_comments = [fb.improvements_text for fb in feedbacks if fb.improvements_text]
+
+    session.close()
+
+    # Render PDF template
+    html_content = render_template(
+        'report_pdf.html',
+        team_member=team_member.to_dict(),
+        manager=manager.to_dict() if manager else {'name': manager_uid},
+        feedback_count=len(feedbacks),
+        chart_image=chart_image,
+        strengths_comments=strengths_comments,
+        improvements_comments=improvements_comments,
+        manager_feedback_text=(manager_feedback.feedback_text if manager_feedback else ''),
+        generation_date=datetime.now().strftime('%B %d, %Y at %I:%M %p')
+    )
+
+    # Convert to PDF
+    pdf_buffer = io.BytesIO()
+    HTML(string=html_content).write_pdf(pdf_buffer)
+    pdf_buffer.seek(0)
+
+    # Return PDF file
+    filename = f"Feedback_Report_{team_member.name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
+    return send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
 
 
 if __name__ == '__main__':

@@ -175,7 +175,7 @@
     <p style="margin-bottom: 16px;">
         Generate a PDF report with the butterfly chart and all feedback (peer feedback anonymous, your feedback attributed).
     </p>
-    <button onclick="exportPDF()" class="btn">Export PDF Report (Coming Soon)</button>
+    <button onclick="exportPDF()" class="btn">📄 Export PDF Report</button>
 </div>
 
 {% endblock %}
@@ -453,7 +453,8 @@ function saveManagerFeedback() {
 }
 
 function exportPDF() {
-    alert('PDF export will be implemented next. For now, you can use your browser\'s Print to PDF feature.');
+    // Trigger download by navigating to PDF export endpoint
+    window.location.href = `/manager/export-pdf/${teamMemberId}`;
 }
 
 // Initialize

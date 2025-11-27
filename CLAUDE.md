@@ -147,11 +147,24 @@ All AI-generated code was:
 ### Visualization Patterns
 - **Chart.js** for standard charts (bar, line, pie)
 - **Butterfly/Diverging Charts**: Individual Chart.js instances per row in CSS Grid
+- **PDF Export Charts**: Use matplotlib for server-side chart generation
+  - Generate charts as base64-encoded PNG images
+  - Embed in HTML templates for PDF conversion
+  - Use matplotlib's `Agg` backend (non-interactive)
+  - Match visual style with Chart.js web version
 - When creating complex charts:
   - Start with simplest approach first
   - Break down into smaller independent components
   - Use CSS Grid for precise alignment
   - Prioritize visual clarity over complex single-chart solutions
+
+### PDF Export Pattern
+- **WeasyPrint** for HTML-to-PDF conversion
+- Create separate `*_pdf.html` templates (no JavaScript)
+- Generate charts server-side using matplotlib as base64 images
+- Use `data:image/png;base64,{{image}}` for embedding
+- Return PDF via `send_file()` with `mimetype='application/pdf'`
+- Filename format: `{ReportType}_{Name}_{YYYYMMDD}.pdf`
 
 ---
 
@@ -587,6 +600,15 @@ See `TESTING.md` for comprehensive testing documentation.
 - Manager tenet selection interface
 - Manager text feedback field
 - Auto-save functionality
+- PDF export button
+
+#### `feedback_templates/report_pdf.html` (PDF Report Template)
+- Simplified HTML template for PDF generation (no JavaScript)
+- Team member info and feedback summary
+- Butterfly chart as embedded base64 PNG image
+- Peer feedback comments (anonymous)
+- Manager feedback (attributed)
+- Print-optimized styling for WeasyPrint
 
 ### Configuration Files
 
@@ -776,7 +798,7 @@ See `TESTING.md` for comprehensive testing documentation.
 
 Potential areas for expansion (not yet implemented):
 
-- [ ] PDF export for manager reports
+- [x] PDF export for manager reports (✅ Implemented)
 - [ ] Email feedback reminders
 - [ ] Historical feedback comparison (quarter-over-quarter)
 - [ ] Multi-manager organizations (skip levels)
