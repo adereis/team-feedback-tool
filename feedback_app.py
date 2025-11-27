@@ -554,6 +554,13 @@ def save_manager_feedback():
     if not team_member_uid:
         return jsonify({"success": False, "error": "Missing team_member_uid"}), 400
 
+    # Enforce mutual exclusivity: remove any tenets that appear in both lists
+    overlap = set(selected_strengths) & set(selected_improvements)
+    if overlap:
+        # Remove overlapping tenets from both lists to enforce mutual exclusivity
+        selected_strengths = [t for t in selected_strengths if t not in overlap]
+        selected_improvements = [t for t in selected_improvements if t not in overlap]
+
     session = init_db()
 
     # Check if exists

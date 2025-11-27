@@ -607,6 +607,45 @@ class TestManagerFeedbackAPI:
 
         assert response.status_code == 400
 
+    def test_save_manager_feedback_prevents_duplicate_tenets(self, client, db_session):
+        """Test manager feedback API enforces mutual exclusivity (no tenet in both lists)"""
+        with client.session_transaction() as sess:
+            sess['manager_uid'] = 'mgr001'
+
+        # Attempt to save with overlapping tenets
+        feedback_data = {
+            'team_member_uid': 'emp002',
+            'selected_strengths': ['tenet1', 'tenet2', 'tenet3'],
+            'selected_improvements': ['tenet2', 'tenet4'],  # tenet2 overlaps
+            'feedback_text': 'Test feedback'
+        }
+
+        response = client.post('/api/manager-feedback',
+                               data=json.dumps(feedback_data),
+                               content_type='application/json')
+
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['success'] is True
+
+        # Verify in database that overlapping tenet was removed from both
+        mgr_feedback = db_session.query(ManagerFeedback).filter_by(
+            manager_uid='mgr001',
+            team_member_uid='emp002'
+        ).first()
+
+        strengths = mgr_feedback.get_selected_strengths()
+        improvements = mgr_feedback.get_selected_improvements()
+
+        # tenet2 should not appear in either list (removed due to overlap)
+        assert 'tenet2' not in strengths
+        assert 'tenet2' not in improvements
+
+        # Other tenets should be preserved
+        assert 'tenet1' in strengths
+        assert 'tenet3' in strengths
+        assert 'tenet4' in improvements
+
 
 class TestTenetsLoading:
     """Test tenets configuration loading"""

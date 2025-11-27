@@ -390,6 +390,11 @@ function toggleManagerStrength(tenetId) {
     if (index > -1) {
         managerSelectedStrengths.splice(index, 1);
     } else {
+        // Remove from improvements if selected there (mutual exclusivity)
+        const improvementIndex = managerSelectedImprovements.indexOf(tenetId);
+        if (improvementIndex > -1) {
+            managerSelectedImprovements.splice(improvementIndex, 1);
+        }
         managerSelectedStrengths.push(tenetId);
     }
     renderManagerTenetSelectors();
@@ -402,6 +407,11 @@ function toggleManagerImprovement(tenetId) {
     if (index > -1) {
         managerSelectedImprovements.splice(index, 1);
     } else {
+        // Remove from strengths if selected there (mutual exclusivity)
+        const strengthIndex = managerSelectedStrengths.indexOf(tenetId);
+        if (strengthIndex > -1) {
+            managerSelectedStrengths.splice(strengthIndex, 1);
+        }
         managerSelectedImprovements.push(tenetId);
     }
     renderManagerTenetSelectors();
