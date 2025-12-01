@@ -112,9 +112,18 @@
     </table>
     {% endif %}
 </div>
+
+<div class="card">
+    <h2>Team Overview - Butterfly Chart</h2>
+    <p style="margin-bottom: 12px; color: #666;">
+        Aggregated feedback across all team members. Strengths shown in green (right), improvements in red (left).
+    </p>
+    <div id="teamButterflyChart"></div>
+</div>
 {% endblock %}
 
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
 function importFeedback() {
     const fileInput = document.getElementById('feedbackFile');
@@ -205,6 +214,162 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Set initial sort indicator
     document.querySelector('th[data-sort="name"]').classList.add('asc');
+});
+
+// Fetch and render team butterfly chart
+function fetchAndRenderTeamButterflyChart() {
+    fetch('/api/team-butterfly-data')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                renderTeamButterflyChart(data.butterfly_data);
+            } else {
+                document.getElementById('teamButterflyChart').innerHTML =
+                    '<p style="color: #999; text-align: center; padding: 20px;">Error loading team feedback data.</p>';
+            }
+        })
+        .catch(err => {
+            console.error('Error fetching team butterfly data:', err);
+            document.getElementById('teamButterflyChart').innerHTML =
+                '<p style="color: #999; text-align: center; padding: 20px;">Error loading team feedback data.</p>';
+        });
+}
+
+function renderTeamButterflyChart(butterflyData) {
+    const container = document.getElementById('teamButterflyChart');
+    container.innerHTML = '';
+
+    // Check if we have data
+    if (!butterflyData || butterflyData.length === 0) {
+        container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No feedback data available yet.</p>';
+        return;
+    }
+
+    // Calculate max value, ensure minimum of 1 for proper scaling
+    const maxValue = Math.max(
+        1,
+        ...butterflyData.map(t => Math.max(t.strength_count, t.improvement_count))
+    );
+
+    butterflyData.forEach((tenet, index) => {
+        const row = document.createElement('div');
+        row.style.cssText = 'display: grid; grid-template-columns: 1fr 300px 1fr; gap: 8px; align-items: center; margin-bottom: 4px; padding: 2px 0;';
+
+        // Left - Improvements (red)
+        const improvementDiv = document.createElement('div');
+        improvementDiv.style.cssText = 'text-align: right;';
+        const improvementCanvas = document.createElement('canvas');
+        improvementCanvas.id = `team-improvement-${index}`;
+        improvementCanvas.height = 25;
+        improvementDiv.appendChild(improvementCanvas);
+
+        // Center - Tenet name
+        const labelDiv = document.createElement('div');
+        labelDiv.style.cssText = 'font-weight: 600; color: #2c3e50; padding: 0 10px; text-align: center; overflow: hidden; text-overflow: ellipsis; font-size: 14px;';
+        labelDiv.textContent = tenet.name;
+
+        // Right - Strengths (green)
+        const strengthDiv = document.createElement('div');
+        strengthDiv.style.cssText = 'text-align: left;';
+        const strengthCanvas = document.createElement('canvas');
+        strengthCanvas.id = `team-strength-${index}`;
+        strengthCanvas.height = 25;
+        strengthDiv.appendChild(strengthCanvas);
+
+        row.appendChild(improvementDiv);
+        row.appendChild(labelDiv);
+        row.appendChild(strengthDiv);
+        container.appendChild(row);
+
+        // Create charts
+        new Chart(improvementCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: [''],
+                datasets: [{
+                    data: [tenet.improvement_count],
+                    backgroundColor: '#dc3545',
+                    borderColor: 'black',
+                    borderWidth: 0.5
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Improvements: ' + context.parsed.x;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        min: 0,
+                        max: maxValue,
+                        reverse: true,
+                        display: false,
+                        grid: { display: false },
+                        ticks: { display: false }
+                    },
+                    y: {
+                        display: false,
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+
+        new Chart(strengthCanvas.getContext('2d'), {
+            type: 'bar',
+            data: {
+                labels: [''],
+                datasets: [{
+                    data: [tenet.strength_count],
+                    backgroundColor: '#28a745',
+                    borderColor: 'black',
+                    borderWidth: 0.5
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: { display: false },
+                    tooltip: {
+                        callbacks: {
+                            label: function(context) {
+                                return 'Strengths: ' + context.parsed.x;
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        min: 0,
+                        max: maxValue,
+                        display: false,
+                        grid: { display: false },
+                        ticks: { display: false }
+                    },
+                    y: {
+                        display: false,
+                        grid: { display: false }
+                    }
+                }
+            }
+        });
+    });
+}
+
+// Load team butterfly chart on page load
+document.addEventListener('DOMContentLoaded', function() {
+    fetchAndRenderTeamButterflyChart();
 });
 </script>
 {% endblock %}

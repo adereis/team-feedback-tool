@@ -378,6 +378,63 @@ def manager_dashboard():
     )
 
 
+@app.route('/api/team-butterfly-data')
+def get_team_butterfly_data():
+    """Get aggregated butterfly chart data for entire team"""
+    manager_uid = flask_session.get('manager_uid')
+    if not manager_uid:
+        return jsonify({"success": False, "error": "No manager selected"}), 400
+
+    session = init_db()
+
+    # Get all team members
+    team_members = session.query(Person).filter_by(manager_uid=manager_uid).all()
+    team_member_ids = [tm.user_id for tm in team_members]
+
+    # Aggregate tenet counts across all team members
+    tenet_strengths = defaultdict(int)
+    tenet_improvements = defaultdict(int)
+
+    # Get all feedback for team members
+    all_feedbacks = session.query(Feedback).filter(Feedback.to_user_id.in_(team_member_ids)).all()
+
+    for fb in all_feedbacks:
+        for tenet_id in fb.get_strengths():
+            tenet_strengths[tenet_id] += 1
+        for tenet_id in fb.get_improvements():
+            tenet_improvements[tenet_id] += 1
+
+    # Add manager's own feedback for each team member
+    manager_feedbacks = session.query(ManagerFeedback).filter_by(manager_uid=manager_uid).all()
+    for mfb in manager_feedbacks:
+        for tenet_id in mfb.get_selected_strengths():
+            tenet_strengths[tenet_id] += 1
+        for tenet_id in mfb.get_selected_improvements():
+            tenet_improvements[tenet_id] += 1
+
+    tenets = load_tenets()
+
+    # Build butterfly chart data
+    butterfly_data = []
+    for tenet in tenets:
+        butterfly_data.append({
+            'id': tenet['id'],
+            'name': tenet['name'],
+            'strength_count': tenet_strengths.get(tenet['id'], 0),
+            'improvement_count': tenet_improvements.get(tenet['id'], 0)
+        })
+
+    # Sort by net score
+    butterfly_data.sort(key=lambda x: (x['strength_count'] - x['improvement_count']), reverse=True)
+
+    session.close()
+
+    return jsonify({
+        "success": True,
+        "butterfly_data": butterfly_data
+    })
+
+
 @app.route('/manager/<manager_uid>')
 def manager_login(manager_uid):
     """Direct manager login via URL - sets session and redirects to dashboard"""
