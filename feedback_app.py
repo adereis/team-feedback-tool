@@ -525,12 +525,21 @@ def view_report(user_id):
     # Sort by net score
     butterfly_data.sort(key=lambda x: (x['strength_count'] - x['improvement_count']), reverse=True)
 
+    # Prepare feedback with giver names for manager view (non-anonymous)
+    feedbacks_with_names = []
+    for fb in feedbacks:
+        fb_dict = fb.to_dict()
+        # Get giver's name
+        giver = session.query(Person).filter_by(user_id=fb.from_user_id).first()
+        fb_dict['from_name'] = giver.name if giver else fb.from_user_id
+        feedbacks_with_names.append(fb_dict)
+
     session.close()
 
     return render_template(
         'report.html',
         team_member=team_member.to_dict(),
-        feedbacks=[f.to_dict() for f in feedbacks],
+        feedbacks=feedbacks_with_names,
         butterfly_data=butterfly_data,
         manager_feedback=manager_feedback.to_dict() if manager_feedback else None,
         tenets=tenets

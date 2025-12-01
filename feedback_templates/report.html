@@ -135,6 +135,7 @@
     {% for fb in feedbacks %}
     {% if fb.strengths_text %}
     <div class="feedback-text-item">
+        <div style="font-weight: 600; color: #667eea; margin-bottom: 6px; font-size: 13px;">From: {{ fb.from_name }}</div>
         {{ fb.strengths_text }}
     </div>
     {% endif %}
@@ -145,6 +146,7 @@
     {% for fb in feedbacks %}
     {% if fb.improvements_text %}
     <div class="feedback-text-item">
+        <div style="font-weight: 600; color: #667eea; margin-bottom: 6px; font-size: 13px;">From: {{ fb.from_name }}</div>
         {{ fb.improvements_text }}
     </div>
     {% endif %}
@@ -173,7 +175,8 @@
 <div class="card">
     <h2>Export Report</h2>
     <p style="margin-bottom: 16px;">
-        Generate a PDF report with the butterfly chart and all feedback (peer feedback anonymous, your feedback attributed).
+        Generate a PDF report with the butterfly chart and all feedback. This report is intended for the team member,
+        so peer feedback will be <strong>anonymous</strong> (names removed), while your manager feedback will be attributed.
     </p>
     <button onclick="exportPDF()" class="btn">📄 Export PDF Report</button>
 </div>
