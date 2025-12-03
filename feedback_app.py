@@ -491,39 +491,75 @@ def import_feedback_csv():
 
     session = init_db()
 
-    # Read CSV
-    stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-    reader = csv.DictReader(stream)
+    try:
+        # Read CSV
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        reader = csv.DictReader(stream)
 
-    count = 0
-    for row in reader:
-        from_user_id = row['From User ID']
-        to_user_id = row['To User ID']
-        strengths = row['Strengths (Tenet IDs)'].split(',') if row['Strengths (Tenet IDs)'] else []
-        improvements = row['Improvements (Tenet IDs)'].split(',') if row['Improvements (Tenet IDs)'] else []
+        # Validate required columns
+        required_cols = ['From User ID', 'To User ID', 'Strengths (Tenet IDs)',
+                         'Improvements (Tenet IDs)', 'Strengths Text', 'Improvements Text']
+        if reader.fieldnames is None:
+            session.close()
+            return jsonify({"success": False, "error": "Empty or invalid CSV file"}), 400
 
-        # Check if already exists
-        existing = session.query(Feedback).filter_by(
-            from_user_id=from_user_id,
-            to_user_id=to_user_id
-        ).first()
+        missing_cols = [col for col in required_cols if col not in reader.fieldnames]
+        if missing_cols:
+            session.close()
+            return jsonify({
+                "success": False,
+                "error": f"Invalid CSV format. Missing columns: {', '.join(missing_cols)}"
+            }), 400
 
-        if not existing:
-            feedback = Feedback(
+        new_count = 0
+        updated_count = 0
+        updated_pairs = []
+
+        for row in reader:
+            from_user_id = row['From User ID']
+            to_user_id = row['To User ID']
+            strengths = row['Strengths (Tenet IDs)'].split(',') if row['Strengths (Tenet IDs)'] else []
+            improvements = row['Improvements (Tenet IDs)'].split(',') if row['Improvements (Tenet IDs)'] else []
+
+            # Check if already exists
+            existing = session.query(Feedback).filter_by(
                 from_user_id=from_user_id,
-                to_user_id=to_user_id,
-                strengths_text=row['Strengths Text'],
-                improvements_text=row['Improvements Text']
-            )
-            feedback.set_strengths(strengths)
-            feedback.set_improvements(improvements)
-            session.add(feedback)
-            count += 1
+                to_user_id=to_user_id
+            ).first()
 
-    session.commit()
-    session.close()
+            if existing:
+                # Update existing record
+                existing.strengths_text = row['Strengths Text']
+                existing.improvements_text = row['Improvements Text']
+                existing.set_strengths(strengths)
+                existing.set_improvements(improvements)
+                updated_count += 1
+                updated_pairs.append(f"{from_user_id} → {to_user_id}")
+            else:
+                feedback = Feedback(
+                    from_user_id=from_user_id,
+                    to_user_id=to_user_id,
+                    strengths_text=row['Strengths Text'],
+                    improvements_text=row['Improvements Text']
+                )
+                feedback.set_strengths(strengths)
+                feedback.set_improvements(improvements)
+                session.add(feedback)
+                new_count += 1
 
-    return jsonify({"success": True, "count": count})
+        session.commit()
+        session.close()
+
+        return jsonify({
+            "success": True,
+            "new_count": new_count,
+            "updated_count": updated_count,
+            "updated_pairs": updated_pairs
+        })
+
+    except Exception as e:
+        session.close()
+        return jsonify({"success": False, "error": str(e)}), 400
 
 
 @app.route('/manager/report/<user_id>')

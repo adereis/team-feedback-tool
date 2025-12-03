@@ -446,7 +446,7 @@ class TestFeedbackImport:
         assert response.status_code == 200
         result = json.loads(response.data)
         assert result['success'] is True
-        assert result['count'] >= 1
+        assert result['new_count'] >= 1
 
         # Verify records created
         feedback = db_session.query(Feedback).filter_by(
@@ -455,33 +455,56 @@ class TestFeedbackImport:
         ).first()
         assert feedback is not None
 
-    def test_import_csv_skips_duplicates(self, client, db_session):
-        """Test importing same CSV twice doesn't create duplicates"""
-        csv_content = """From User ID,To User ID,Strengths (Tenet IDs),Improvements (Tenet IDs),Strengths Text,Improvements Text
-emp001,emp002,tenet1,tenet2,Great,Good"""
+    def test_import_csv_updates_existing(self, client, db_session):
+        """Test importing CSV with existing pairs updates the records"""
+        # Use unique user IDs to avoid conflicts with fixtures
+        csv_content1 = """From User ID,To User ID,Strengths (Tenet IDs),Improvements (Tenet IDs),Strengths Text,Improvements Text
+import_test_user1,import_test_user2,tenet1,tenet2,Original strength text,Original improvement text"""
 
-        data = {
-            'file': (io.BytesIO(csv_content.encode('utf-8')), 'feedback.csv')
+        data1 = {
+            'file': (io.BytesIO(csv_content1.encode('utf-8')), 'feedback.csv')
         }
 
         # First import
         response1 = client.post('/manager/import',
-                                data=data,
+                                data=data1,
                                 content_type='multipart/form-data')
         result1 = json.loads(response1.data)
-        count1 = result1['count']
+        assert result1['new_count'] == 1
+        assert result1['updated_count'] == 0
 
-        # Second import (same data)
+        # Verify original content
+        feedback = db_session.query(Feedback).filter_by(
+            from_user_id='import_test_user1',
+            to_user_id='import_test_user2'
+        ).first()
+        assert feedback.strengths_text == 'Original strength text'
+
+        # Second import with updated content
+        csv_content2 = """From User ID,To User ID,Strengths (Tenet IDs),Improvements (Tenet IDs),Strengths Text,Improvements Text
+import_test_user1,import_test_user2,tenet3,tenet4,Updated strength text,Updated improvement text"""
+
         data2 = {
-            'file': (io.BytesIO(csv_content.encode('utf-8')), 'feedback2.csv')
+            'file': (io.BytesIO(csv_content2.encode('utf-8')), 'feedback2.csv')
         }
         response2 = client.post('/manager/import',
                                 data=data2,
                                 content_type='multipart/form-data')
         result2 = json.loads(response2.data)
 
-        # Should skip existing records
-        assert result2['count'] == 0
+        # Should update existing record
+        assert result2['new_count'] == 0
+        assert result2['updated_count'] == 1
+        assert 'import_test_user1 → import_test_user2' in result2['updated_pairs']
+
+        # Verify content was updated
+        db_session.expire_all()
+        feedback = db_session.query(Feedback).filter_by(
+            from_user_id='import_test_user1',
+            to_user_id='import_test_user2'
+        ).first()
+        assert feedback.strengths_text == 'Updated strength text'
+        assert feedback.improvements_text == 'Updated improvement text'
 
     def test_import_csv_requires_file(self, client):
         """Test import returns error when no file provided"""
@@ -490,6 +513,25 @@ emp001,emp002,tenet1,tenet2,Great,Good"""
                                content_type='multipart/form-data')
 
         assert response.status_code == 400
+
+    def test_import_csv_rejects_invalid_format(self, client):
+        """Test import returns error for CSV with wrong columns"""
+        # This is an orgchart CSV, not a feedback CSV
+        csv_content = """Name,User ID,Job Title,Location,Email,Manager UID
+John Doe,jdoe,Engineer,NYC,jdoe@example.com,mgr001"""
+
+        data = {
+            'file': (io.BytesIO(csv_content.encode('utf-8')), 'orgchart.csv')
+        }
+
+        response = client.post('/manager/import',
+                               data=data,
+                               content_type='multipart/form-data')
+
+        assert response.status_code == 400
+        result = json.loads(response.data)
+        assert result['success'] is False
+        assert 'Missing columns' in result['error']
 
 
 class TestManagerReport:

@@ -59,6 +59,98 @@
         content: '↓';
         opacity: 1;
     }
+
+    .drop-zone {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 40px 20px;
+        text-align: center;
+        background: #fafafa;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .drop-zone:hover {
+        border-color: #667eea;
+        background: #f0f4ff;
+    }
+
+    .drop-zone.drag-over {
+        border-color: #667eea;
+        background: #e8efff;
+        border-style: solid;
+    }
+
+    .drop-zone-icon {
+        font-size: 48px;
+        color: #999;
+        margin-bottom: 12px;
+    }
+
+    .drop-zone-text {
+        color: #666;
+        font-size: 16px;
+        margin-bottom: 8px;
+    }
+
+    .drop-zone-subtext {
+        color: #999;
+        font-size: 13px;
+    }
+
+    .drop-zone input[type="file"] {
+        display: none;
+    }
+
+    .file-list {
+        margin-top: 16px;
+        text-align: left;
+    }
+
+    .file-item {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 8px 12px;
+        background: #f5f5f5;
+        border-radius: 4px;
+        margin-bottom: 6px;
+    }
+
+    .file-item-name {
+        font-weight: 500;
+        color: #333;
+    }
+
+    .file-item-status {
+        font-size: 13px;
+        color: #666;
+    }
+
+    .file-item-status.success {
+        color: #28a745;
+    }
+
+    .file-item-status.error {
+        color: #dc3545;
+    }
+
+    .file-item-status.pending {
+        color: #999;
+    }
+
+    .file-item-remove {
+        background: none;
+        border: none;
+        color: #999;
+        cursor: pointer;
+        font-size: 18px;
+        padding: 0 4px;
+    }
+
+    .file-item-remove:hover {
+        color: #dc3545;
+    }
 </style>
 {% endblock %}
 
@@ -75,10 +167,13 @@
     <h2>Import Feedback</h2>
     <p style="margin-bottom: 16px;">Upload CSV files that individuals have shared with you.</p>
 
-    <div class="form-group">
-        <input type="file" id="feedbackFile" accept=".csv" />
+    <div class="drop-zone" id="dropZone">
+        <div class="drop-zone-icon">📁</div>
+        <div class="drop-zone-text">Drag & drop CSV files here</div>
+        <div class="drop-zone-subtext">or click to browse • multiple files supported</div>
+        <input type="file" id="feedbackFile" accept=".csv" multiple />
     </div>
-    <button onclick="importFeedback()" class="btn">Import Feedback CSV</button>
+    <div class="file-list" id="fileList"></div>
     <div id="importStatus" style="margin-top: 12px;"></div>
 </div>
 
@@ -125,39 +220,154 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
-function importFeedback() {
-    const fileInput = document.getElementById('feedbackFile');
-    const file = fileInput.files[0];
+// File upload state
+let pendingFiles = [];
 
-    if (!file) {
-        alert('Please select a file');
+// Initialize drop zone
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('feedbackFile');
+
+    // Click to browse
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+        addFiles(Array.from(e.target.files));
+        fileInput.value = ''; // Reset for re-selection
+    });
+
+    // Drag events
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
+        if (files.length > 0) {
+            addFiles(files);
+        }
+    });
+});
+
+function addFiles(files) {
+    files.forEach(file => {
+        // Avoid duplicates by name
+        if (!pendingFiles.some(f => f.name === file.name)) {
+            pendingFiles.push(file);
+        }
+    });
+    renderFileList();
+    // Auto-start import when files are added
+    if (pendingFiles.length > 0) {
+        importAllFiles();
+    }
+}
+
+function removeFile(index) {
+    pendingFiles.splice(index, 1);
+    renderFileList();
+}
+
+function renderFileList() {
+    const container = document.getElementById('fileList');
+    if (pendingFiles.length === 0) {
+        container.innerHTML = '';
         return;
     }
 
-    const formData = new FormData();
-    formData.append('file', file);
+    container.innerHTML = pendingFiles.map((file, index) => `
+        <div class="file-item" id="file-item-${index}">
+            <span class="file-item-name">${file.name}</span>
+            <span class="file-item-status pending" id="file-status-${index}">Pending</span>
+        </div>
+    `).join('');
+}
 
-    document.getElementById('importStatus').innerHTML = '<p>Importing...</p>';
+async function importAllFiles() {
+    if (pendingFiles.length === 0) return;
 
-    fetch('/manager/import', {
-        method: 'POST',
-        body: formData
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('importStatus').innerHTML =
-                `<div class="success-message">✓ Imported ${data.count} feedback entries</div>`;
-            setTimeout(() => location.reload(), 2000);
-        } else {
-            document.getElementById('importStatus').innerHTML =
-                `<div class="error-message">Error: ${data.error}</div>`;
+    const statusDiv = document.getElementById('importStatus');
+    statusDiv.innerHTML = '';
+
+    let totalImported = 0;
+    let totalUpdated = 0;
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (let i = 0; i < pendingFiles.length; i++) {
+        const file = pendingFiles[i];
+        const statusEl = document.getElementById(`file-status-${i}`);
+
+        if (statusEl) {
+            statusEl.textContent = 'Importing...';
+            statusEl.className = 'file-item-status';
         }
-    })
-    .catch(err => {
-        document.getElementById('importStatus').innerHTML =
-            `<div class="error-message">Error: ${err.message}</div>`;
-    });
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await fetch('/manager/import', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+
+            if (data.success) {
+                const total = data.new_count + data.updated_count;
+                if (statusEl) {
+                    let statusText = `✓ ${data.new_count} new`;
+                    if (data.updated_count > 0) {
+                        statusText += `, ${data.updated_count} updated`;
+                    }
+                    statusEl.textContent = statusText;
+                    statusEl.className = 'file-item-status success';
+                }
+                totalImported += data.new_count;
+                totalUpdated += data.updated_count;
+                successCount++;
+            } else {
+                if (statusEl) {
+                    statusEl.textContent = `✗ ${data.error}`;
+                    statusEl.className = 'file-item-status error';
+                }
+                errorCount++;
+            }
+        } catch (err) {
+            if (statusEl) {
+                statusEl.textContent = `✗ ${err.message}`;
+                statusEl.className = 'file-item-status error';
+            }
+            errorCount++;
+        }
+    }
+
+    // Show summary
+    if (successCount > 0) {
+        let summaryHtml = `<div class="success-message">✓ Imported ${totalImported} new feedback entries from ${successCount} file(s). <a href="" style="color: #155724;">Reload page</a> to see updated counts.</div>`;
+
+        if (totalUpdated > 0) {
+            summaryHtml += `<div class="warning-message" style="background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px; border-radius: 4px; margin-top: 8px;">
+                ⚠️ Updated ${totalUpdated} existing feedback entries (content was replaced)
+            </div>`;
+        }
+
+        statusDiv.innerHTML = summaryHtml;
+    } else if (errorCount > 0) {
+        statusDiv.innerHTML = `<div class="error-message">Failed to import ${errorCount} file(s)</div>`;
+    }
+
+    // Clear pending files after processing
+    pendingFiles = [];
 }
 
 // Table sorting functionality
