@@ -46,9 +46,9 @@ def get_location():
     """Get random location"""
     locations = [
         'Remote US CA', 'Remote US TX', 'Remote US NY', 'Remote US MA',
-        'RH - Raleigh', 'RH - Boston', 'RH - San Francisco',
+        'Raleigh NC', 'Boston MA', 'San Francisco CA',
         'Remote UK', 'Remote Ireland', 'Remote France', 'Remote Spain',
-        'RH - Brno - Tech Park', 'RH - Pune - Tower 6'
+        'Brno CZ', 'Pune IN'
     ]
     return random.choice(locations)
 
@@ -92,7 +92,7 @@ def get_small_team_data():
         'name': 'Della Gate',
         'user_id': 'dgate',
         'job_title': 'Engineering Manager',
-        'location': 'RH - Raleigh',
+        'location': 'Raleigh NC',
         'email': 'dgate@example.com',
         'manager_uid': ''  # Top-level
     })

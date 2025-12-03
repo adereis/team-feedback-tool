@@ -116,8 +116,8 @@ pip install -r requirements.txt
 
 ```csv
 Name,User ID,Job Title,Location,Email,Manager UID
-Paige Duty,pduty,Staff SRE,RH - Boston,pduty@example.com,dgate
-Della Gate,dgate,Engineering Manager,RH - Raleigh,dgate@example.com,
+Paige Duty,pduty,Staff SRE,Boston MA,pduty@example.com,dgate
+Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
 ```
 
 ### Feedback Export Format
