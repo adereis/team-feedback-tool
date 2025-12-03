@@ -108,6 +108,9 @@ def import_orgchart_web():
             session.query(ManagerFeedback).delete()
             session.query(Feedback).delete()
             session.query(Person).delete()
+            # Clear user sessions since those users no longer exist
+            flask_session.pop('user_id', None)
+            flask_session.pop('manager_uid', None)
 
         # Import people
         count = 0

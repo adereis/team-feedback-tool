@@ -95,6 +95,32 @@ New Manager,newmgr,Manager,NYC,newmgr@example.com,"""
         final_count = db_session.query(Person).count()
         assert final_count == 1
 
+    def test_import_orgchart_with_reset_clears_session(self, client, db_session):
+        """Test importing with reset clears user and manager sessions"""
+        # Set up sessions
+        with client.session_transaction() as sess:
+            sess['user_id'] = 'emp001'
+            sess['manager_uid'] = 'mgr001'
+
+        csv_content = """Name,User ID,Job Title,Location,Email,Manager UID
+New Manager,newmgr,Manager,NYC,newmgr@example.com,"""
+
+        data = {
+            'file': (io.BytesIO(csv_content.encode('utf-8')), 'orgchart.csv'),
+            'reset': 'true'
+        }
+
+        response = client.post('/api/import-orgchart',
+                               data=data,
+                               content_type='multipart/form-data')
+
+        assert response.status_code == 200
+
+        # Verify sessions were cleared
+        with client.session_transaction() as sess:
+            assert 'user_id' not in sess
+            assert 'manager_uid' not in sess
+
     def test_import_orgchart_validates_columns(self, client):
         """Test import rejects CSV with missing columns"""
         csv_content = """Name,Job Title
