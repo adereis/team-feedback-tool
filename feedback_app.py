@@ -47,6 +47,111 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/api/db-stats')
+def get_db_stats():
+    """Get database statistics for home page"""
+    session = init_db()
+
+    total_people = session.query(Person).count()
+    managers = session.query(Person).filter(Person.direct_reports.any()).count()
+    team_members = total_people - managers
+    peer_feedback = session.query(Feedback).count()
+    manager_reviews = session.query(ManagerFeedback).count()
+
+    session.close()
+
+    return jsonify({
+        "success": True,
+        "total_people": total_people,
+        "managers": managers,
+        "team_members": team_members,
+        "peer_feedback": peer_feedback,
+        "manager_reviews": manager_reviews
+    })
+
+
+@app.route('/api/import-orgchart', methods=['POST'])
+def import_orgchart_web():
+    """Import orgchart CSV via web interface"""
+    if 'file' not in request.files:
+        return jsonify({"success": False, "error": "No file uploaded"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"success": False, "error": "No file selected"}), 400
+
+    reset_db = request.form.get('reset', 'false').lower() == 'true'
+
+    session = init_db()
+
+    try:
+        # Read CSV
+        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
+        reader = csv.DictReader(stream)
+
+        # Validate required columns
+        required_cols = ['Name', 'User ID', 'Job Title', 'Email', 'Manager UID']
+        if reader.fieldnames is None:
+            session.close()
+            return jsonify({"success": False, "error": "Empty or invalid CSV file"}), 400
+
+        missing_cols = [col for col in required_cols if col not in reader.fieldnames]
+        if missing_cols:
+            session.close()
+            return jsonify({
+                "success": False,
+                "error": f"Invalid CSV format. Missing columns: {', '.join(missing_cols)}"
+            }), 400
+
+        if reset_db:
+            # Clear all data
+            session.query(ManagerFeedback).delete()
+            session.query(Feedback).delete()
+            session.query(Person).delete()
+
+        # Import people
+        count = 0
+        updated = 0
+        for row in reader:
+            user_id = row['User ID']
+            existing = session.query(Person).filter_by(user_id=user_id).first()
+
+            if existing:
+                # Update existing person
+                existing.name = row['Name']
+                existing.job_title = row['Job Title']
+                existing.email = row['Email']
+                existing.location = row.get('Location', '')
+                existing.manager_uid = row['Manager UID'] if row['Manager UID'] else None
+                updated += 1
+            else:
+                # Create new person
+                person = Person(
+                    user_id=user_id,
+                    name=row['Name'],
+                    job_title=row['Job Title'],
+                    email=row['Email'],
+                    location=row.get('Location', ''),
+                    manager_uid=row['Manager UID'] if row['Manager UID'] else None
+                )
+                session.add(person)
+                count += 1
+
+        session.commit()
+        session.close()
+
+        return jsonify({
+            "success": True,
+            "new_count": count,
+            "updated_count": updated,
+            "reset": reset_db
+        })
+
+    except Exception as e:
+        session.close()
+        return jsonify({"success": False, "error": str(e)}), 400
+
+
 @app.route('/individual')
 def individual_feedback():
     """Individual feedback collection page"""

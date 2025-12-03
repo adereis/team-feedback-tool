@@ -1,40 +1,314 @@
 {% extends "base.html" %}
 
+{% block extra_styles %}
+<style>
+    .workflow-steps {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 16px;
+    }
+
+    .drop-zone {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 30px 20px;
+        text-align: center;
+        background: #fafafa;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+
+    .drop-zone:hover {
+        border-color: #667eea;
+        background: #f0f4ff;
+    }
+
+    .drop-zone.drag-over {
+        border-color: #667eea;
+        background: #e8efff;
+        border-style: solid;
+    }
+
+    .drop-zone-icon {
+        font-size: 36px;
+        color: #999;
+        margin-bottom: 8px;
+    }
+
+    .drop-zone-text {
+        color: #666;
+        font-size: 14px;
+    }
+
+    .drop-zone input[type="file"] {
+        display: none;
+    }
+
+    .reset-option {
+        margin-top: 16px;
+        padding: 12px;
+        background: #fff8e1;
+        border-radius: 6px;
+        border: 1px solid #ffe082;
+    }
+
+    .reset-option label {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        cursor: pointer;
+        margin: 0;
+    }
+
+    .reset-option input[type="checkbox"] {
+        margin-top: 3px;
+    }
+
+    .reset-warning {
+        display: none;
+        color: #d32f2f;
+        font-size: 13px;
+        margin-top: 8px;
+        padding-left: 24px;
+    }
+
+    .reset-option input:checked ~ .reset-warning {
+        display: block;
+    }
+
+    .csv-format {
+        margin-top: 16px;
+    }
+
+    .csv-format summary {
+        cursor: pointer;
+        color: #667eea;
+        font-size: 14px;
+    }
+
+    .csv-format summary:hover {
+        text-decoration: underline;
+    }
+
+    .csv-format pre {
+        background: #f5f5f5;
+        padding: 12px;
+        border-radius: 6px;
+        font-size: 12px;
+        overflow-x: auto;
+        margin-top: 12px;
+    }
+
+    .db-status {
+        margin-top: 16px;
+        padding: 12px;
+        background: #f5f7fa;
+        border-radius: 6px;
+        font-size: 13px;
+        color: #666;
+    }
+
+    .db-status.empty {
+        color: #999;
+        font-style: italic;
+    }
+
+    #importStatus {
+        margin-top: 12px;
+    }
+
+    details.card > summary {
+        list-style: none;
+    }
+
+    details.card > summary::-webkit-details-marker {
+        display: none;
+    }
+
+    details.card > summary::before {
+        content: '▶ ';
+        font-size: 12px;
+        margin-right: 4px;
+    }
+
+    details.card[open] > summary::before {
+        content: '▼ ';
+    }
+
+    details.card[open] > summary {
+        border-bottom: 1px solid #eee;
+        margin-bottom: 0;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="card">
     <h2>Welcome to the Team Feedback Tool</h2>
-    <p style="margin-bottom: 20px;">
-        This tool helps collect peer feedback and generate performance reports for team members.
-    </p>
+    <p>Collect peer feedback and generate performance reports for your team.</p>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 30px;">
-        <div class="card" style="background: #e7f3ff;">
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
+        <div class="card" style="background: #e7f3ff; margin-bottom: 0;">
             <h3>Individual Feedback</h3>
-            <p style="margin-bottom: 16px;">
-                Provide feedback on your colleagues by selecting their strengths and areas for improvement.
-            </p>
+            <p class="workflow-steps">Give feedback → Export CSVs → Share with managers</p>
             <a href="/individual" class="btn">Start Giving Feedback</a>
         </div>
 
-        <div class="card" style="background: #fff3e0;">
+        <div class="card" style="background: #fff3e0; margin-bottom: 0;">
             <h3>Manager Dashboard</h3>
-            <p style="margin-bottom: 16px;">
-                View collected feedback for your team members and generate performance reports.
-            </p>
+            <p class="workflow-steps">Import CSVs → Review reports → Add highlights → Export PDFs</p>
             <a href="/manager" class="btn" style="background: #ff9800;">Access Manager Tools</a>
         </div>
     </div>
+
+    <div class="db-status" id="dbStatus" style="margin-top: 20px;">Loading...</div>
 </div>
 
-<div class="card">
-    <h3>Setup Instructions</h3>
-    <ol style="margin-left: 20px; line-height: 2;">
-        <li>Import orgchart data: <code>python3 import_orgchart.py REAL-orgchart-export.csv</code></li>
-        <li>Individuals provide feedback using the "Individual Feedback" section</li>
-        <li>Individuals export feedback CSVs (one per manager)</li>
-        <li>Managers import the CSV files they received</li>
-        <li>Managers view reports and add their own feedback</li>
-        <li>Managers export PDF reports for team members</li>
-    </ol>
-</div>
+<details class="card" style="padding: 0;">
+    <summary style="padding: 24px; cursor: pointer; font-weight: 600; font-size: 16px; color: #34495e;">
+        First-time Setup / Admin
+    </summary>
+    <div style="padding: 0 24px 24px 24px;">
+
+    <div class="drop-zone" id="dropZone">
+        <div class="drop-zone-icon">📁</div>
+        <div class="drop-zone-text">Drag & drop orgchart CSV here, or click to browse</div>
+        <input type="file" id="orgchartFile" accept=".csv" />
+    </div>
+
+    <div class="reset-option">
+        <label>
+            <input type="checkbox" id="resetCheckbox" />
+            <span>
+                <strong>Reset database</strong> — Clear all existing data before import
+                <div class="reset-warning">
+                    ⚠️ This will permanently delete all people, feedback, and manager reviews!
+                </div>
+            </span>
+        </label>
+    </div>
+
+    <div id="importStatus"></div>
+
+    <details class="csv-format">
+        <summary>CSV Format Reference</summary>
+        <p style="margin-top: 12px; font-size: 14px;">Required columns for orgchart import:</p>
+        <pre>Name,User ID,Job Title,Location,Email,Manager UID
+Della Gate,dgate,Engineering Manager,RH - Raleigh,dgate@example.com,
+Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate
+Lee Latency,llatency,Senior Developer,RH - Boston,llatency@example.com,dgate</pre>
+        <p style="font-size: 13px; color: #666; margin-top: 8px;">
+            <strong>Note:</strong> Leave "Manager UID" empty for top-level managers.
+            The "Location" column is optional.
+        </p>
+    </details>
+
+    </div>
+</details>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const dropZone = document.getElementById('dropZone');
+    const fileInput = document.getElementById('orgchartFile');
+    const resetCheckbox = document.getElementById('resetCheckbox');
+    const statusDiv = document.getElementById('importStatus');
+
+    // Load database stats
+    loadDbStats();
+
+    // Click to browse
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    // File input change
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleFile(e.target.files[0]);
+        }
+        fileInput.value = '';
+    });
+
+    // Drag events
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.classList.add('drag-over');
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.classList.remove('drag-over');
+        const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
+        if (files.length > 0) {
+            handleFile(files[0]);
+        }
+    });
+
+    function handleFile(file) {
+        const reset = resetCheckbox.checked;
+
+        // Confirm if reset is checked
+        if (reset) {
+            if (!confirm('Are you sure you want to reset the database? This will permanently delete ALL existing data including feedback and manager reviews.')) {
+                return;
+            }
+        }
+
+        statusDiv.innerHTML = '<p>Importing...</p>';
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('reset', reset.toString());
+
+        fetch('/api/import-orgchart', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                let message = '';
+                if (data.reset) {
+                    message = `✓ Database reset. Imported ${data.new_count} people.`;
+                } else if (data.updated_count > 0) {
+                    message = `✓ Imported ${data.new_count} new people, updated ${data.updated_count} existing.`;
+                } else {
+                    message = `✓ Imported ${data.new_count} new people.`;
+                }
+                statusDiv.innerHTML = `<div class="success-message">${message}</div>`;
+                resetCheckbox.checked = false;
+                loadDbStats();
+            } else {
+                statusDiv.innerHTML = `<div class="error-message">Error: ${data.error}</div>`;
+            }
+        })
+        .catch(err => {
+            statusDiv.innerHTML = `<div class="error-message">Error: ${err.message}</div>`;
+        });
+    }
+
+    function loadDbStats() {
+        fetch('/api/db-stats')
+            .then(r => r.json())
+            .then(data => {
+                const statusEl = document.getElementById('dbStatus');
+                if (data.total_people === 0) {
+                    statusEl.className = 'db-status empty';
+                    statusEl.textContent = 'No data loaded. Import an orgchart CSV to get started.';
+                } else {
+                    statusEl.className = 'db-status';
+                    statusEl.textContent = `Loaded: ${data.total_people} people (${data.managers} managers) · ${data.peer_feedback} peer feedback · ${data.manager_reviews} manager reviews`;
+                }
+            })
+            .catch(err => {
+                document.getElementById('dbStatus').textContent = 'Could not load database status';
+            });
+    }
+});
+</script>
 {% endblock %}

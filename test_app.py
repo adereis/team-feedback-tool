@@ -29,6 +29,91 @@ class TestIndexRoute:
         assert b'Team Feedback Tool' in response.data or b'individual' in response.data.lower()
 
 
+class TestDbStats:
+    """Test database statistics API"""
+
+    def test_db_stats_returns_counts(self, client, db_session):
+        """Test /api/db-stats returns correct counts"""
+        response = client.get('/api/db-stats')
+        assert response.status_code == 200
+        data = json.loads(response.data)
+        assert data['success'] is True
+        assert 'total_people' in data
+        assert 'managers' in data
+        assert 'peer_feedback' in data
+        assert 'manager_reviews' in data
+
+
+class TestOrgchartImport:
+    """Test orgchart CSV import via web API"""
+
+    def test_import_orgchart_creates_people(self, client, db_session):
+        """Test importing orgchart CSV creates person records"""
+        csv_content = """Name,User ID,Job Title,Location,Email,Manager UID
+Test Manager,tmgr,Manager,NYC,tmgr@example.com,
+Test Employee,temp,Developer,NYC,temp@example.com,tmgr"""
+
+        data = {
+            'file': (io.BytesIO(csv_content.encode('utf-8')), 'orgchart.csv'),
+            'reset': 'false'
+        }
+
+        response = client.post('/api/import-orgchart',
+                               data=data,
+                               content_type='multipart/form-data')
+
+        assert response.status_code == 200
+        result = json.loads(response.data)
+        assert result['success'] is True
+        assert result['new_count'] == 2
+
+    def test_import_orgchart_with_reset(self, client, db_session):
+        """Test importing with reset clears existing data"""
+        # First verify we have existing data from fixtures
+        initial_count = db_session.query(Person).count()
+        assert initial_count > 0
+
+        csv_content = """Name,User ID,Job Title,Location,Email,Manager UID
+New Manager,newmgr,Manager,NYC,newmgr@example.com,"""
+
+        data = {
+            'file': (io.BytesIO(csv_content.encode('utf-8')), 'orgchart.csv'),
+            'reset': 'true'
+        }
+
+        response = client.post('/api/import-orgchart',
+                               data=data,
+                               content_type='multipart/form-data')
+
+        assert response.status_code == 200
+        result = json.loads(response.data)
+        assert result['success'] is True
+        assert result['reset'] is True
+
+        # Verify old data was cleared
+        db_session.expire_all()
+        final_count = db_session.query(Person).count()
+        assert final_count == 1
+
+    def test_import_orgchart_validates_columns(self, client):
+        """Test import rejects CSV with missing columns"""
+        csv_content = """Name,Job Title
+Test Person,Developer"""
+
+        data = {
+            'file': (io.BytesIO(csv_content.encode('utf-8')), 'orgchart.csv')
+        }
+
+        response = client.post('/api/import-orgchart',
+                               data=data,
+                               content_type='multipart/form-data')
+
+        assert response.status_code == 400
+        result = json.loads(response.data)
+        assert result['success'] is False
+        assert 'Missing columns' in result['error']
+
+
 class TestIndividualWorkflow:
     """Test individual feedback collection workflow"""
 

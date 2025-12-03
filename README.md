@@ -56,11 +56,17 @@ Sample managers include: Della Gate (dgate), Rhoda Map (rmap), Kay P. Eye (keye)
 ### 2. Use with Real Data
 
 ```bash
-# Import your organization's data
-python3 import_orgchart.py REAL-orgchart-export.csv
-
 # Start the application
 python3 feedback_app.py
+```
+
+**Import your orgchart via Web UI** (Recommended):
+1. Go to http://localhost:5001
+2. Drag & drop your orgchart CSV onto the upload zone (or click to browse)
+
+**Or via Command Line**:
+```bash
+python3 import_orgchart.py REAL-orgchart-export.csv
 ```
 
 ## Workflows

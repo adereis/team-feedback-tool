@@ -21,19 +21,26 @@ Sample employees include: Paige Duty, Lee Latency, Mona Torr, Robin Rollback, Ke
 
 ## Setup (One-time)
 
-1. **Import your organization's data**
-   ```bash
-   python3 import_orgchart.py REAL-orgchart-export.csv
-   ```
-
-   This creates `feedback.db` with all people from your orgchart.
-
-2. **Start the application**
+1. **Start the application**
    ```bash
    python3 feedback_app.py
    ```
 
    Access at: http://localhost:5001
+
+2. **Import your organization's data**
+
+   **Option A: Web Interface** (Recommended)
+   - Go to http://localhost:5001 (Home page)
+   - Drag & drop your orgchart CSV onto the upload zone
+   - Or click to browse and select the file
+
+   **Option B: Command Line**
+   ```bash
+   python3 import_orgchart.py REAL-orgchart-export.csv
+   ```
+
+   Both options create `feedback.db` with all people from your orgchart.
 
 ## Individual Workflow
 
@@ -101,7 +108,7 @@ Individual feedback exports contain:
 
 **"Team member not found or not in your team"**
 - Verify the orgchart has correct manager relationships
-- Re-import if needed: `python3 import_orgchart.py REAL-orgchart-export.csv`
+- Re-import via Home page (drag & drop) or command line: `python3 import_orgchart.py REAL-orgchart-export.csv`
 
 **Port conflict**
 - Feedback tool runs on port 5001 (bonus tool uses 5000)

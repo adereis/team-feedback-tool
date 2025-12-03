@@ -174,7 +174,7 @@ All AI-generated code was:
 - **Orgchart is source of truth** for employee data (names, job titles, org structure)
 - **Feedback is persistent** and stored in SQLite database
 - **Tenets are configurable** via tenets.json (organization-specific)
-- Import flow: Orgchart XLSX → `import_orgchart.py` → SQLite → Flask API → Web UI
+- Import flow: Orgchart CSV → Web UI or `import_orgchart.py` → SQLite → Flask API → Web UI
 - Export flow: Web UI → Flask API → CSV → Manager import
 
 ### Key Design Decisions
