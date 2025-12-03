@@ -9,6 +9,7 @@ feedback_exports/
 
 # Sample data files (auto-generated)
 sample-feedback-orgchart*.csv
+sample-feedback-for-*.csv
 
 # Organization-specific tenets (use tenets-sample.json as template)
 tenets.json

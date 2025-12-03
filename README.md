@@ -39,11 +39,11 @@ All data stays local—no cloud sync, no external dependencies.
 Try the tool with fictitious data:
 
 ```bash
-# Generate large org (50 employees, 5 managers) with ~80% feedback coverage
-python3 create_sample_feedback_data.py --large --with-feedback
+# Full demo setup: orgchart, peer feedback, manager feedback, export CSVs
+python3 create_sample_feedback_data.py --demo
 
-# Import the generated orgchart
-python3 import_orgchart.py sample-feedback-orgchart-large.csv
+# Or for a larger organization (50 employees, 5 managers)
+python3 create_sample_feedback_data.py --large --demo
 
 # Start the app
 python3 feedback_app.py
@@ -86,13 +86,12 @@ python3 feedback_app.py
    - Select your name from the dropdown
    - Bookmark the direct URL for future use
 2. **Subsequent Visits**: Go directly to http://localhost:5001/manager/[your-user-id]
-3. Import feedback CSVs received from team members
+3. Drag & drop feedback CSVs (multiple files supported) or click to browse
 4. Click on team member names to view their reports
 5. Review the butterfly chart (aggregated peer feedback)
 6. Select tenets to highlight (shown with brighter colors)
-7. Add your own feedback text
-8. Auto-saves after 2 seconds
-9. Export PDF using browser's Print feature
+7. Add your own feedback text (auto-saves)
+8. Click "Export PDF" to download the report
 
 ## Requirements
 

@@ -5,14 +5,11 @@
 **Want to try it out without real data?**
 
 ```bash
-# Generate sample data (12 employees, 1 manager)
-python3 create_sample_feedback_data.py
+# Full demo setup (12 employees, 1 manager, with feedback)
+python3 create_sample_feedback_data.py --demo
 
-# Or generate large org (50 employees, 5 managers) with sample feedback
-python3 create_sample_feedback_data.py --large --with-feedback
-
-# Import the generated orgchart
-python3 import_orgchart.py sample-feedback-orgchart.csv
+# Or for larger org (50 employees, 5 managers)
+python3 create_sample_feedback_data.py --large --demo
 
 # Start the app
 python3 feedback_app.py
@@ -60,16 +57,16 @@ Sample employees include: Paige Duty, Lee Latency, Mona Torr, Robin Rollback, Ke
 1. Go to http://localhost:5001
 2. Click "Access Manager Tools"
 3. Select your name from the dropdown
-4. Click "Choose File" and upload feedback CSVs you received
-5. Click "Import Feedback CSV"
-6. For each team member:
+4. Drag & drop feedback CSV files onto the import area (multiple files supported)
+   - Or click to browse and select files
+   - Files import automatically and show per-file status
+5. For each team member:
    - Click "View Report"
    - Review the butterfly chart (aggregated feedback)
    - Review anonymous peer comments
    - Select tenets to highlight in the report
-   - Add your own feedback text
-   - Click "Save Manager Feedback"
-   - Use browser's "Print to PDF" to export report
+   - Add your own feedback text (auto-saves)
+   - Click "Export PDF" to download the report
 
 ## CSV Format
 

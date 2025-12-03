@@ -538,10 +538,23 @@ When asked to analyze real data:
 ### Data Generation & Sample Data
 
 #### `create_sample_feedback_data.py` (Sample Data Generator)
-- Generates fictitious employee data
-- Creates sample orgchart and feedback
-- Produces realistic demo data for testing
-- Pre-populated with feedback for demo purposes
+- Generates fictitious employee data with tech-themed pun names
+- Creates sample orgchart CSV and optionally populates database
+- Two modes: small team (12 employees) or large org (50 employees, 5 managers)
+- `--demo` flag provides complete setup: orgchart, peer feedback, manager feedback, export CSVs
+
+**Usage:**
+```bash
+python3 create_sample_feedback_data.py              # Orgchart CSV only
+python3 create_sample_feedback_data.py --large      # Large org CSV only
+python3 create_sample_feedback_data.py --demo       # Full demo setup (recommended)
+python3 create_sample_feedback_data.py --large --demo  # Large org full demo
+```
+
+**Demo mode creates:**
+- `sample-feedback-orgchart.csv` - Orgchart for import
+- `feedback.db` - Populated with Person, Feedback, and ManagerFeedback records
+- `sample-feedback-for-{manager}.csv` - Feedback CSVs for testing import workflow
 
 ### Testing
 
@@ -590,8 +603,9 @@ See `TESTING.md` for comprehensive testing documentation.
 #### `feedback_templates/manager_dashboard.html` (Manager Dashboard)
 - Team member list
 - Feedback counts per person
-- CSV import interface
+- CSV import interface (drag & drop, multi-file support)
 - Navigation to individual reports
+- Team-wide butterfly chart
 
 #### `feedback_templates/report.html` (Feedback Report)
 - Butterfly chart visualization (Chart.js)
@@ -729,6 +743,11 @@ See `TESTING.md` for comprehensive testing documentation.
 **Cause**: Import logic not checking for existing feedback
 **Should Never Happen**: Import skips if (from_user_id, to_user_id) exists (see feedback_app.py:446)
 **Debug**: Check database for duplicate pairs
+
+### Issue: CSV Import Shows "Invalid CSV format" Error
+**Cause**: Wrong type of CSV file (e.g., orgchart instead of feedback export)
+**Expected**: Feedback CSVs must have columns: `From User ID`, `To User ID`, `Strengths (Tenet IDs)`, `Improvements (Tenet IDs)`, `Strengths Text`, `Improvements Text`
+**Solution**: Use the CSV files exported from the individual feedback view, not the orgchart file
 
 ---
 
