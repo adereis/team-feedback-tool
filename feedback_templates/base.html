@@ -184,6 +184,14 @@
         {% block content %}{% endblock %}
     </div>
 
+    <footer style="margin-top: 40px; padding: 20px 0; border-top: 1px solid #e0e0e0; text-align: center;">
+        <div class="container" style="color: #999; font-size: 13px;">
+            {% block footer %}
+            Switch to: <a href="/individual" style="color: #667eea;">Individual Feedback</a> · <a href="/manager" style="color: #667eea;">Manager Dashboard</a> · <a href="/" style="color: #667eea;">Home</a>
+            {% endblock %}
+        </div>
+    </footer>
+
     {% block scripts %}{% endblock %}
 </body>
 </html>
