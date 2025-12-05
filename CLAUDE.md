@@ -2,7 +2,7 @@
 
 Comprehensive development instructions and context for the Team Feedback Tool project.
 
-**For user-facing documentation**: See README.md and QUICKSTART.md
+**For user-facing documentation**: See README.md
 
 ---
 
@@ -73,7 +73,7 @@ The Team Feedback Tool was built through an iterative collaboration between huma
 #### Claude Code (Anthropic)
 - **Primary Development Agent**: Implemented core application logic, database models, and web interface
 - **Testing**: Created comprehensive test suite with 81 tests covering models, routes, and workflows
-- **Documentation**: Authored README.md, QUICKSTART.md, TESTING.md, and inline code documentation
+- **Documentation**: Authored README.md, TESTING.md, and inline code documentation
 - **UI/UX**: Designed and implemented all HTML templates with responsive CSS and vanilla JavaScript
 - **Sample Data**: Created sample data generators with realistic fictitious employee data
 
