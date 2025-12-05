@@ -17,7 +17,7 @@ The --demo flag:
     5. Exports feedback CSVs (for testing import workflow)
 
 Output:
-    - samples/sample-feedback-orgchart.csv (or sample-feedback-orgchart-large.csv)
+    - samples/sample-orgchart.csv (or sample-orgchart-large.csv)
     - With --demo: feedback.db populated, samples/sample-feedback-for-{manager}.csv files
 """
 
@@ -442,10 +442,10 @@ def main():
     # Generate people data
     if large:
         people = get_large_org_data()
-        filename = os.path.join(SAMPLES_DIR, 'sample-feedback-orgchart-large.csv')
+        filename = os.path.join(SAMPLES_DIR, 'sample-orgchart-large.csv')
     else:
         people = get_small_team_data()
-        filename = os.path.join(SAMPLES_DIR, 'sample-feedback-orgchart.csv')
+        filename = os.path.join(SAMPLES_DIR, 'sample-orgchart.csv')
 
     # Write orgchart CSV
     write_orgchart_csv(filename, people)

@@ -552,7 +552,7 @@ python3 create_sample_feedback_data.py --large --demo  # Large org full demo
 ```
 
 **Demo mode creates:**
-- `sample-feedback-orgchart.csv` - Orgchart for import
+- `sample-orgchart.csv` - Orgchart for import
 - `feedback.db` - Populated with Person, Feedback, and ManagerFeedback records
 - `sample-feedback-for-{manager}.csv` - Feedback CSVs for testing import workflow
 
