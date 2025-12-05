@@ -10,6 +10,8 @@ This tool enables teams to:
 
 All data stays local—no cloud sync, no external dependencies.
 
+![Feedback Report Example](feedback-report-example.png)
+
 ## Features
 
 ### For Individuals
