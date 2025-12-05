@@ -183,15 +183,8 @@ Set `"active": false` to temporarily disable a tenet without deleting it.
 ├── import_orgchart.py           # CSV import utility
 ├── create_sample_feedback_data.py  # Sample data generator
 ├── feedback_templates/          # Jinja2 templates
-│   ├── base.html
-│   ├── index.html
-│   ├── individual_feedback.html
-│   ├── manager_select.html
-│   ├── manager_dashboard.html
-│   ├── export_list.html
-│   └── report.html
+├── tests/                       # Test suite
 ├── tenets-sample.json           # Sample tenets configuration
-├── FEEDBACK_QUICKSTART.md       # Quick reference guide
 └── README.md                    # This file
 ```
 

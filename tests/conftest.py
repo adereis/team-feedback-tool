@@ -10,7 +10,12 @@ Provides test fixtures for:
 import pytest
 import tempfile
 import os
+import sys
 import json
+
+# Add parent directory to path for imports
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from feedback_app import app as flask_app
 from feedback_models import init_db, Person, Feedback, ManagerFeedback, Base
 from sqlalchemy import create_engine

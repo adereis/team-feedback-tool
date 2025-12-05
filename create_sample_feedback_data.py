@@ -17,14 +17,17 @@ The --demo flag:
     5. Exports feedback CSVs (for testing import workflow)
 
 Output:
-    - sample-feedback-orgchart.csv (or sample-feedback-orgchart-large.csv)
-    - With --demo: feedback.db populated, sample-feedback-for-{manager}.csv files
+    - samples/sample-feedback-orgchart.csv (or sample-feedback-orgchart-large.csv)
+    - With --demo: feedback.db populated, samples/sample-feedback-for-{manager}.csv files
 """
 
 import csv
+import os
 import random
 import sys
 import json
+
+SAMPLES_DIR = 'samples'
 from collections import defaultdict
 from feedback_models import init_db, Feedback, ManagerFeedback
 
@@ -403,7 +406,7 @@ def export_feedback_csvs(feedback_list, people):
 
     files_created = []
     for manager_uid, feedbacks in by_manager.items():
-        filename = f"sample-feedback-for-{manager_uid}.csv"
+        filename = os.path.join(SAMPLES_DIR, f"sample-feedback-for-{manager_uid}.csv")
 
         with open(filename, 'w', newline='') as f:
             writer = csv.writer(f)
@@ -433,13 +436,16 @@ def main():
     large = '--large' in sys.argv
     demo = '--demo' in sys.argv
 
+    # Ensure samples directory exists
+    os.makedirs(SAMPLES_DIR, exist_ok=True)
+
     # Generate people data
     if large:
         people = get_large_org_data()
-        filename = 'sample-feedback-orgchart-large.csv'
+        filename = os.path.join(SAMPLES_DIR, 'sample-feedback-orgchart-large.csv')
     else:
         people = get_small_team_data()
-        filename = 'sample-feedback-orgchart.csv'
+        filename = os.path.join(SAMPLES_DIR, 'sample-feedback-orgchart.csv')
 
     # Write orgchart CSV
     write_orgchart_csv(filename, people)
