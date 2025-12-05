@@ -42,10 +42,10 @@ Try the tool with fictitious data:
 
 ```bash
 # Full demo setup: orgchart, peer feedback, manager feedback, export CSVs
-python3 create_sample_feedback_data.py --demo
+python3 create_sample_data.py --demo
 
 # Or for a larger organization (50 employees, 5 managers)
-python3 create_sample_feedback_data.py --large --demo
+python3 create_sample_data.py --large --demo
 
 # Start the app
 python3 feedback_app.py
@@ -181,7 +181,7 @@ Set `"active": false` to temporarily disable a tenet without deleting it.
 ├── feedback_app.py              # Flask application
 ├── feedback_models.py           # SQLAlchemy models
 ├── import_orgchart.py           # CSV import utility
-├── create_sample_feedback_data.py  # Sample data generator
+├── create_sample_data.py        # Sample data generator
 ├── feedback_templates/          # Jinja2 templates
 ├── tests/                       # Test suite
 ├── tenets-sample.json           # Sample tenets configuration

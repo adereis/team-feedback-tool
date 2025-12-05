@@ -4,10 +4,10 @@ Create sample demo data for the Team Feedback Tool.
 Generates fictitious orgchart and feedback data for demos and testing.
 
 Usage:
-    python3 create_sample_feedback_data.py              # Creates small team orgchart CSV only
-    python3 create_sample_feedback_data.py --large      # Creates large org orgchart CSV only
-    python3 create_sample_feedback_data.py --demo       # Full demo setup (recommended)
-    python3 create_sample_feedback_data.py --large --demo  # Large org full demo
+    python3 create_sample_data.py                 # Creates small team orgchart CSV only
+    python3 create_sample_data.py --large         # Creates large org orgchart CSV only
+    python3 create_sample_data.py --demo          # Full demo setup (recommended)
+    python3 create_sample_data.py --large --demo  # Large org full demo
 
 The --demo flag:
     1. Generates orgchart CSV
