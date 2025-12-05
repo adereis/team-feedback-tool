@@ -71,35 +71,11 @@ python3 feedback_app.py
 python3 import_orgchart.py REAL-orgchart-export.csv
 ```
 
-## Workflows
+## Workflow
 
-### Individual Workflow
-
-1. Visit http://localhost:5001
-2. Click "Start Giving Feedback"
-3. Select your name (or enter custom ID if not in orgchart)
-4. For each colleague:
-   - Select their name from the organized dropdown
-   - Choose exactly 3 tenet strengths
-   - Choose 2-3 tenets for improvement
-   - Add text explanations
-   - Auto-saves after 2 seconds (watch for "✓ Saved")
-5. Click "Export Feedback CSVs"
-6. Download CSV for each manager
-7. Share CSVs with respective managers
-
-### Manager Workflow
-
-1. **First Time**: Visit http://localhost:5001/manager
-   - Select your name from the dropdown
-   - Bookmark the direct URL for future use
-2. **Subsequent Visits**: Go directly to http://localhost:5001/manager/[your-user-id]
-3. Drag & drop feedback CSVs (multiple files supported) or click to browse
-4. Click on team member names to view their reports
-5. Review the butterfly chart (aggregated peer feedback)
-6. Select tenets to highlight (shown with brighter colors)
-7. Add your own feedback text (auto-saves)
-8. Click "Export PDF" to download the report
+1. **Setup**: Import your orgchart CSV (drag & drop on home page)
+2. **Individuals**: Give feedback for colleagues—select 3 strengths and 2-3 improvements per person, then export CSVs grouped by manager
+3. **Managers**: Import feedback CSVs from your team, review aggregated reports, highlight key tenets, add your own feedback, and export PDFs
 
 ## Requirements
 
