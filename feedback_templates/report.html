@@ -34,6 +34,71 @@
         background: #f8d7da;
     }
 
+    .tenet-item.disabled {
+        opacity: 0.4;
+        cursor: not-allowed;
+        background: #f5f5f5;
+        border-color: #ccc;
+    }
+
+    .tenet-item.disabled:hover {
+        border-color: #ccc;
+        background: #f5f5f5;
+    }
+
+    .feedback-checklist {
+        background: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 12px 16px;
+        margin-bottom: 16px;
+        border-radius: 4px;
+        color: #856404;
+        font-size: 13px;
+        transition: all 0.3s;
+    }
+
+    .feedback-checklist.complete {
+        background: #d4edda;
+        border-left-color: #28a745;
+        color: #155724;
+    }
+
+    .feedback-checklist strong {
+        display: block;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+
+    .feedback-checklist ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .feedback-checklist li {
+        margin: 4px 0;
+        padding-left: 20px;
+        position: relative;
+    }
+
+    .feedback-checklist li::before {
+        content: '○';
+        position: absolute;
+        left: 0;
+        color: #ffc107;
+        font-weight: bold;
+    }
+
+    .feedback-checklist li.done::before {
+        content: '✓';
+        color: #28a745;
+    }
+
+    .feedback-checklist.complete li::before {
+        content: '✓';
+        color: #28a745;
+    }
+
     .tenet-name {
         font-weight: 600;
         margin-bottom: 4px;
@@ -159,6 +224,14 @@
     <p style="margin-bottom: 16px; color: #666;">
         Select tenets to highlight in the report and add your own feedback text.
     </p>
+
+    <div id="feedbackChecklist" class="feedback-checklist">
+        <strong id="checklistTitle">Selection Progress:</strong>
+        <ul>
+            <li id="checkStrengths">Select 3 strengths (0/3)</li>
+            <li id="checkImprovements">Select 2-3 improvements (0/3)</li>
+        </ul>
+    </div>
 
     <h3>Select Strengths to Highlight</h3>
     <div id="managerStrengthsSelector" class="tenet-selector"></div>
@@ -363,6 +436,10 @@ function renderManagerTenetSelectors() {
         if (managerSelectedStrengths.includes(tenet.id)) {
             strengthItem.classList.add('selected-strength');
         }
+        // Disable if already selected as improvement
+        if (managerSelectedImprovements.includes(tenet.id)) {
+            strengthItem.classList.add('disabled');
+        }
         strengthItem.innerHTML = `
             <div class="tenet-name">${tenet.name}</div>
             <div class="tenet-description" style="font-size: 12px; color: #666;">${tenet.description}</div>
@@ -375,6 +452,10 @@ function renderManagerTenetSelectors() {
         improvementItem.className = 'tenet-item';
         if (managerSelectedImprovements.includes(tenet.id)) {
             improvementItem.classList.add('selected-improvement');
+        }
+        // Disable if already selected as strength
+        if (managerSelectedStrengths.includes(tenet.id)) {
+            improvementItem.classList.add('disabled');
         }
         improvementItem.innerHTML = `
             <div class="tenet-name">${tenet.name}</div>
@@ -390,15 +471,19 @@ function toggleManagerStrength(tenetId) {
     if (index > -1) {
         managerSelectedStrengths.splice(index, 1);
     } else {
-        // Remove from improvements if selected there (mutual exclusivity)
-        const improvementIndex = managerSelectedImprovements.indexOf(tenetId);
-        if (improvementIndex > -1) {
-            managerSelectedImprovements.splice(improvementIndex, 1);
+        // Don't allow selecting if already selected as improvement
+        if (managerSelectedImprovements.includes(tenetId)) {
+            return;
+        }
+        // Enforce exactly 3 strengths limit
+        if (managerSelectedStrengths.length >= 3) {
+            return;
         }
         managerSelectedStrengths.push(tenetId);
     }
     renderManagerTenetSelectors();
     renderButterflyChart();
+    updateChecklist();
     scheduleAutoSave();
 }
 
@@ -407,15 +492,19 @@ function toggleManagerImprovement(tenetId) {
     if (index > -1) {
         managerSelectedImprovements.splice(index, 1);
     } else {
-        // Remove from strengths if selected there (mutual exclusivity)
-        const strengthIndex = managerSelectedStrengths.indexOf(tenetId);
-        if (strengthIndex > -1) {
-            managerSelectedStrengths.splice(strengthIndex, 1);
+        // Don't allow selecting if already selected as strength
+        if (managerSelectedStrengths.includes(tenetId)) {
+            return;
+        }
+        // Enforce 2-3 improvements limit
+        if (managerSelectedImprovements.length >= 3) {
+            return;
         }
         managerSelectedImprovements.push(tenetId);
     }
     renderManagerTenetSelectors();
     renderButterflyChart();
+    updateChecklist();
     scheduleAutoSave();
 }
 
@@ -436,7 +525,53 @@ function showSaveIndicator() {
     }, 2000);
 }
 
+function updateChecklist() {
+    const strengthsDone = managerSelectedStrengths.length === 3;
+    const improvementsDone = managerSelectedImprovements.length >= 2 && managerSelectedImprovements.length <= 3;
+    const allDone = strengthsDone && improvementsDone;
+
+    // Update strengths checklist item
+    const strengthsItem = document.getElementById('checkStrengths');
+    strengthsItem.textContent = `Select 3 strengths (${managerSelectedStrengths.length}/3)`;
+    if (strengthsDone) {
+        strengthsItem.classList.add('done');
+    } else {
+        strengthsItem.classList.remove('done');
+    }
+
+    // Update improvements checklist item
+    const improvementsItem = document.getElementById('checkImprovements');
+    improvementsItem.textContent = `Select 2-3 improvements (${managerSelectedImprovements.length}/3)`;
+    if (improvementsDone) {
+        improvementsItem.classList.add('done');
+    } else {
+        improvementsItem.classList.remove('done');
+    }
+
+    // Update checklist box color
+    const checklistBox = document.getElementById('feedbackChecklist');
+    const checklistTitle = document.getElementById('checklistTitle');
+
+    if (allDone) {
+        checklistBox.classList.add('complete');
+        checklistTitle.textContent = '✓ Ready to save (auto-saves in 2 seconds)';
+    } else {
+        checklistBox.classList.remove('complete');
+        checklistTitle.textContent = 'Selection Progress:';
+    }
+
+    return allDone;
+}
+
 function saveManagerFeedback() {
+    // Only save if requirements are met
+    if (managerSelectedStrengths.length !== 3) {
+        return;
+    }
+    if (managerSelectedImprovements.length < 2 || managerSelectedImprovements.length > 3) {
+        return;
+    }
+
     const data = {
         team_member_uid: teamMemberId,
         selected_strengths: managerSelectedStrengths,
@@ -473,6 +608,7 @@ try {
     console.log('Tenets:', tenets);
     renderButterflyChart();
     renderManagerTenetSelectors();
+    updateChecklist();
 } catch (error) {
     console.error('Error initializing charts:', error);
     document.getElementById('butterflyChart').innerHTML =
