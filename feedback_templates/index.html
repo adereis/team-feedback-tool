@@ -8,6 +8,79 @@
         margin-bottom: 16px;
     }
 
+    /* Disabled state for workflow cards when no data */
+    .workflow-card.disabled {
+        background: #f0f0f0 !important;
+        opacity: 0.6;
+        pointer-events: none;
+    }
+
+    .workflow-card.disabled .btn {
+        background: #999 !important;
+        cursor: not-allowed;
+    }
+
+    .workflow-card.disabled h3,
+    .workflow-card.disabled p {
+        color: #888;
+    }
+
+    /* Setup prompt for first-time users */
+    .setup-prompt {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        padding: 24px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+    }
+
+    .setup-prompt h3 {
+        margin: 0 0 8px 0;
+        font-size: 18px;
+    }
+
+    .setup-prompt p {
+        margin: 0;
+        opacity: 0.9;
+    }
+
+    .setup-prompt .drop-zone {
+        background: rgba(255,255,255,0.95);
+        border-color: rgba(255,255,255,0.5);
+        margin-top: 16px;
+    }
+
+    .setup-prompt .drop-zone:hover {
+        background: white;
+        border-color: white;
+    }
+
+    .setup-prompt .csv-format {
+        margin-top: 12px;
+    }
+
+    .setup-prompt .csv-format summary {
+        color: rgba(255,255,255,0.9);
+    }
+
+    .setup-prompt .csv-format summary:hover {
+        color: white;
+    }
+
+    .setup-prompt .csv-format pre {
+        background: rgba(255,255,255,0.95);
+        color: #333;
+    }
+
+    .setup-prompt .csv-format p {
+        color: rgba(255,255,255,0.85);
+    }
+
+    /* Hide setup prompt when data is loaded */
+    .setup-prompt.hidden {
+        display: none;
+    }
+
     .drop-zone {
         border: 2px dashed #ccc;
         border-radius: 8px;
@@ -145,28 +218,55 @@
 {% block content %}
 <div class="card">
     <h2>Welcome to the Team Feedback Tool</h2>
-    <p>Collect peer feedback and generate performance reports for your team.</p>
+    <p style="margin-bottom: 24px;">Collect peer feedback and generate performance reports for your team.</p>
 
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-top: 20px;">
-        <div class="card" style="background: #e7f3ff; margin-bottom: 0;">
+    <!-- Setup prompt for first-time users (shown when database is empty) -->
+    <div class="setup-prompt" id="setupPrompt">
+        <h3>Get Started</h3>
+        <p>Import your orgchart CSV to enable the feedback workflow.</p>
+
+        <div class="drop-zone" id="dropZonePrompt">
+            <div class="drop-zone-icon">📁</div>
+            <div class="drop-zone-text">Drag & drop orgchart CSV here, or click to browse</div>
+            <input type="file" id="orgchartFilePrompt" accept=".csv" />
+        </div>
+
+        <div id="importStatusPrompt"></div>
+
+        <details class="csv-format">
+            <summary>CSV Format Reference</summary>
+            <p style="margin-top: 12px; font-size: 14px;">Required columns for orgchart import:</p>
+            <pre>Name,User ID,Job Title,Location,Email,Manager UID
+Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
+Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate
+Lee Latency,llatency,Senior Developer,Boston MA,llatency@example.com,dgate</pre>
+            <p style="font-size: 13px; margin-top: 8px;">
+                <strong>Note:</strong> Leave "Manager UID" empty for top-level managers.
+                The "Location" column is optional.
+            </p>
+        </details>
+    </div>
+
+    <div class="db-status" id="dbStatus" style="margin-bottom: 20px;">Loading...</div>
+
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+        <div class="card workflow-card disabled" id="individualCard" style="background: #e7f3ff; margin-bottom: 0;">
             <h3>Individual Feedback</h3>
             <p class="workflow-steps">Give feedback → Export CSVs → Share with managers</p>
             <a href="/individual" class="btn">Start Giving Feedback</a>
         </div>
 
-        <div class="card" style="background: #fff3e0; margin-bottom: 0;">
+        <div class="card workflow-card disabled" id="managerCard" style="background: #fff3e0; margin-bottom: 0;">
             <h3>Manager Dashboard</h3>
             <p class="workflow-steps">Import CSVs → Review reports → Add highlights → Export PDFs</p>
             <a href="/manager" class="btn" style="background: #ff9800;">Access Manager Tools</a>
         </div>
     </div>
-
-    <div class="db-status" id="dbStatus" style="margin-top: 20px;">Loading...</div>
 </div>
 
-<details class="card" style="padding: 0;">
+<details class="card" id="adminSection" style="padding: 0;">
     <summary style="padding: 24px; cursor: pointer; font-weight: 600; font-size: 16px; color: #34495e;">
-        First-time Setup / Admin
+        Admin
     </summary>
     <div style="padding: 0 24px 24px 24px;">
 
@@ -210,47 +310,64 @@ Lee Latency,llatency,Senior Developer,Boston MA,llatency@example.com,dgate</pre>
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Admin section elements
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('orgchartFile');
     const resetCheckbox = document.getElementById('resetCheckbox');
     const statusDiv = document.getElementById('importStatus');
 
+    // Setup prompt elements (for first-time users)
+    const dropZonePrompt = document.getElementById('dropZonePrompt');
+    const fileInputPrompt = document.getElementById('orgchartFilePrompt');
+    const statusDivPrompt = document.getElementById('importStatusPrompt');
+    const setupPrompt = document.getElementById('setupPrompt');
+
+    // Workflow cards
+    const individualCard = document.getElementById('individualCard');
+    const managerCard = document.getElementById('managerCard');
+
     // Load database stats
     loadDbStats();
 
-    // Click to browse
-    dropZone.addEventListener('click', () => fileInput.click());
+    // Setup drop zone handlers for both zones
+    setupDropZone(dropZone, fileInput, statusDiv, true);
+    setupDropZone(dropZonePrompt, fileInputPrompt, statusDivPrompt, false);
 
-    // File input change
-    fileInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            handleFile(e.target.files[0]);
-        }
-        fileInput.value = '';
-    });
+    function setupDropZone(zone, input, status, useReset) {
+        // Click to browse
+        zone.addEventListener('click', () => input.click());
 
-    // Drag events
-    dropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        dropZone.classList.add('drag-over');
-    });
+        // File input change
+        input.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0], status, useReset);
+            }
+            input.value = '';
+        });
 
-    dropZone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('drag-over');
-    });
+        // Drag events
+        zone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            zone.classList.add('drag-over');
+        });
 
-    dropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        dropZone.classList.remove('drag-over');
-        const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
-        if (files.length > 0) {
-            handleFile(files[0]);
-        }
-    });
+        zone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            zone.classList.remove('drag-over');
+        });
 
-    function handleFile(file) {
-        const reset = resetCheckbox.checked;
+        zone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            zone.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
+            if (files.length > 0) {
+                handleFile(files[0], status, useReset);
+            }
+        });
+    }
+
+    function handleFile(file, statusDiv, useReset) {
+        const reset = useReset ? resetCheckbox.checked : false;
 
         // Confirm if reset is checked
         if (reset) {
@@ -281,7 +398,9 @@ document.addEventListener('DOMContentLoaded', function() {
                     message = `✓ Imported ${data.new_count} new people.`;
                 }
                 statusDiv.innerHTML = `<div class="success-message">${message}</div>`;
-                resetCheckbox.checked = false;
+                if (useReset) {
+                    resetCheckbox.checked = false;
+                }
                 loadDbStats();
             } else {
                 statusDiv.innerHTML = `<div class="error-message">Error: ${data.error}</div>`;
@@ -297,12 +416,22 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(r => r.json())
             .then(data => {
                 const statusEl = document.getElementById('dbStatus');
-                if (data.total_people === 0) {
+                const isEmpty = data.total_people === 0;
+
+                if (isEmpty) {
+                    // First-time user: show setup prompt, disable workflow cards
                     statusEl.className = 'db-status empty';
-                    statusEl.textContent = 'No data loaded. Import an orgchart CSV to get started.';
+                    statusEl.textContent = 'Import an orgchart to get started.';
+                    setupPrompt.classList.remove('hidden');
+                    individualCard.classList.add('disabled');
+                    managerCard.classList.add('disabled');
                 } else {
+                    // Data loaded: hide setup prompt, enable workflow cards
                     statusEl.className = 'db-status';
                     statusEl.textContent = `Loaded: ${data.total_people} people (${data.managers} managers) · ${data.peer_feedback} peer feedback · ${data.manager_reviews} manager reviews`;
+                    setupPrompt.classList.add('hidden');
+                    individualCard.classList.remove('disabled');
+                    managerCard.classList.remove('disabled');
                 }
             })
             .catch(err => {
