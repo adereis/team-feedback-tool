@@ -33,12 +33,12 @@ app = Flask(__name__, template_folder='feedback_templates')
 app.secret_key = 'feedback-tool-secret-key-change-in-production'
 
 # Load tenets configuration
-# Prefer tenets.json (org-specific), fall back to tenets-sample.json
-TENETS_FILE = 'tenets.json' if os.path.exists('tenets.json') else 'tenets-sample.json'
+# Prefer tenets.json (org-specific), fall back to samples/tenets-sample.json
+TENETS_FILE = 'tenets.json' if os.path.exists('tenets.json') else 'samples/tenets-sample.json'
 
 
 def load_tenets():
-    """Load tenets from JSON file (tenets.json if exists, else tenets-sample.json)"""
+    """Load tenets from JSON file (tenets.json if exists, else samples/tenets-sample.json)"""
     with open(TENETS_FILE, 'r') as f:
         data = json.load(f)
     return [t for t in data['tenets'] if t.get('active', True)]

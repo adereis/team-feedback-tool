@@ -209,7 +209,7 @@ def generate_sample_feedback(people):
     Returns list of feedback dicts for CSV export.
     """
     # Load tenets
-    with open('tenets-sample.json', 'r') as f:
+    with open('samples/tenets-sample.json', 'r') as f:
         tenets_data = json.load(f)
     tenets = [t for t in tenets_data['tenets'] if t.get('active', True)]
     tenet_ids = [t['id'] for t in tenets]
@@ -436,7 +436,7 @@ def generate_workday_xlsx(feedback_list, people, include_structured=True):
     managers = {p['user_id']: p for p in people if not p['manager_uid']}
 
     # Load tenets for structured feedback format
-    with open('tenets-sample.json', 'r') as f:
+    with open('samples/tenets-sample.json', 'r') as f:
         tenets_data = json.load(f)
     tenets = {t['id']: t['name'] for t in tenets_data['tenets'] if t.get('active', True)}
 
