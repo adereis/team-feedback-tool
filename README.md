@@ -12,7 +12,7 @@ All data stays local—no cloud sync, no external dependencies.
 
 Example Report:
 
-![Feedback Report Example](feedback-report-example.png)
+![Feedback Report Example](docs/feedback-report-example.png)
 
 ## Workday Integration Workflow
 
