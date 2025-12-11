@@ -14,14 +14,12 @@ The --demo flag:
     2. Imports orgchart to database
     3. Generates peer feedback in database
     4. Generates manager feedback in database
-    5. Exports feedback CSVs (legacy format)
-    6. Generates Workday XLSX (new format) with mix of structured/generic feedback
+    5. Generates Workday XLSX with mix of structured/generic feedback
 
 Output:
     - samples/sample-orgchart.csv (or sample-orgchart-large.csv)
     - With --demo:
         - feedback.db populated with sample data
-        - samples/sample-feedback-for-{manager}.csv (legacy format)
         - samples/sample-workday-feedback.xlsx (Workday format with [TENETS] markers)
 """
 
@@ -565,47 +563,6 @@ Improvements: {', '.join(fb['improvements'])}
     return filename
 
 
-def export_feedback_csvs(feedback_list, people):
-    """
-    Export feedback to CSV files grouped by manager.
-    Matches the format used by the app's export feature.
-    """
-    # Group feedback by manager
-    by_manager = defaultdict(list)
-    for fb in feedback_list:
-        by_manager[fb['to_manager_uid']].append(fb)
-
-    # Get manager names for filenames
-    managers = {p['user_id']: p['name'] for p in people if not p['manager_uid']}
-
-    files_created = []
-    for manager_uid, feedbacks in by_manager.items():
-        filename = os.path.join(SAMPLES_DIR, f"sample-feedback-for-{manager_uid}.csv")
-
-        with open(filename, 'w', newline='') as f:
-            writer = csv.writer(f)
-            writer.writerow([
-                'From User ID', 'To User ID',
-                'Strengths (Tenet IDs)', 'Improvements (Tenet IDs)',
-                'Strengths Text', 'Improvements Text'
-            ])
-
-            for fb in feedbacks:
-                writer.writerow([
-                    fb['from_user_id'],
-                    fb['to_user_id'],
-                    ','.join(fb['strengths']),
-                    ','.join(fb['improvements']),
-                    fb['strengths_text'],
-                    fb['improvements_text']
-                ])
-
-        files_created.append(filename)
-
-    print(f"✓ Exported feedback CSVs: {', '.join(files_created)}")
-    return files_created
-
-
 def main():
     large = '--large' in sys.argv
     demo = '--demo' in sys.argv
@@ -638,12 +595,8 @@ def main():
         print("\nGenerating manager feedback...")
         generate_manager_feedback(people)
 
-        # Export feedback CSVs (legacy format)
-        print("\nExporting feedback CSVs (legacy format)...")
-        export_feedback_csvs(feedback_list, people)
-
-        # Generate Workday XLSX (new format)
-        print("\nGenerating Workday XLSX (new format)...")
+        # Generate Workday XLSX
+        print("\nGenerating Workday XLSX...")
         xlsx_file = generate_workday_xlsx(feedback_list, people)
 
         print("\n" + "=" * 50)

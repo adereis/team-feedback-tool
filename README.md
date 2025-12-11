@@ -53,7 +53,6 @@ The tool integrates with Workday (or similar HR systems) for feedback collection
 - Highlight specific tenets for emphasis in reports
 - Add manager's own feedback and comments
 - Export PDF reports
-- Legacy CSV import still supported
 
 ## Quick Start
 
@@ -62,7 +61,7 @@ The tool integrates with Workday (or similar HR systems) for feedback collection
 Try the tool with fictitious data:
 
 ```bash
-# Full demo setup: orgchart, peer feedback, manager feedback, export CSVs
+# Full demo setup: orgchart, peer feedback, manager feedback, sample XLSX
 python3 create_sample_data.py --demo
 
 # Or for a larger organization (50 employees, 5 managers)
@@ -114,12 +113,6 @@ python3 import_orgchart.py REAL-orgchart-export.csv
    - Tool parses structured feedback (with tenets) and generic feedback separately
    - Review reports, add highlights, export PDFs
 
-### Legacy Workflow (CSV-based)
-
-1. **Setup**: Import your orgchart CSV (drag & drop on home page)
-2. **Individuals**: Give feedback for colleagues, export CSVs grouped by manager
-3. **Managers**: Import feedback CSVs, review reports, export PDFs
-
 ## Requirements
 
 ```bash
@@ -131,21 +124,14 @@ Or install from requirements.txt:
 pip install -r requirements.txt
 ```
 
-## CSV Formats
+## Orgchart CSV Format (Optional)
 
-### Orgchart Import Format
+If you have an orgchart, the expected CSV format is:
 
 ```csv
 Name,User ID,Job Title,Location,Email,Manager UID
 Paige Duty,pduty,Staff SRE,Boston MA,pduty@example.com,dgate
 Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
-```
-
-### Feedback Export Format
-
-```csv
-From User ID,To User ID,Strengths (Tenet IDs),Improvements (Tenet IDs),Strengths Text,Improvements Text
-pduty,llatency,"ownership,quality,collaboration","communication,innovation","Lee excels...","I see opportunities..."
 ```
 
 ## Tenets Configuration
@@ -195,7 +181,7 @@ Set `"active": false` to temporarily disable a tenet without deleting it.
 **persons**: Imported from orgchart
 - user_id (PK), name, job_title, location, email, manager_uid (FK)
 
-**feedback**: Peer feedback entries (legacy CSV workflow)
+**feedback**: Peer feedback entries
 - id (PK), from_user_id (FK), to_user_id (FK)
 - strengths (JSON array of tenet IDs)
 - improvements (JSON array of tenet IDs)
@@ -242,7 +228,7 @@ This tool is designed as a **helper utility** that enhances the feedback experie
 ├── feedback_app.py              # Flask application
 ├── feedback_models.py           # SQLAlchemy models
 ├── import_workday.py            # Workday XLSX import utility
-├── import_orgchart.py           # Legacy orgchart CSV import
+├── import_orgchart.py           # Optional orgchart CSV import
 ├── create_sample_data.py        # Sample data generator
 ├── feedback_templates/          # Jinja2 templates
 ├── tests/                       # Test suite
@@ -273,9 +259,10 @@ Used consistently across the application:
 - Feedback tool uses port 5001
 - Change in feedback_app.py if needed: `app.run(port=5002)`
 
-**No managers found**
+**No managers found (when using orgchart)**
 - Make sure orgchart CSV has people with direct reports
 - Managers are auto-detected (people referenced in Manager UID column)
+- If not using orgchart, just enter manager name manually
 
 **Auto-save not working**
 - Check browser console for errors
