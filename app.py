@@ -47,7 +47,10 @@ def load_tenets():
 @app.route('/')
 def index():
     """Home page - select mode"""
-    return render_template('index.html')
+    session = init_db()
+    total_people = session.query(Person).count()
+    session.close()
+    return render_template('index.html', has_data=total_people > 0)
 
 
 @app.route('/feedback')

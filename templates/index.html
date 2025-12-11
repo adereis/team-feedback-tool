@@ -2,13 +2,141 @@
 
 {% block extra_styles %}
 <style>
+    /* Empty State Styles */
+    .empty-state {
+        max-width: 600px;
+        margin: 60px auto;
+        text-align: center;
+        padding: 40px;
+        background: white;
+        border-radius: 16px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    }
+
+    .empty-state-icon {
+        width: 100px;
+        height: 100px;
+        margin: 0 auto 30px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .empty-state-icon svg {
+        width: 50px;
+        height: 50px;
+        color: white;
+    }
+
+    .empty-state h2 {
+        font-size: 28px;
+        color: #2c3e50;
+        margin-bottom: 15px;
+    }
+
+    .empty-state-description {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 35px;
+        line-height: 1.6;
+    }
+
+    .empty-state-actions {
+        display: flex;
+        gap: 16px;
+        justify-content: center;
+        flex-wrap: wrap;
+        margin-bottom: 30px;
+    }
+
+    .empty-state .btn-large {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 16px 32px;
+        font-size: 16px;
+        font-weight: 600;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border: none;
+        border-radius: 8px;
+        cursor: pointer;
+        text-decoration: none;
+        transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    .empty-state .btn-large:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+    }
+
+    .empty-state .btn-large.btn-secondary {
+        background: #ff9800;
+    }
+
+    .empty-state .btn-large.btn-secondary:hover {
+        box-shadow: 0 6px 20px rgba(255, 152, 0, 0.4);
+    }
+
+    .empty-state-divider {
+        display: flex;
+        align-items: center;
+        margin: 30px 0;
+    }
+
+    .empty-state-divider::before,
+    .empty-state-divider::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: #e0e0e0;
+    }
+
+    .empty-state-divider span {
+        padding: 0 20px;
+        color: #999;
+        font-size: 14px;
+    }
+
+    .empty-state-sample {
+        background: #f8f9fa;
+        border-radius: 8px;
+        padding: 25px;
+        text-align: left;
+    }
+
+    .empty-state-sample p {
+        margin: 0 0 12px;
+        color: #666;
+        font-size: 14px;
+    }
+
+    .empty-state-sample code {
+        display: block;
+        background: #2c3e50;
+        color: #27ae60;
+        padding: 12px 16px;
+        border-radius: 6px;
+        font-family: 'Monaco', 'Menlo', monospace;
+        font-size: 14px;
+        margin-bottom: 12px;
+    }
+
+    .empty-state-sample .hint {
+        color: #888;
+        font-size: 13px;
+        margin: 0;
+    }
+
+    /* Normal page styles */
     .workflow-steps {
         font-size: 13px;
         color: #666;
         margin-bottom: 16px;
     }
 
-    /* Disabled state for workflow cards when no data */
     .workflow-card.disabled {
         background: #f0f0f0 !important;
         opacity: 0.6;
@@ -23,62 +151,6 @@
     .workflow-card.disabled h3,
     .workflow-card.disabled p {
         color: #888;
-    }
-
-    /* Setup prompt for first-time users */
-    .setup-prompt {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        color: white;
-        padding: 24px;
-        border-radius: 8px;
-        margin-bottom: 20px;
-    }
-
-    .setup-prompt h3 {
-        margin: 0 0 8px 0;
-        font-size: 18px;
-    }
-
-    .setup-prompt p {
-        margin: 0;
-        opacity: 0.9;
-    }
-
-    .setup-prompt .drop-zone {
-        background: rgba(255,255,255,0.95);
-        border-color: rgba(255,255,255,0.5);
-        margin-top: 16px;
-    }
-
-    .setup-prompt .drop-zone:hover {
-        background: white;
-        border-color: white;
-    }
-
-    .setup-prompt .csv-format {
-        margin-top: 12px;
-    }
-
-    .setup-prompt .csv-format summary {
-        color: rgba(255,255,255,0.9);
-    }
-
-    .setup-prompt .csv-format summary:hover {
-        color: white;
-    }
-
-    .setup-prompt .csv-format pre {
-        background: rgba(255,255,255,0.95);
-        color: #333;
-    }
-
-    .setup-prompt .csv-format p {
-        color: rgba(255,255,255,0.85);
-    }
-
-    /* Hide setup prompt when data is loaded */
-    .setup-prompt.hidden {
-        display: none;
     }
 
     .drop-zone {
@@ -199,13 +271,14 @@
     }
 
     details.card > summary::before {
-        content: '▶ ';
-        font-size: 12px;
+        content: '+ ';
+        font-size: 14px;
+        font-weight: bold;
         margin-right: 4px;
     }
 
     details.card[open] > summary::before {
-        content: '▼ ';
+        content: '- ';
     }
 
     details.card[open] > summary {
@@ -216,6 +289,44 @@
 {% endblock %}
 
 {% block content %}
+{% if not has_data %}
+<!-- Empty State: First-time user experience -->
+<div class="empty-state">
+    <div class="empty-state-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+    </div>
+    <h2>Welcome to Team Feedback Tool</h2>
+    <p class="empty-state-description">Collect peer feedback and generate performance reports for your team. Choose how you want to get started:</p>
+
+    <div class="empty-state-actions">
+        <a href="/feedback" class="btn-large">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Give Feedback
+        </a>
+        <a href="/manager" class="btn-large btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Manager Dashboard
+        </a>
+    </div>
+
+    <div class="empty-state-divider">
+        <span>or try with sample data</span>
+    </div>
+
+    <div class="empty-state-sample">
+        <p>Generate sample data to explore the tool:</p>
+        <code>python3 scripts/create_sample_data.py --demo</code>
+        <p class="hint">Creates orgchart, peer feedback, and sample Workday XLSX for import</p>
+    </div>
+</div>
+{% else %}
+<!-- Normal State: Has data -->
 <div class="card">
     <h2>Welcome to the Team Feedback Tool</h2>
     <p style="margin-bottom: 24px;">Collect peer feedback and generate performance reports for your team.</p>
@@ -244,7 +355,7 @@
     <div style="padding: 0 24px 24px 24px;">
 
     <div class="drop-zone" id="dropZone">
-        <div class="drop-zone-icon">📁</div>
+        <div class="drop-zone-icon">+</div>
         <div class="drop-zone-text">Drag & drop orgchart CSV here, or click to browse</div>
         <input type="file" id="orgchartFile" accept=".csv" />
     </div>
@@ -253,9 +364,9 @@
         <label>
             <input type="checkbox" id="resetCheckbox" />
             <span>
-                <strong>Reset database</strong> — Clear all existing data before import
+                <strong>Reset database</strong> - Clear all existing data before import
                 <div class="reset-warning">
-                    ⚠️ This will permanently delete all people, feedback, and manager reviews!
+                    This will permanently delete all people, feedback, and manager reviews!
                 </div>
             </span>
         </label>
@@ -278,13 +389,16 @@ Lee Latency,llatency,Senior Developer,Boston MA,llatency@example.com,dgate</pre>
 
     </div>
 </details>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Admin section elements
+    // Only run admin scripts if we have data (admin section exists)
     const dropZone = document.getElementById('dropZone');
+    if (!dropZone) return;
+
     const fileInput = document.getElementById('orgchartFile');
     const resetCheckbox = document.getElementById('resetCheckbox');
     const statusDiv = document.getElementById('importStatus');
@@ -353,11 +467,11 @@ document.addEventListener('DOMContentLoaded', function() {
             if (data.success) {
                 let message = '';
                 if (data.reset) {
-                    message = `✓ Database reset. Imported ${data.new_count} people.`;
+                    message = `Database reset. Imported ${data.new_count} people.`;
                 } else if (data.updated_count > 0) {
-                    message = `✓ Imported ${data.new_count} new people, updated ${data.updated_count} existing.`;
+                    message = `Imported ${data.new_count} new people, updated ${data.updated_count} existing.`;
                 } else {
-                    message = `✓ Imported ${data.new_count} new people.`;
+                    message = `Imported ${data.new_count} new people.`;
                 }
                 statusDiv.innerHTML = `<div class="success-message">${message}</div>`;
                 resetCheckbox.checked = false;
@@ -376,6 +490,7 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(r => r.json())
             .then(data => {
                 const statusEl = document.getElementById('dbStatus');
+                if (!statusEl) return;
 
                 if (data.total_people === 0 && data.peer_feedback === 0 && data.manager_reviews === 0) {
                     statusEl.className = 'db-status empty';
@@ -392,11 +507,14 @@ document.addEventListener('DOMContentLoaded', function() {
                     if (data.manager_reviews > 0) {
                         parts.push(`${data.manager_reviews} manager reviews`);
                     }
-                    statusEl.textContent = parts.join(' · ');
+                    statusEl.textContent = parts.join(' | ');
                 }
             })
             .catch(err => {
-                document.getElementById('dbStatus').textContent = 'Could not load database status';
+                const statusEl = document.getElementById('dbStatus');
+                if (statusEl) {
+                    statusEl.textContent = 'Could not load database status';
+                }
             });
     }
 });
