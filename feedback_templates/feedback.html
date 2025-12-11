@@ -319,6 +319,19 @@
 
 {% block scripts %}
 <script>
+// Force apply two-column grid layout (CSS injection workaround)
+const styleSheet = document.createElement('style');
+styleSheet.textContent = `
+    .tenet-selector {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 8px !important;
+        margin-bottom: 20px !important;
+        width: 100% !important;
+    }
+`;
+document.head.appendChild(styleSheet);
+
 {% if recipient_name %}
 const recipientName = {{ recipient_name | tojson | safe }};
 const tenets = {{ tenets | tojson | safe }};
