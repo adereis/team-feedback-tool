@@ -861,13 +861,45 @@ document.head.appendChild(style);
 
 ---
 
+## Related Projects
+
+This project shares patterns and audience with **performance-rating-and-bonus** (same author).
+
+### Shared Patterns
+Both projects follow these conventions for consistency:
+- **Project structure**: `app.py`, `models.py`, `templates/`, `scripts/`, `samples/`, `docs/`
+- **Documentation**: `AGENTS.md` as primary developer guide, `CLAUDE.md` as redirect
+- **Tenets system**: Same JSON structure in `samples/tenets-sample.json`
+- **Workday integration**: Local companion tools, not replacements
+- **Auto-save**: 2-second debounce on all editable fields
+- **Privacy-first**: SQLite, no cloud, no telemetry
+
+### Cross-Pollination Opportunities
+
+#### From performance-rating-and-bonus:
+- **Historical data preservation**: Period archiving with snapshots for quarter-over-quarter comparison
+- **ID-based identification**: All employee lookups use unique IDs, not names (prevents duplicate name issues)
+- **Period comparison analytics**: View trends across rating periods
+- **Employee trend visualization**: Performance history with improving/stable/declining indicators
+
+#### To performance-rating-and-bonus:
+- **PDF export pattern**: WeasyPrint + matplotlib for server-side report generation (see `app.py` and `templates/report_pdf.html`)
+- **Workday XLSX import**: Flexible column detection with header-based mapping (see `scripts/import_workday.py`)
+- **Two-column tenet layouts**: CSS Grid with JavaScript fallback for compact selection UI
+
+### Ports
+- **performance-rating-and-bonus**: Port 5000
+- **team-feedback-tool**: Port 5001 (can run simultaneously)
+
+---
+
 ## Future Enhancements
 
 Potential areas for expansion (not yet implemented):
 
 - [x] PDF export for manager reports (✅ Implemented)
 - [ ] Email feedback reminders
-- [ ] Historical feedback comparison (quarter-over-quarter)
+- [ ] Historical feedback comparison (quarter-over-quarter) - see performance-rating-and-bonus for reference
 - [ ] Multi-manager organizations (skip levels)
 - [ ] Anonymous feedback option
 - [ ] Feedback templates/prompts
