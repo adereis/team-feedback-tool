@@ -29,7 +29,7 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
 
-app = Flask(__name__, template_folder='feedback_templates')
+app = Flask(__name__, template_folder='templates')
 app.secret_key = 'feedback-tool-secret-key-change-in-production'
 
 # Load tenets configuration
