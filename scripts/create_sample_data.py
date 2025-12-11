@@ -29,10 +29,14 @@ import random
 import sys
 import json
 from datetime import datetime, timedelta
+from collections import defaultdict
+
+# Add parent directory to path for imports when running as standalone script
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from models import init_db, Feedback, ManagerFeedback
 
 SAMPLES_DIR = 'samples'
-from collections import defaultdict
-from models import init_db, Feedback, ManagerFeedback
 
 try:
     import openpyxl
@@ -564,8 +568,39 @@ Improvements: {', '.join(fb['improvements'])}
 
 
 def main():
-    large = '--large' in sys.argv
-    demo = '--demo' in sys.argv
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Create sample demo data for the Team Feedback Tool.',
+        epilog='''
+Examples:
+  python3 scripts/create_sample_data.py              # Small team orgchart CSV only
+  python3 scripts/create_sample_data.py --large      # Large org orgchart CSV only
+  python3 scripts/create_sample_data.py --demo       # Full demo setup (recommended)
+  python3 scripts/create_sample_data.py --large --demo  # Large org full demo
+
+The --demo flag creates a complete setup with:
+  - Orgchart CSV in samples/
+  - feedback.db populated with Person, Feedback, and ManagerFeedback records
+  - Workday XLSX for testing import workflow
+        ''',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+
+    parser.add_argument(
+        '--large',
+        action='store_true',
+        help='Create large organization (50 employees, 5 managers) instead of small team (12 employees)'
+    )
+    parser.add_argument(
+        '--demo',
+        action='store_true',
+        help='Full demo setup: import orgchart, generate feedback, create Workday XLSX'
+    )
+
+    args = parser.parse_args()
+    large = args.large
+    demo = args.demo
 
     # Ensure samples directory exists
     os.makedirs(SAMPLES_DIR, exist_ok=True)
@@ -616,8 +651,4 @@ def main():
 
 
 if __name__ == '__main__':
-    if '--help' in sys.argv or '-h' in sys.argv:
-        print(__doc__)
-        sys.exit(0)
-
     main()

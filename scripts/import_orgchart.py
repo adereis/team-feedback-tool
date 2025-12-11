@@ -2,11 +2,16 @@
 Import orgchart CSV export into feedback database
 
 Usage:
-    python3 import_orgchart.py REAL-orgchart-export.csv
+    python3 scripts/import_orgchart.py REAL-orgchart-export.csv
 """
 
 import sys
+import os
 import csv
+
+# Add parent directory to path for imports when running as standalone script
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from models import init_db, Person
 
 
@@ -43,9 +48,33 @@ def import_orgchart(csv_path, db_path='feedback.db'):
     session.close()
 
 
-if __name__ == '__main__':
-    if len(sys.argv) < 2:
-        print("Usage: python3 import_orgchart.py <orgchart.csv>")
-        sys.exit(1)
+def main():
+    import argparse
 
-    import_orgchart(sys.argv[1])
+    parser = argparse.ArgumentParser(
+        description='Import orgchart CSV export into feedback database.',
+        epilog='''
+Example:
+  python3 scripts/import_orgchart.py samples/sample-orgchart.csv
+
+The CSV file should have columns: User ID, Name, Job Title, Location, Email, Manager UID
+        ''',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+
+    parser.add_argument(
+        'csv_file',
+        help='Path to the orgchart CSV file to import'
+    )
+    parser.add_argument(
+        '--db',
+        default='feedback.db',
+        help='Path to database file (default: feedback.db)'
+    )
+
+    args = parser.parse_args()
+    import_orgchart(args.csv_file, args.db)
+
+
+if __name__ == '__main__':
+    main()

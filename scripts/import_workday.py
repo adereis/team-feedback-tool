@@ -13,8 +13,13 @@ different Workday export formats.
 import openpyxl
 import json
 import os
+import sys
 from datetime import datetime
 from sqlalchemy.exc import IntegrityError
+
+# Add parent directory to path for imports when running as standalone script
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 from models import init_db, WorkdayFeedback
 
 
@@ -403,18 +408,36 @@ def get_available_date_ranges(db_path='feedback.db'):
     return [(int(r.year), int(r.month), r.count) for r in results]
 
 
-if __name__ == '__main__':
-    import sys
+def main():
+    import argparse
 
-    if len(sys.argv) < 2:
-        print("Usage: python import_workday.py <xlsx_file> [db_path]")
-        sys.exit(1)
+    parser = argparse.ArgumentParser(
+        description='Import feedback from Workday XLSX export.',
+        epilog='''
+Example:
+  python3 scripts/import_workday.py REAL-feedback-export.xlsx
 
-    xlsx_path = sys.argv[1]
-    db_path = sys.argv[2] if len(sys.argv) > 2 else 'feedback.db'
+The XLSX file should be a "Feedback on My Team" export from Workday.
+Feedback with [TENETS] markers is imported as structured feedback.
+Other feedback is imported as generic (free-text) feedback.
+        ''',
+        formatter_class=argparse.RawDescriptionHelpFormatter
+    )
 
-    print(f"Importing from {xlsx_path}...")
-    result = import_workday_xlsx(xlsx_path, db_path)
+    parser.add_argument(
+        'xlsx_file',
+        help='Path to the Workday XLSX export file'
+    )
+    parser.add_argument(
+        '--db',
+        default='feedback.db',
+        help='Path to database file (default: feedback.db)'
+    )
+
+    args = parser.parse_args()
+
+    print(f"Importing from {args.xlsx_file}...")
+    result = import_workday_xlsx(args.xlsx_file, args.db)
 
     print(f"\nImport complete:")
     print(f"  Imported: {result.imported}")
@@ -433,3 +456,7 @@ if __name__ == '__main__':
         for e in result.errors:
             print(f"  - {e}")
         sys.exit(1)
+
+
+if __name__ == '__main__':
+    main()
