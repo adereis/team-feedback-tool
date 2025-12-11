@@ -330,12 +330,28 @@ async function importXlsxFile(file) {
         const data = await response.json();
 
         if (data.success) {
+            // Format date range
+            let dateRangeText = '';
+            if (data.date_range && data.date_range.min && data.date_range.max) {
+                const minDate = new Date(data.date_range.min);
+                const maxDate = new Date(data.date_range.max);
+                const options = { month: 'short', day: 'numeric', year: 'numeric' };
+                if (minDate.toDateString() === maxDate.toDateString()) {
+                    dateRangeText = minDate.toLocaleDateString('en-US', options);
+                } else {
+                    dateRangeText = `${minDate.toLocaleDateString('en-US', options)} – ${maxDate.toLocaleDateString('en-US', options)}`;
+                }
+            }
+
             let html = `<div class="success-message">
                 ✓ Imported ${data.imported} feedback entries from ${file.name}<br>
                 <span style="font-size: 13px; color: #666;">
-                    Structured (with tenets): ${data.structured_count} •
-                    Generic (free-text): ${data.generic_count}
+                    ${data.recipient_count} team member${data.recipient_count !== 1 ? 's' : ''} •
+                    Structured: ${data.structured_count} •
+                    Generic: ${data.generic_count}
+                    ${dateRangeText ? `• ${dateRangeText}` : ''}
                 </span>
+                <br><a href="" style="color: #155724; font-size: 13px;">Reload page</a> to see updated team list.
             </div>`;
 
             if (data.skipped_duplicates > 0) {

@@ -145,10 +145,22 @@ class ImportResult:
         self.generic_count = 0
         self.warnings = []
         self.errors = []
+        self.recipients = set()  # Unique recipient names
+        self.min_date = None
+        self.max_date = None
 
     @property
     def success(self):
         return len(self.errors) == 0
+
+    def add_date(self, date):
+        """Track date range of imported feedback."""
+        if date is None:
+            return
+        if self.min_date is None or date < self.min_date:
+            self.min_date = date
+        if self.max_date is None or date > self.max_date:
+            self.max_date = date
 
     def to_dict(self):
         return {
@@ -158,6 +170,11 @@ class ImportResult:
             'skipped_empty': self.skipped_empty,
             'structured_count': self.structured_count,
             'generic_count': self.generic_count,
+            'recipient_count': len(self.recipients),
+            'date_range': {
+                'min': self.min_date.isoformat() if self.min_date else None,
+                'max': self.max_date.isoformat() if self.max_date else None
+            },
             'warnings': self.warnings,
             'errors': self.errors
         }
@@ -326,6 +343,11 @@ def import_workday_xlsx(file_path, db_path='feedback.db', config=None):
                 result.structured_count += 1
             else:
                 result.generic_count += 1
+
+            # Track recipient and date for summary
+            if about:
+                result.recipients.add(about)
+            result.add_date(feedback_date)
 
         except IntegrityError:
             session.rollback()
