@@ -164,17 +164,34 @@
 </div>
 
 <div class="card">
-    <h2>Import Feedback</h2>
-    <p style="margin-bottom: 16px;">Upload CSV files that individuals have shared with you.</p>
+    <h2>Import Feedback from Workday</h2>
+    <p style="margin-bottom: 16px;">Upload the "Feedback on My Team" XLSX export from Workday.</p>
 
-    <div class="drop-zone" id="dropZone">
-        <div class="drop-zone-icon">📁</div>
-        <div class="drop-zone-text">Drag & drop CSV files here</div>
-        <div class="drop-zone-subtext">or click to browse • multiple files supported</div>
-        <input type="file" id="feedbackFile" accept=".csv" multiple />
+    <div class="drop-zone" id="dropZoneXlsx">
+        <div class="drop-zone-icon">📊</div>
+        <div class="drop-zone-text">Drag & drop Workday XLSX file here</div>
+        <div class="drop-zone-subtext">or click to browse • "Feedback on My Team" export</div>
+        <input type="file" id="xlsxFile" accept=".xlsx" />
     </div>
-    <div class="file-list" id="fileList"></div>
-    <div id="importStatus" style="margin-top: 12px;"></div>
+    <div id="xlsxImportStatus" style="margin-top: 12px;"></div>
+</div>
+
+<div class="card" style="background: #f8f9fa;">
+    <details>
+        <summary style="cursor: pointer; font-weight: 600; color: #666;">Legacy: Import CSV Files</summary>
+        <p style="margin: 16px 0 16px 0; color: #666; font-size: 14px;">
+            Upload CSV files exported from the individual feedback tool (legacy workflow).
+        </p>
+
+        <div class="drop-zone" id="dropZone">
+            <div class="drop-zone-icon">📁</div>
+            <div class="drop-zone-text">Drag & drop CSV files here</div>
+            <div class="drop-zone-subtext">or click to browse • multiple files supported</div>
+            <input type="file" id="feedbackFile" accept=".csv" multiple />
+        </div>
+        <div class="file-list" id="fileList"></div>
+        <div id="importStatus" style="margin-top: 12px;"></div>
+    </details>
 </div>
 
 <div class="card">
@@ -223,7 +240,95 @@
 // File upload state
 let pendingFiles = [];
 
-// Initialize drop zone
+// Initialize XLSX drop zone (Workday import)
+document.addEventListener('DOMContentLoaded', function() {
+    const xlsxDropZone = document.getElementById('dropZoneXlsx');
+    const xlsxInput = document.getElementById('xlsxFile');
+
+    // Click to browse
+    xlsxDropZone.addEventListener('click', () => xlsxInput.click());
+
+    // File input change
+    xlsxInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            importXlsxFile(e.target.files[0]);
+        }
+        xlsxInput.value = ''; // Reset for re-selection
+    });
+
+    // Drag events
+    xlsxDropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        xlsxDropZone.classList.add('drag-over');
+    });
+
+    xlsxDropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        xlsxDropZone.classList.remove('drag-over');
+    });
+
+    xlsxDropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        xlsxDropZone.classList.remove('drag-over');
+        const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.xlsx'));
+        if (files.length > 0) {
+            importXlsxFile(files[0]);
+        }
+    });
+});
+
+async function importXlsxFile(file) {
+    const statusDiv = document.getElementById('xlsxImportStatus');
+    statusDiv.innerHTML = '<div style="color: #666;">Importing...</div>';
+
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
+
+        const response = await fetch('/manager/import-xlsx', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            let html = `<div class="success-message">
+                ✓ Imported ${data.imported} feedback entries from ${file.name}<br>
+                <span style="font-size: 13px; color: #666;">
+                    Structured (with tenets): ${data.structured_count} •
+                    Generic (free-text): ${data.generic_count}
+                </span>
+            </div>`;
+
+            if (data.skipped_duplicates > 0) {
+                html += `<div style="color: #666; font-size: 13px; margin-top: 8px;">
+                    Skipped ${data.skipped_duplicates} duplicate entries (already imported)
+                </div>`;
+            }
+
+            if (data.warnings && data.warnings.length > 0) {
+                html += `<div class="warning-message" style="background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px; border-radius: 4px; margin-top: 8px;">
+                    ⚠️ Warnings:<br>
+                    ${data.warnings.map(w => '• ' + w).join('<br>')}
+                </div>`;
+            }
+
+            statusDiv.innerHTML = html;
+        } else {
+            statusDiv.innerHTML = `<div class="error-message">✗ ${data.error}</div>`;
+
+            if (data.errors && data.errors.length > 0) {
+                statusDiv.innerHTML += `<div style="color: #dc3545; font-size: 13px; margin-top: 8px;">
+                    ${data.errors.map(e => '• ' + e).join('<br>')}
+                </div>`;
+            }
+        }
+    } catch (err) {
+        statusDiv.innerHTML = `<div class="error-message">✗ ${err.message}</div>`;
+    }
+}
+
+// Initialize legacy CSV drop zone
 document.addEventListener('DOMContentLoaded', function() {
     const dropZone = document.getElementById('dropZone');
     const fileInput = document.getElementById('feedbackFile');

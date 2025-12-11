@@ -343,9 +343,27 @@
     </div>
 
     <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f0f0f0;">
-        <h3>Export Feedback</h3>
-        <p style="margin-bottom: 12px;">When you're done providing feedback, export CSV files to share with managers.</p>
-        <a href="/individual/export-list" class="btn">Export Feedback CSVs</a>
+        <h3>Copy Feedback for Workday</h3>
+        <p style="margin-bottom: 12px;">
+            Select a feedback entry above, then click "Copy for Workday" to get formatted text you can paste into Workday.
+        </p>
+        <button id="copyForWorkdayBtn" onclick="copyForWorkday()" class="btn" disabled>
+            Copy for Workday
+        </button>
+        <span id="copyStatus" style="margin-left: 12px; color: #28a745; display: none;">✓ Copied to clipboard!</span>
+
+        <div id="workdayPreview" style="display: none; margin-top: 16px;">
+            <label style="font-weight: 600; font-size: 14px; margin-bottom: 8px; display: block;">Preview (will be copied):</label>
+            <pre id="workdayPreviewText" style="background: #f8f9fa; padding: 16px; border-radius: 4px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; border: 1px solid #ddd;"></pre>
+        </div>
+    </div>
+
+    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
+        <details>
+            <summary style="cursor: pointer; font-weight: 600; color: #666; font-size: 14px;">Legacy: Export CSV Files</summary>
+            <p style="margin: 12px 0; font-size: 13px; color: #666;">Export CSV files to share with managers (legacy workflow).</p>
+            <a href="/individual/export-list" class="btn btn-secondary">Export Feedback CSVs</a>
+        </details>
     </div>
 </div>
 
@@ -759,5 +777,96 @@ if (existingFeedback.length > 0) {
     renderFeedbackList();
     updateColleagueDropdownIndicators();
 }
+
+// Workday copy functionality
+function formatFeedbackForWorkday(feedback) {
+    // Get tenet names
+    const strengthTenets = feedback.strengths.map(id => {
+        const tenet = tenets.find(t => t.id === id);
+        return tenet ? tenet.name : id;
+    });
+
+    const improvementTenets = feedback.improvements.map(id => {
+        const tenet = tenets.find(t => t.id === id);
+        return tenet ? tenet.name : id;
+    });
+
+    // Build the formatted text with machine-parseable marker
+    let text = `[TENETS]
+Strengths: ${feedback.strengths.join(', ')}
+Improvements: ${feedback.improvements.join(', ')}
+[/TENETS]
+
+Strengths:
+${strengthTenets.map(name => '• ' + name).join('\n')}
+${feedback.strengths_text ? '\n' + feedback.strengths_text : ''}
+
+Areas for Improvement:
+${improvementTenets.map(name => '• ' + name).join('\n')}
+${feedback.improvements_text ? '\n' + feedback.improvements_text : ''}`;
+
+    return text;
+}
+
+function updateWorkdayPreview() {
+    const btn = document.getElementById('copyForWorkdayBtn');
+    const preview = document.getElementById('workdayPreview');
+    const previewText = document.getElementById('workdayPreviewText');
+
+    // Check if we have a valid selected colleague with feedback
+    if (selectedColleague && selectedStrengths.length === 3 &&
+        selectedImprovements.length >= 2 && selectedImprovements.length <= 3) {
+
+        const feedback = {
+            strengths: selectedStrengths,
+            improvements: selectedImprovements,
+            strengths_text: document.getElementById('strengthsText').value,
+            improvements_text: document.getElementById('improvementsText').value
+        };
+
+        const formatted = formatFeedbackForWorkday(feedback);
+        previewText.textContent = formatted;
+        preview.style.display = 'block';
+        btn.disabled = false;
+    } else {
+        preview.style.display = 'none';
+        btn.disabled = true;
+    }
+}
+
+function copyForWorkday() {
+    const previewText = document.getElementById('workdayPreviewText').textContent;
+
+    navigator.clipboard.writeText(previewText).then(() => {
+        const status = document.getElementById('copyStatus');
+        status.style.display = 'inline';
+        setTimeout(() => {
+            status.style.display = 'none';
+        }, 3000);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        // Fallback: select the text
+        const pre = document.getElementById('workdayPreviewText');
+        const range = document.createRange();
+        range.selectNodeContents(pre);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+    });
+}
+
+// Update preview when feedback changes
+const originalScheduleAutoSave = scheduleAutoSave;
+scheduleAutoSave = function() {
+    originalScheduleAutoSave();
+    updateWorkdayPreview();
+};
+
+// Also update preview on tenet selection
+const originalRenderTenets = renderTenets;
+renderTenets = function() {
+    originalRenderTenets();
+    updateWorkdayPreview();
+};
 </script>
 {% endblock %}

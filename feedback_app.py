@@ -12,12 +12,14 @@ Routes:
 """
 
 from flask import Flask, render_template, request, jsonify, send_file, session as flask_session, redirect
-from feedback_models import init_db, Person, Feedback, ManagerFeedback
+from feedback_models import init_db, Person, Feedback, ManagerFeedback, WorkdayFeedback
+from import_workday import import_workday_xlsx, get_available_date_ranges
 import json
 import csv
 import io
 import os
 import base64
+import tempfile
 from collections import defaultdict
 from sqlalchemy import func
 from weasyprint import HTML, CSS
@@ -25,6 +27,7 @@ import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend
 import matplotlib.pyplot as plt
 from datetime import datetime
+from dateutil.relativedelta import relativedelta
 
 app = Flask(__name__, template_folder='feedback_templates')
 app.secret_key = 'feedback-tool-secret-key-change-in-production'
@@ -668,6 +671,143 @@ def import_feedback_csv():
     except Exception as e:
         session.close()
         return jsonify({"success": False, "error": str(e)}), 400
+
+
+@app.route('/manager/import-xlsx', methods=['POST'])
+def import_workday_xlsx_route():
+    """Import feedback from Workday XLSX export"""
+    if 'file' not in request.files:
+        return jsonify({"success": False, "error": "No file uploaded"}), 400
+
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({"success": False, "error": "No file selected"}), 400
+
+    if not file.filename.endswith('.xlsx'):
+        return jsonify({"success": False, "error": "File must be an XLSX file"}), 400
+
+    # Save to temporary file for processing
+    with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
+        file.save(tmp.name)
+        tmp_path = tmp.name
+
+    try:
+        result = import_workday_xlsx(tmp_path)
+        return jsonify(result.to_dict())
+    finally:
+        # Clean up temp file
+        os.unlink(tmp_path)
+
+
+@app.route('/api/workday-feedback')
+def get_workday_feedback():
+    """Get Workday feedback with optional date filtering.
+
+    Query params:
+    - about: Filter by recipient name (optional)
+    - start_date: ISO date string for start of range (optional)
+    - end_date: ISO date string for end of range (optional)
+    - period: Shortcut for date range - 'all', '3m' (default), '6m', '12m'
+    """
+    about = request.args.get('about')
+    period = request.args.get('period', '3m')
+    start_date_str = request.args.get('start_date')
+    end_date_str = request.args.get('end_date')
+
+    session = init_db()
+
+    query = session.query(WorkdayFeedback)
+
+    # Filter by recipient if specified
+    if about:
+        query = query.filter(WorkdayFeedback.about == about)
+
+    # Date filtering
+    if start_date_str and end_date_str:
+        # Custom date range
+        try:
+            start_date = datetime.fromisoformat(start_date_str)
+            end_date = datetime.fromisoformat(end_date_str)
+            query = query.filter(
+                WorkdayFeedback.date >= start_date,
+                WorkdayFeedback.date <= end_date
+            )
+        except ValueError:
+            session.close()
+            return jsonify({"success": False, "error": "Invalid date format"}), 400
+    elif period != 'all':
+        # Period-based filtering (default: current month + 3 previous months)
+        now = datetime.now()
+        end_date = now
+
+        if period == '3m':
+            start_date = now - relativedelta(months=3)
+        elif period == '6m':
+            start_date = now - relativedelta(months=6)
+        elif period == '12m':
+            start_date = now - relativedelta(months=12)
+        else:
+            start_date = now - relativedelta(months=3)  # Default
+
+        query = query.filter(
+            WorkdayFeedback.date >= start_date,
+            WorkdayFeedback.date <= end_date
+        )
+
+    # Order by date descending
+    query = query.order_by(WorkdayFeedback.date.desc())
+
+    feedbacks = query.all()
+    session.close()
+
+    return jsonify({
+        "success": True,
+        "feedbacks": [fb.to_dict() for fb in feedbacks],
+        "total": len(feedbacks)
+    })
+
+
+@app.route('/api/workday-feedback/recipients')
+def get_workday_recipients():
+    """Get list of unique recipients with feedback counts"""
+    session = init_db()
+
+    # Get unique recipients with counts
+    results = session.query(
+        WorkdayFeedback.about,
+        func.count(WorkdayFeedback.id).label('total_count'),
+        func.sum(WorkdayFeedback.is_structured).label('structured_count')
+    ).group_by(WorkdayFeedback.about).order_by(WorkdayFeedback.about).all()
+
+    recipients = []
+    for row in results:
+        recipients.append({
+            'name': row.about,
+            'total_count': row.total_count,
+            'structured_count': row.structured_count or 0,
+            'generic_count': row.total_count - (row.structured_count or 0)
+        })
+
+    session.close()
+
+    return jsonify({
+        "success": True,
+        "recipients": recipients
+    })
+
+
+@app.route('/api/workday-feedback/date-ranges')
+def get_date_ranges():
+    """Get available date ranges for filtering"""
+    ranges = get_available_date_ranges()
+
+    return jsonify({
+        "success": True,
+        "ranges": [
+            {"year": r[0], "month": r[1], "count": r[2]}
+            for r in ranges
+        ]
+    })
 
 
 @app.route('/manager/report/<user_id>')
