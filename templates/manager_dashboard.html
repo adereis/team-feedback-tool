@@ -179,7 +179,7 @@
         <tbody>
             {% for member in team_members %}
             {% set total_feedback = (member.feedback_count or 0) + (member.wd_feedback_count or 0) %}
-            <tr data-name="{{ member.name }}" data-job="{{ member.job_title or '' }}" data-feedback="{{ total_feedback }}">
+            <tr data-name="{{ member.name | tojson }}" data-job="{{ (member.job_title or '') | tojson }}" data-feedback="{{ total_feedback }}">
                 <td><strong>{{ member.name }}</strong></td>
                 <td>{{ member.job_title or '-' }}</td>
                 <td>{{ total_feedback }} feedback(s)</td>
@@ -345,6 +345,12 @@ document.addEventListener('DOMContentLoaded', function() {
         rows.sort((a, b) => {
             let aVal = a.getAttribute(`data-${column}`);
             let bVal = b.getAttribute(`data-${column}`);
+
+            // Parse JSON-encoded string values (name, job)
+            if (column === 'name' || column === 'job') {
+                aVal = JSON.parse(aVal);
+                bVal = JSON.parse(bVal);
+            }
 
             // Convert to numbers for feedback count
             if (column === 'feedback') {

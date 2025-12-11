@@ -505,6 +505,39 @@ class TestManagerWorkflow:
         assert 'emp001' in data or 'Charlie' in data
         assert 'emp002' in data or 'Diana' in data
 
+    def test_manager_dashboard_handles_apostrophe_in_name(self, client, db_session):
+        """Test manager dashboard properly escapes names with apostrophes in data attributes"""
+        from models import Person
+
+        # Add a person with an apostrophe in their name
+        person_with_apostrophe = Person(
+            user_id='emp_apostrophe',
+            name="Annie O'Maly",
+            job_title="Senior Engineer",
+            location='Boston',
+            email='annie@example.com',
+            manager_uid='mgr001'
+        )
+        db_session.add(person_with_apostrophe)
+        db_session.commit()
+
+        with client.session_transaction() as sess:
+            sess['manager_uid'] = 'mgr001'
+
+        response = client.get('/manager')
+        assert response.status_code == 200
+        data = response.data.decode('utf-8')
+
+        # The name should appear in the table cell (displayed normally with HTML escaping)
+        assert "O&#39;Maly" in data
+
+        # The data attribute should use JSON encoding with escaped apostrophe
+        # This ensures apostrophes don't break HTML attribute parsing
+        # Jinja2's tojson filter escapes apostrophes as \u0027
+        # The quotes become "" (HTML entities for double-quote in an attribute)
+        assert 'data-name="&#34;Annie O\\u0027Maly&#34;"' in data or \
+               'data-name=""Annie O\\u0027Maly""' in data
+
 
 class TestSetManagerAPI:
     """Test set manager API endpoint"""
