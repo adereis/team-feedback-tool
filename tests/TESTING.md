@@ -41,7 +41,7 @@ pytest -v
 
 ### Run with Coverage Report
 ```bash
-pytest --cov=feedback_app --cov=feedback_models --cov-report=html
+pytest --cov=app --cov=models --cov-report=html
 ```
 
 ## Test Structure

@@ -62,13 +62,13 @@ Try the tool with fictitious data:
 
 ```bash
 # Full demo setup: orgchart, peer feedback, manager feedback, sample XLSX
-python3 create_sample_data.py --demo
+python3 scripts/create_sample_data.py --demo
 
 # Or for a larger organization (50 employees, 5 managers)
-python3 create_sample_data.py --large --demo
+python3 scripts/create_sample_data.py --large --demo
 
 # Start the app
-python3 feedback_app.py
+python3 app.py
 ```
 
 Access at: http://localhost:5001
@@ -79,7 +79,7 @@ Sample managers include: Della Gate (dgate), Rhoda Map (rmap), Kay P. Eye (keye)
 
 ```bash
 # Start the application
-python3 feedback_app.py
+python3 app.py
 ```
 
 **Import your orgchart via Web UI** (Recommended):
@@ -88,7 +88,7 @@ python3 feedback_app.py
 
 **Or via Command Line**:
 ```bash
-python3 import_orgchart.py REAL-orgchart-export.csv
+python3 scripts/import_orgchart.py REAL-orgchart-export.csv
 ```
 
 ## Workflow
@@ -102,7 +102,7 @@ python3 import_orgchart.py REAL-orgchart-export.csv
    This pre-fills the recipient name, making it easy for providers to start immediately.
 
 2. **Providers Give Feedback**:
-   - Clone this repo and run locally: `python3 feedback_app.py`
+   - Clone this repo and run locally: `python3 app.py`
    - Click the link from Workday (or go to http://localhost:5001/feedback)
    - Select tenets and write feedback for the colleague
    - Click "Copy for Workday" and paste the formatted text into Workday
@@ -138,13 +138,13 @@ Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
 
 The application looks for tenets in this order:
 1. `tenets.json` (your organization's customized tenets)
-2. `tenets-sample.json` (fallback with tech-themed examples)
+2. `samples/tenets-sample.json` (fallback with tech-themed examples)
 
 To customize tenets for your organization:
 
 ```bash
 # Copy the sample file
-cp tenets-sample.json tenets.json
+cp samples/tenets-sample.json tenets.json
 
 # Edit tenets.json with your organization's values
 # (This file is in .gitignore, so it stays private)
@@ -225,15 +225,17 @@ This tool is designed as a **helper utility** that enhances the feedback experie
 
 ```
 .
-├── feedback_app.py              # Flask application
-├── feedback_models.py           # SQLAlchemy models
-├── import_workday.py            # Workday XLSX import utility
-├── import_orgchart.py           # Optional orgchart CSV import
-├── create_sample_data.py        # Sample data generator
-├── feedback_templates/          # Jinja2 templates
+├── app.py                       # Flask application
+├── models.py                    # SQLAlchemy models
+├── scripts/
+│   ├── import_workday.py        # Workday XLSX import utility
+│   ├── import_orgchart.py       # Optional orgchart CSV import
+│   └── create_sample_data.py    # Sample data generator
+├── templates/                   # Jinja2 templates
 ├── tests/                       # Test suite
-├── tenets-sample.json           # Sample tenets configuration
-├── WORKDAY_INTEGRATION.md       # Workday integration design doc
+├── samples/
+│   └── tenets-sample.json       # Sample tenets configuration
+├── docs/                        # Documentation assets
 └── README.md                    # This file
 ```
 
@@ -257,7 +259,7 @@ Used consistently across the application:
 
 **Port conflict**
 - Feedback tool uses port 5001
-- Change in feedback_app.py if needed: `app.run(port=5002)`
+- Change in app.py if needed: `app.run(port=5002)`
 
 **No managers found (when using orgchart)**
 - Make sure orgchart CSV has people with direct reports
