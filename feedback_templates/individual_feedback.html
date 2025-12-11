@@ -73,22 +73,65 @@
 
     .feedback-item {
         background: #f8f9fa;
-        padding: 16px;
         border-radius: 6px;
         margin-bottom: 12px;
+        overflow: hidden;
     }
 
     .feedback-item-header {
         display: flex;
         justify-content: space-between;
         align-items: center;
-        margin-bottom: 8px;
+        padding: 12px 16px;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.2s;
+    }
+
+    .feedback-item-header:hover {
+        background: #e9ecef;
     }
 
     .feedback-item-name {
         font-weight: 600;
         font-size: 15px;
         color: #2c3e50;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .feedback-item-name::before {
+        content: '▶';
+        font-size: 10px;
+        color: #999;
+        transition: transform 0.2s;
+    }
+
+    .feedback-item.expanded .feedback-item-name::before {
+        transform: rotate(90deg);
+    }
+
+    .feedback-item-summary {
+        font-size: 13px;
+        color: #666;
+        margin-left: 8px;
+        font-weight: normal;
+    }
+
+    .feedback-item-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    .feedback-item-body {
+        display: none;
+        padding: 0 16px 16px 16px;
+        border-top: 1px solid #e9ecef;
+    }
+
+    .feedback-item.expanded .feedback-item-body {
+        display: block;
     }
 
     .feedback-tenets {
@@ -342,29 +385,6 @@
         </div>
     </div>
 
-    <div style="margin-top: 30px; padding-top: 20px; border-top: 2px solid #f0f0f0;">
-        <h3>Copy Feedback for Workday</h3>
-        <p style="margin-bottom: 12px;">
-            Select a feedback entry above, then click "Copy for Workday" to get formatted text you can paste into Workday.
-        </p>
-        <button id="copyForWorkdayBtn" onclick="copyForWorkday()" class="btn" disabled>
-            Copy for Workday
-        </button>
-        <span id="copyStatus" style="margin-left: 12px; color: #28a745; display: none;">✓ Copied to clipboard!</span>
-
-        <div id="workdayPreview" style="display: none; margin-top: 16px;">
-            <label style="font-weight: 600; font-size: 14px; margin-bottom: 8px; display: block;">Preview (will be copied):</label>
-            <pre id="workdayPreviewText" style="background: #f8f9fa; padding: 16px; border-radius: 4px; font-size: 12px; overflow-x: auto; white-space: pre-wrap; border: 1px solid #ddd;"></pre>
-        </div>
-    </div>
-
-    <div style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
-        <details>
-            <summary style="cursor: pointer; font-weight: 600; color: #666; font-size: 14px;">Legacy: Export CSV Files</summary>
-            <p style="margin: 12px 0; font-size: 13px; color: #666;">Export CSV files to share with managers (legacy workflow).</p>
-            <a href="/individual/export-list" class="btn btn-secondary">Export Feedback CSVs</a>
-        </details>
-    </div>
 </div>
 
 {% endblock %}
@@ -620,7 +640,7 @@ function renderFeedbackList() {
         return;
     }
 
-    listDiv.innerHTML = existingFeedback.map(fb => {
+    listDiv.innerHTML = existingFeedback.map((fb, index) => {
         const person = allPeople.find(p => p.user_id === fb.to_user_id);
         const personName = person ? person.name : fb.to_user_id;
 
@@ -636,31 +656,67 @@ function renderFeedbackList() {
         });
 
         return `
-            <div class="feedback-item">
-                <div class="feedback-item-header">
-                    <div class="feedback-item-name">${personName}</div>
-                    <div>
-                        <button onclick="editFeedback('${fb.to_user_id}')" class="btn btn-secondary" style="padding: 6px 12px; margin-right: 8px;">Edit</button>
+            <div class="feedback-item" id="feedback-item-${index}">
+                <div class="feedback-item-header" onclick="toggleFeedbackItem(${index})">
+                    <div class="feedback-item-name">
+                        ${personName}
+                        <span class="feedback-item-summary">${fb.strengths.length} strengths, ${fb.improvements.length} improvements</span>
+                    </div>
+                    <div class="feedback-item-actions" onclick="event.stopPropagation()">
+                        <button onclick="copyFeedbackForWorkday(${index})" class="btn" style="padding: 6px 12px;" title="Copy formatted feedback to clipboard">📋 Copy</button>
+                        <button onclick="editFeedback('${fb.to_user_id}')" class="btn btn-secondary" style="padding: 6px 12px;">Edit</button>
                         <button onclick="deleteFeedback('${fb.to_user_id}')" class="btn btn-danger" style="padding: 6px 12px;">Delete</button>
                     </div>
                 </div>
-                <div class="feedback-tenets">
-                    <div class="tenet-group strengths">
-                        <div class="tenet-group-title">Strengths (${fb.strengths.length})</div>
-                        <ul class="tenet-list strengths">
-                            ${strengthTenets.map(name => `<li>${name}</li>`).join('')}
-                        </ul>
-                    </div>
-                    <div class="tenet-group improvements">
-                        <div class="tenet-group-title">Improvements (${fb.improvements.length})</div>
-                        <ul class="tenet-list improvements">
-                            ${improvementTenets.map(name => `<li>${name}</li>`).join('')}
-                        </ul>
+                <div class="feedback-item-body">
+                    <div class="feedback-tenets" style="margin-top: 12px;">
+                        <div class="tenet-group strengths">
+                            <div class="tenet-group-title">Strengths (${fb.strengths.length})</div>
+                            <ul class="tenet-list strengths">
+                                ${strengthTenets.map(name => `<li>${name}</li>`).join('')}
+                            </ul>
+                            ${fb.strengths_text ? `<div style="margin-top: 8px; font-size: 13px; color: #495057; font-style: italic;">${fb.strengths_text}</div>` : ''}
+                        </div>
+                        <div class="tenet-group improvements">
+                            <div class="tenet-group-title">Improvements (${fb.improvements.length})</div>
+                            <ul class="tenet-list improvements">
+                                ${improvementTenets.map(name => `<li>${name}</li>`).join('')}
+                            </ul>
+                            ${fb.improvements_text ? `<div style="margin-top: 8px; font-size: 13px; color: #495057; font-style: italic;">${fb.improvements_text}</div>` : ''}
+                        </div>
                     </div>
                 </div>
             </div>
         `;
     }).join('');
+}
+
+function toggleFeedbackItem(index) {
+    const item = document.getElementById(`feedback-item-${index}`);
+    item.classList.toggle('expanded');
+}
+
+function copyFeedbackForWorkday(index) {
+    const fb = existingFeedback[index];
+    const formatted = formatFeedbackForWorkday(fb);
+
+    navigator.clipboard.writeText(formatted).then(() => {
+        // Show brief confirmation on the button
+        const item = document.getElementById(`feedback-item-${index}`);
+        const copyBtn = item.querySelector('.feedback-item-actions button:first-child');
+        const originalText = copyBtn.innerHTML;
+        copyBtn.innerHTML = '✓ Copied!';
+        copyBtn.style.background = '#28a745';
+        copyBtn.style.color = 'white';
+        setTimeout(() => {
+            copyBtn.innerHTML = originalText;
+            copyBtn.style.background = '';
+            copyBtn.style.color = '';
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        alert('Failed to copy to clipboard. Please try again.');
+    });
 }
 
 function showSaveIndicator() {
@@ -791,82 +847,22 @@ function formatFeedbackForWorkday(feedback) {
         return tenet ? tenet.name : id;
     });
 
-    // Build the formatted text with machine-parseable marker
-    let text = `[TENETS]
-Strengths: ${feedback.strengths.join(', ')}
-Improvements: ${feedback.improvements.join(', ')}
-[/TENETS]
-
-Strengths:
+    // Build the formatted text with human-readable content first, machine-parseable marker at bottom
+    let text = `Strengths:
 ${strengthTenets.map(name => '• ' + name).join('\n')}
 ${feedback.strengths_text ? '\n' + feedback.strengths_text : ''}
 
 Areas for Improvement:
 ${improvementTenets.map(name => '• ' + name).join('\n')}
-${feedback.improvements_text ? '\n' + feedback.improvements_text : ''}`;
+${feedback.improvements_text ? '\n' + feedback.improvements_text : ''}
+
+[TENETS]
+Strengths: ${feedback.strengths.join(', ')}
+Improvements: ${feedback.improvements.join(', ')}
+[/TENETS]`;
 
     return text;
 }
 
-function updateWorkdayPreview() {
-    const btn = document.getElementById('copyForWorkdayBtn');
-    const preview = document.getElementById('workdayPreview');
-    const previewText = document.getElementById('workdayPreviewText');
-
-    // Check if we have a valid selected colleague with feedback
-    if (selectedColleague && selectedStrengths.length === 3 &&
-        selectedImprovements.length >= 2 && selectedImprovements.length <= 3) {
-
-        const feedback = {
-            strengths: selectedStrengths,
-            improvements: selectedImprovements,
-            strengths_text: document.getElementById('strengthsText').value,
-            improvements_text: document.getElementById('improvementsText').value
-        };
-
-        const formatted = formatFeedbackForWorkday(feedback);
-        previewText.textContent = formatted;
-        preview.style.display = 'block';
-        btn.disabled = false;
-    } else {
-        preview.style.display = 'none';
-        btn.disabled = true;
-    }
-}
-
-function copyForWorkday() {
-    const previewText = document.getElementById('workdayPreviewText').textContent;
-
-    navigator.clipboard.writeText(previewText).then(() => {
-        const status = document.getElementById('copyStatus');
-        status.style.display = 'inline';
-        setTimeout(() => {
-            status.style.display = 'none';
-        }, 3000);
-    }).catch(err => {
-        console.error('Failed to copy:', err);
-        // Fallback: select the text
-        const pre = document.getElementById('workdayPreviewText');
-        const range = document.createRange();
-        range.selectNodeContents(pre);
-        const selection = window.getSelection();
-        selection.removeAllRanges();
-        selection.addRange(range);
-    });
-}
-
-// Update preview when feedback changes
-const originalScheduleAutoSave = scheduleAutoSave;
-scheduleAutoSave = function() {
-    originalScheduleAutoSave();
-    updateWorkdayPreview();
-};
-
-// Also update preview on tenet selection
-const originalRenderTenets = renderTenets;
-renderTenets = function() {
-    originalRenderTenets();
-    updateWorkdayPreview();
-};
 </script>
 {% endblock %}
