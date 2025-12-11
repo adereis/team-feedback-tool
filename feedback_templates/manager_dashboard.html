@@ -261,13 +261,15 @@
     {% endif %}
 </div>
 
-<div class="card">
+{% if team_members|length > 0 %}
+<div class="card" id="butterflyChartCard" style="display: none;">
     <h2>Team Overview - Butterfly Chart</h2>
     <p style="margin-bottom: 12px; color: #666;">
         Aggregated feedback across all team members. Strengths shown in green (right), improvements in red (left).
     </p>
     <div id="teamButterflyChart"></div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
@@ -588,13 +590,24 @@ function fetchAndRenderTeamButterflyChart() {
 
 function renderTeamButterflyChart(butterflyData) {
     const container = document.getElementById('teamButterflyChart');
+    const card = document.getElementById('butterflyChartCard');
+
+    if (!container || !card) return;
+
     container.innerHTML = '';
 
-    // Check if we have data
-    if (!butterflyData || butterflyData.length === 0) {
-        container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No feedback data available yet.</p>';
+    // Check if we have data with actual feedback counts
+    const hasData = butterflyData && butterflyData.length > 0 &&
+        butterflyData.some(t => t.strength_count > 0 || t.improvement_count > 0);
+
+    if (!hasData) {
+        // Hide the card entirely when no feedback data
+        card.style.display = 'none';
         return;
     }
+
+    // Show the card when we have data
+    card.style.display = 'block';
 
     // Calculate max value, ensure minimum of 1 for proper scaling
     const maxValue = Math.max(
