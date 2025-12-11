@@ -825,14 +825,30 @@ def view_report(user_id):
         session.close()
         return "Team member not found or not in your team", 403
 
-    # Get all feedback for this person
+    # Get legacy feedback for this person
     feedbacks = session.query(Feedback).filter_by(to_user_id=user_id).all()
 
-    # Aggregate tenet counts
+    # Get Workday feedback by name (both structured and generic)
+    wd_feedbacks = session.query(WorkdayFeedback).filter(
+        WorkdayFeedback.about == team_member.name
+    ).order_by(WorkdayFeedback.date.desc()).all()
+
+    # Separate structured vs generic Workday feedback
+    wd_structured = [fb for fb in wd_feedbacks if fb.is_structured]
+    wd_generic = [fb for fb in wd_feedbacks if not fb.is_structured]
+
+    # Aggregate tenet counts from legacy feedback
     tenet_strengths = defaultdict(int)
     tenet_improvements = defaultdict(int)
 
     for fb in feedbacks:
+        for tenet_id in fb.get_strengths():
+            tenet_strengths[tenet_id] += 1
+        for tenet_id in fb.get_improvements():
+            tenet_improvements[tenet_id] += 1
+
+    # Add structured Workday feedback to tenet counts
+    for fb in wd_structured:
         for tenet_id in fb.get_strengths():
             tenet_strengths[tenet_id] += 1
         for tenet_id in fb.get_improvements():
@@ -866,13 +882,21 @@ def view_report(user_id):
     # Sort by net score
     butterfly_data.sort(key=lambda x: (x['strength_count'] - x['improvement_count']), reverse=True)
 
-    # Prepare feedback with giver names for manager view (non-anonymous)
+    # Prepare legacy feedback with giver names for manager view (non-anonymous)
     feedbacks_with_names = []
     for fb in feedbacks:
         fb_dict = fb.to_dict()
         # Get giver's name
         giver = session.query(Person).filter_by(user_id=fb.from_user_id).first()
         fb_dict['from_name'] = giver.name if giver else fb.from_user_id
+        fb_dict['source'] = 'legacy'
+        feedbacks_with_names.append(fb_dict)
+
+    # Add structured Workday feedback
+    for fb in wd_structured:
+        fb_dict = fb.to_dict()
+        fb_dict['from_name'] = fb.from_name
+        fb_dict['source'] = 'workday_structured'
         feedbacks_with_names.append(fb_dict)
 
     session.close()
@@ -881,6 +905,7 @@ def view_report(user_id):
         'report.html',
         team_member=team_member.to_dict(),
         feedbacks=feedbacks_with_names,
+        generic_feedbacks=[fb.to_dict() for fb in wd_generic],
         butterfly_data=butterfly_data,
         manager_feedback=manager_feedback.to_dict() if manager_feedback else None,
         tenets=tenets

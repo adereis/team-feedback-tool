@@ -174,7 +174,10 @@
     </p>
 
     <div class="info-box">
-        <strong>{{ feedbacks|length }} peer feedback(s) received</strong>
+        <strong>{{ feedbacks|length }} structured feedback(s)</strong>
+        {% if generic_feedbacks|length > 0 %}
+        <span style="margin-left: 12px; color: #856404;">+ {{ generic_feedbacks|length }} additional from Workday</span>
+        {% endif %}
     </div>
 </div>
 
@@ -193,15 +196,23 @@
 
 <div class="card">
     <h2>Peer Feedback Comments</h2>
+    <p style="color: #666; font-size: 13px; margin-bottom: 16px;">
+        Structured feedback from peers (with tenet selections).
+    </p>
 
     <h3>Strengths</h3>
     {% if feedbacks|length == 0 %}
-    <p style="color: #999;">No feedback received yet.</p>
+    <p style="color: #999;">No structured feedback received yet.</p>
     {% else %}
     {% for fb in feedbacks %}
     {% if fb.strengths_text %}
     <div class="feedback-text-item">
-        <div style="font-weight: 600; color: #667eea; margin-bottom: 6px; font-size: 13px;">From: {{ fb.from_name }}</div>
+        <div style="font-weight: 600; color: #667eea; margin-bottom: 6px; font-size: 13px;">
+            From: {{ fb.from_name }}
+            {% if fb.source == 'workday_structured' %}
+            <span style="background: #e7f3ff; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">Workday</span>
+            {% endif %}
+        </div>
         {{ fb.strengths_text }}
     </div>
     {% endif %}
@@ -212,12 +223,43 @@
     {% for fb in feedbacks %}
     {% if fb.improvements_text %}
     <div class="feedback-text-item">
-        <div style="font-weight: 600; color: #667eea; margin-bottom: 6px; font-size: 13px;">From: {{ fb.from_name }}</div>
+        <div style="font-weight: 600; color: #667eea; margin-bottom: 6px; font-size: 13px;">
+            From: {{ fb.from_name }}
+            {% if fb.source == 'workday_structured' %}
+            <span style="background: #e7f3ff; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">Workday</span>
+            {% endif %}
+        </div>
         {{ fb.improvements_text }}
     </div>
     {% endif %}
     {% endfor %}
 </div>
+
+{% if generic_feedbacks|length > 0 %}
+<div class="card">
+    <h2>Additional Feedback from Workday</h2>
+    <p style="color: #666; font-size: 13px; margin-bottom: 16px;">
+        Generic feedback from Workday (free-text, not included in butterfly chart).
+    </p>
+
+    {% for fb in generic_feedbacks %}
+    <div class="feedback-text-item" style="border-left-color: #ffc107;">
+        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+            <div style="font-weight: 600; color: #856404; font-size: 13px;">From: {{ fb.from_name }}</div>
+            <div style="font-size: 11px; color: #999;">
+                {% if fb.date %}{{ fb.date[:10] }}{% endif %}
+            </div>
+        </div>
+        {% if fb.question %}
+        <div style="font-style: italic; color: #666; font-size: 12px; margin-bottom: 8px;">
+            Q: {{ fb.question[:100] }}{% if fb.question|length > 100 %}...{% endif %}
+        </div>
+        {% endif %}
+        <div>{{ fb.feedback }}</div>
+    </div>
+    {% endfor %}
+</div>
+{% endif %}
 
 <div class="card">
     <h2>Your Feedback (Manager)</h2>
