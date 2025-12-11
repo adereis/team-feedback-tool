@@ -195,6 +195,39 @@
 </div>
 
 <div class="card">
+    <h2>Workday Feedback Overview</h2>
+    <p style="margin-bottom: 16px; color: #666;">
+        Filter imported Workday feedback by date range.
+    </p>
+
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+        <div>
+            <label style="font-size: 13px; font-weight: 600;">Time Period:</label>
+            <select id="dateRangeSelect" onchange="updateDateRange()" style="padding: 6px 12px; border-radius: 4px; border: 1px solid #ccc;">
+                <option value="3m">Last 3 months</option>
+                <option value="6m">Last 6 months</option>
+                <option value="12m">Last 12 months</option>
+                <option value="all">All time</option>
+                <option value="custom">Custom range...</option>
+            </select>
+        </div>
+
+        <div id="customDateRange" style="display: none;">
+            <input type="date" id="startDate" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+            <span style="margin: 0 8px;">to</span>
+            <input type="date" id="endDate" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+            <button onclick="applyCustomRange()" class="btn btn-secondary" style="padding: 6px 12px; margin-left: 8px;">Apply</button>
+        </div>
+    </div>
+
+    <div id="dateRangeSummary" style="background: #f8f9fa; padding: 12px 16px; border-radius: 4px; font-size: 13px;">
+        <span id="feedbackSummary">Loading...</span>
+    </div>
+
+    <div id="availablePeriods" style="margin-top: 12px; font-size: 12px; color: #666;"></div>
+</div>
+
+<div class="card">
     <h2>Your Team</h2>
 
     {% if team_members|length == 0 %}
@@ -685,6 +718,90 @@ function renderTeamButterflyChart(butterflyData) {
 // Load team butterfly chart on page load
 document.addEventListener('DOMContentLoaded', function() {
     fetchAndRenderTeamButterflyChart();
+    loadWorkdayFeedbackSummary();
+    loadAvailableDateRanges();
 });
+
+// Date range filtering for Workday feedback
+let currentPeriod = '3m';
+
+function updateDateRange() {
+    const select = document.getElementById('dateRangeSelect');
+    const customDiv = document.getElementById('customDateRange');
+
+    if (select.value === 'custom') {
+        customDiv.style.display = 'flex';
+    } else {
+        customDiv.style.display = 'none';
+        currentPeriod = select.value;
+        loadWorkdayFeedbackSummary();
+    }
+}
+
+function applyCustomRange() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    if (!startDate || !endDate) {
+        document.getElementById('feedbackSummary').textContent = 'Please select both start and end dates';
+        return;
+    }
+
+    loadWorkdayFeedbackSummary(startDate, endDate);
+}
+
+function loadWorkdayFeedbackSummary(startDate = null, endDate = null) {
+    const summaryEl = document.getElementById('feedbackSummary');
+    summaryEl.textContent = 'Loading...';
+
+    let url = '/api/workday-feedback/recipients';
+    // Note: The recipients endpoint doesn't filter by date yet.
+    // For now, show the overall summary. Date filtering applies to individual reports.
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.recipients.length > 0) {
+                const total = data.recipients.reduce((sum, r) => sum + r.total_count, 0);
+                const structured = data.recipients.reduce((sum, r) => sum + r.structured_count, 0);
+                const generic = total - structured;
+
+                summaryEl.innerHTML = `
+                    <strong>${total} feedback entries</strong> from Workday
+                    <span style="margin-left: 16px; color: #666;">
+                        ${structured} structured (with tenets) • ${generic} generic
+                    </span>
+                    <span style="margin-left: 16px; color: #666;">
+                        ${data.recipients.length} recipients
+                    </span>
+                `;
+            } else {
+                summaryEl.innerHTML = 'No Workday feedback imported yet. <a href="#" onclick="document.getElementById(\'xlsxFile\').click(); return false;">Import XLSX</a>';
+            }
+        })
+        .catch(err => {
+            summaryEl.textContent = 'Error loading feedback summary';
+            console.error('Error:', err);
+        });
+}
+
+function loadAvailableDateRanges() {
+    fetch('/api/workday-feedback/date-ranges')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.ranges.length > 0) {
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const rangeText = data.ranges.slice(0, 6).map(r =>
+                    `${monthNames[r.month - 1]} ${r.year} (${r.count})`
+                ).join(' • ');
+
+                document.getElementById('availablePeriods').innerHTML =
+                    `<strong>Feedback available:</strong> ${rangeText}` +
+                    (data.ranges.length > 6 ? ` + ${data.ranges.length - 6} more months` : '');
+            }
+        })
+        .catch(err => console.error('Error loading date ranges:', err));
+}
 </script>
 {% endblock %}
