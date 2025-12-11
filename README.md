@@ -56,7 +56,23 @@ The tool integrates with Workday (or similar HR systems) for feedback collection
 
 ## Quick Start
 
-### 1. Generate Sample Data
+### One-Command Startup
+
+Clone and run:
+
+```bash
+git clone <repo-url>
+cd team-feedback-tool
+./run.sh          # macOS/Linux
+run.bat           # Windows
+```
+
+The script automatically:
+- Creates a virtual environment (first run only)
+- Installs dependencies
+- Opens your browser to http://localhost:5001
+
+### Generate Sample Data (Optional)
 
 Try the tool with fictitious data:
 
@@ -66,19 +82,14 @@ python3 scripts/create_sample_data.py --demo
 
 # Or for a larger organization (50 employees, 5 managers)
 python3 scripts/create_sample_data.py --large --demo
-
-# Start the app
-python3 app.py
 ```
-
-Access at: http://localhost:5001
 
 Sample managers include: Della Gate (dgate), Rhoda Map (rmap), Kay P. Eye (keye), Agie Enda (aenda), Mai Stone (mstone)
 
-### 2. Use with Real Data
+### Manual Setup (Alternative)
 
 ```bash
-# Start the application
+pip install -r requirements.txt
 python3 app.py
 ```
 
