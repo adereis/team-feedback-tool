@@ -209,12 +209,23 @@ Set `"active": false` to temporarily disable a tenet without deleting it.
 
 ## Privacy & Security
 
-- **Local-first**: All data stays on your machine
-- **No authentication**: Designed for single-user local execution
-- **No telemetry**: No external API calls or cloud sync
-- **Anonymous peer feedback**: Manager reports don't show who gave feedback
-- **CSV includes provider ID**: For accountability during collection
-- **.gitignore**: Protects REAL-*.csv, feedback.db, tenets.json
+### Design Principle: No Data Leaves Official HR Tools
+
+This tool is designed as a **helper utility** that enhances the feedback experience without becoming a repository for sensitive employee data:
+
+- **Workday remains the source of truth**: All feedback ultimately lives in Workday (or your HR system)
+- **Copy-paste workflow**: Feedback providers paste formatted text *into* Workday, not out of it
+- **Managers import from Workday**: The XLSX is exported from Workday, imported here for visualization
+- **No data sharing between users**: Each user runs their own local instance
+- **Ephemeral local storage**: The local database can be deleted after each feedback cycle
+
+### Technical Safeguards
+
+- **Local-first**: All data stays on your machine—no cloud sync, no external servers
+- **No authentication**: Designed for single-user local execution (each person runs their own copy)
+- **No telemetry**: No external API calls, analytics, or phoning home
+- **Anonymous peer feedback**: Manager reports show feedback without identifying who gave it
+- **.gitignore**: Protects REAL-*.csv, REAL-*.xlsx, feedback.db, tenets.json from accidental commits
 
 ## Development
 
