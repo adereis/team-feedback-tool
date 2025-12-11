@@ -14,11 +14,15 @@ The --demo flag:
     2. Imports orgchart to database
     3. Generates peer feedback in database
     4. Generates manager feedback in database
-    5. Exports feedback CSVs (for testing import workflow)
+    5. Exports feedback CSVs (legacy format)
+    6. Generates Workday XLSX (new format) with mix of structured/generic feedback
 
 Output:
     - samples/sample-orgchart.csv (or sample-orgchart-large.csv)
-    - With --demo: feedback.db populated, samples/sample-feedback-for-{manager}.csv files
+    - With --demo:
+        - feedback.db populated with sample data
+        - samples/sample-feedback-for-{manager}.csv (legacy format)
+        - samples/sample-workday-feedback.xlsx (Workday format with [TENETS] markers)
 """
 
 import csv
@@ -26,10 +30,17 @@ import os
 import random
 import sys
 import json
+from datetime import datetime, timedelta
 
 SAMPLES_DIR = 'samples'
 from collections import defaultdict
 from feedback_models import init_db, Feedback, ManagerFeedback
+
+try:
+    import openpyxl
+    HAS_OPENPYXL = True
+except ImportError:
+    HAS_OPENPYXL = False
 
 
 def generate_user_id(name):
@@ -391,6 +402,169 @@ def generate_manager_feedback(people):
     print(f"✓ Generated {count} manager feedback entries")
 
 
+def generate_workday_xlsx(feedback_list, people, include_structured=True):
+    """
+    Generate a sample Workday "Feedback on My Team" XLSX export.
+    Simulates both structured (tool-assisted) and generic feedback.
+
+    Args:
+        feedback_list: List of feedback dicts from generate_sample_feedback
+        people: List of all people dicts
+        include_structured: If True, include [TENETS] markers in some feedback
+    """
+    if not HAS_OPENPYXL:
+        print("⚠ openpyxl not installed, skipping XLSX generation")
+        return None
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Feedback on My Team"
+
+    # Write header rows
+    ws['A1'] = 'Feedback Received'
+    ws['A2'] = 'About Photo'
+    ws['B2'] = 'About'
+    ws['C2'] = 'Feedback Also Given To'
+    ws['D2'] = 'From Photo'
+    ws['E2'] = 'From'
+    ws['F2'] = 'Question'
+    ws['G2'] = 'Feedback'
+    ws['H2'] = 'Asked By'
+    ws['I2'] = 'Type'
+    ws['J2'] = 'Date'
+
+    # Get people lookup
+    people_by_id = {p['user_id']: p for p in people}
+    managers = {p['user_id']: p for p in people if not p['manager_uid']}
+
+    # Load tenets for structured feedback format
+    with open('tenets-sample.json', 'r') as f:
+        tenets_data = json.load(f)
+    tenets = {t['id']: t['name'] for t in tenets_data['tenets'] if t.get('active', True)}
+
+    # Workday feedback question templates
+    questions = [
+        "What strengths does the associate demonstrate?",
+        "What should the associate focus on to continue to develop?",
+        "Please provide feedback on the associate's performance."
+    ]
+
+    # Generic feedback text templates (for non-structured entries)
+    generic_feedback_templates = [
+        "{name} has been a great team player this quarter. Strong communication and reliable delivery.",
+        "Good collaboration skills. {name} is always willing to help others.",
+        "{name} demonstrates solid technical skills and ownership of their work.",
+        "I've enjoyed working with {name}. They bring positive energy to the team.",
+        "{name} is dependable and delivers quality work consistently.",
+        "{name} could improve by being more proactive in sharing updates.",
+        "Solid contributor. {name} handles challenges well and stays focused.",
+        "{name} is responsive and easy to work with on projects."
+    ]
+
+    row = 3  # Start data after headers
+    base_date = datetime.now() - timedelta(days=30)
+
+    # Generate feedback entries
+    for fb in feedback_list:
+        to_person = people_by_id.get(fb['to_user_id'])
+        from_person = people_by_id.get(fb['from_user_id'])
+
+        if not to_person or not from_person:
+            continue
+
+        manager = managers.get(to_person['manager_uid'])
+        if not manager:
+            continue
+
+        # Random date within last 60 days
+        feedback_date = base_date + timedelta(days=random.randint(-30, 30))
+
+        # Decide if this is self-requested or manager-requested
+        is_self_request = random.choice([True, True, False])  # 2/3 self-requested
+        asked_by = to_person['name'] if is_self_request else manager['name']
+        request_type = "Requested by Self" if is_self_request else "Requested by Others"
+
+        # Decide if structured (with tenets) or generic
+        if include_structured and random.random() < 0.6:  # 60% structured
+            # Generate structured feedback with [TENETS] marker
+            strength_names = [tenets.get(s, s) for s in fb['strengths']]
+            improvement_names = [tenets.get(i, i) for i in fb['improvements']]
+
+            feedback_text = f"""[TENETS]
+Strengths: {', '.join(fb['strengths'])}
+Improvements: {', '.join(fb['improvements'])}
+[/TENETS]
+
+Strengths:
+{chr(10).join('• ' + name for name in strength_names)}
+
+{fb['strengths_text']}
+
+Areas for Improvement:
+{chr(10).join('• ' + name for name in improvement_names)}
+
+{fb['improvements_text']}"""
+        else:
+            # Generate generic feedback
+            feedback_text = random.choice(generic_feedback_templates).format(name=to_person['name'])
+
+        # Pick a question
+        question = random.choice(questions)
+
+        # Write row
+        ws[f'A{row}'] = ''  # About Photo (empty)
+        ws[f'B{row}'] = to_person['name']
+        ws[f'C{row}'] = ''  # Feedback Also Given To (empty)
+        ws[f'D{row}'] = ''  # From Photo (empty)
+        ws[f'E{row}'] = from_person['name']
+        ws[f'F{row}'] = question
+        ws[f'G{row}'] = feedback_text
+        ws[f'H{row}'] = asked_by
+        ws[f'I{row}'] = request_type
+        ws[f'J{row}'] = feedback_date
+
+        row += 1
+
+    # Also add some generic entries that aren't from our feedback_list
+    # to simulate other Workday feedback workflows
+    for _ in range(min(10, len(people) // 3)):
+        to_person = random.choice([p for p in people if p['manager_uid']])
+        from_person = random.choice([p for p in people if p['user_id'] != to_person['user_id']])
+        manager = managers.get(to_person['manager_uid'])
+
+        if not manager:
+            continue
+
+        feedback_date = base_date + timedelta(days=random.randint(-60, 0))
+        asked_by = to_person['name']
+        request_type = "Requested by Self"
+
+        feedback_text = random.choice(generic_feedback_templates).format(name=to_person['name'])
+        question = "Please provide feedback on the associate's performance."
+
+        ws[f'A{row}'] = ''
+        ws[f'B{row}'] = to_person['name']
+        ws[f'C{row}'] = ''
+        ws[f'D{row}'] = ''
+        ws[f'E{row}'] = from_person['name']
+        ws[f'F{row}'] = question
+        ws[f'G{row}'] = feedback_text
+        ws[f'H{row}'] = asked_by
+        ws[f'I{row}'] = request_type
+        ws[f'J{row}'] = feedback_date
+
+        row += 1
+
+    # Save file
+    filename = os.path.join(SAMPLES_DIR, 'sample-workday-feedback.xlsx')
+    wb.save(filename)
+
+    total_rows = row - 3
+    print(f"✓ Generated {filename} with {total_rows} feedback entries")
+
+    return filename
+
+
 def export_feedback_csvs(feedback_list, people):
     """
     Export feedback to CSV files grouped by manager.
@@ -464,15 +638,23 @@ def main():
         print("\nGenerating manager feedback...")
         generate_manager_feedback(people)
 
-        # Export feedback CSVs
-        print("\nExporting feedback CSVs...")
+        # Export feedback CSVs (legacy format)
+        print("\nExporting feedback CSVs (legacy format)...")
         export_feedback_csvs(feedback_list, people)
+
+        # Generate Workday XLSX (new format)
+        print("\nGenerating Workday XLSX (new format)...")
+        xlsx_file = generate_workday_xlsx(feedback_list, people)
 
         print("\n" + "=" * 50)
         print("Demo setup complete!")
         print("=" * 50)
         print("\nRun the app:  python3 feedback_app.py")
         print("Then visit:   http://localhost:5001")
+        if xlsx_file:
+            print(f"\nTo test Workday import:")
+            print(f"  1. Go to Manager mode and select a manager")
+            print(f"  2. Import {xlsx_file}")
     else:
         print("\nNext steps:")
         print(f"  1. Import orgchart: python3 import_orgchart.py {filename}")
