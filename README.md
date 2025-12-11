@@ -96,12 +96,18 @@ python3 import_orgchart.py REAL-orgchart-export.csv
 
 ### Workday-Integrated Workflow (Recommended)
 
-1. **Request Feedback**: Manager or employee requests feedback via Workday, including link to this tool in the request message
+1. **Request Feedback**: Manager or employee requests feedback via Workday, including a direct link like:
+   ```
+   http://localhost:5001/feedback?for=Robin%20Rollback
+   ```
+   This pre-fills the recipient name, making it easy for providers to start immediately.
+
 2. **Providers Give Feedback**:
    - Clone this repo and run locally: `python3 feedback_app.py`
-   - Go to http://localhost:5001/individual
+   - Click the link from Workday (or go to http://localhost:5001/feedback)
    - Select tenets and write feedback for the colleague
    - Click "Copy for Workday" and paste the formatted text into Workday
+
 3. **Manager Aggregates**:
    - Download "Feedback on My Team" XLSX from Workday
    - Import XLSX at http://localhost:5001/manager

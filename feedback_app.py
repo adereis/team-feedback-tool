@@ -50,6 +50,21 @@ def index():
     return render_template('index.html')
 
 
+@app.route('/feedback')
+def feedback_for_workday():
+    """Streamlined feedback page for Workday workflow.
+
+    Accepts optional 'for' query parameter with recipient name.
+    URL can be shared directly: /feedback?for=Robin%20Rollback
+    """
+    recipient_name = request.args.get('for', '').strip()
+    tenets = load_tenets()
+
+    return render_template('feedback.html',
+                          recipient_name=recipient_name if recipient_name else None,
+                          tenets=tenets)
+
+
 @app.route('/api/db-stats')
 def get_db_stats():
     """Get database statistics for home page"""

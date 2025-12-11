@@ -486,16 +486,11 @@ def generate_workday_xlsx(feedback_list, people, include_structured=True):
 
         # Decide if structured (with tenets) or generic
         if include_structured and random.random() < 0.6:  # 60% structured
-            # Generate structured feedback with [TENETS] marker
+            # Generate structured feedback with [TENETS] marker at bottom
             strength_names = [tenets.get(s, s) for s in fb['strengths']]
             improvement_names = [tenets.get(i, i) for i in fb['improvements']]
 
-            feedback_text = f"""[TENETS]
-Strengths: {', '.join(fb['strengths'])}
-Improvements: {', '.join(fb['improvements'])}
-[/TENETS]
-
-Strengths:
+            feedback_text = f"""Strengths:
 {chr(10).join('• ' + name for name in strength_names)}
 
 {fb['strengths_text']}
@@ -503,7 +498,12 @@ Strengths:
 Areas for Improvement:
 {chr(10).join('• ' + name for name in improvement_names)}
 
-{fb['improvements_text']}"""
+{fb['improvements_text']}
+
+[TENETS]
+Strengths: {', '.join(fb['strengths'])}
+Improvements: {', '.join(fb['improvements'])}
+[/TENETS]"""
         else:
             # Generate generic feedback
             feedback_text = random.choice(generic_feedback_templates).format(name=to_person['name'])
