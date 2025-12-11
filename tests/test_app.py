@@ -880,7 +880,7 @@ class TestPDFExport:
 
     def test_butterfly_chart_generation(self):
         """Test butterfly chart image generation"""
-        from feedback_app import generate_butterfly_chart_image
+        from app import generate_butterfly_chart_image
 
         butterfly_data = [
             {'id': 'tenet1', 'name': 'Test Tenet 1', 'strength_count': 5, 'improvement_count': 2},
@@ -909,7 +909,7 @@ class TestPDFExport:
 
     def test_butterfly_chart_with_no_data(self):
         """Test butterfly chart handles empty data gracefully"""
-        from feedback_app import generate_butterfly_chart_image
+        from app import generate_butterfly_chart_image
 
         image_base64 = generate_butterfly_chart_image([], [], [])
 

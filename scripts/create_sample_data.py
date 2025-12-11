@@ -602,7 +602,7 @@ def main():
         print("\n" + "=" * 50)
         print("Demo setup complete!")
         print("=" * 50)
-        print("\nRun the app:  python3 feedback_app.py")
+        print("\nRun the app:  python3 app.py")
         print("Then visit:   http://localhost:5001")
         if xlsx_file:
             print(f"\nTo test Workday import:")
@@ -611,7 +611,7 @@ def main():
     else:
         print("\nNext steps:")
         print(f"  1. Import orgchart: python3 import_orgchart.py {filename}")
-        print(f"  2. Start app: python3 feedback_app.py")
+        print(f"  2. Start app: python3 app.py")
         print(f"\nOr use --demo for a complete setup with sample feedback")
 
 

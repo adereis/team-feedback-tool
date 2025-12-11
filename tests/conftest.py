@@ -16,7 +16,7 @@ import json
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from feedback_app import app as flask_app
+from app import app as flask_app
 from feedback_models import init_db, Person, Feedback, ManagerFeedback, Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -187,7 +187,7 @@ def test_db():
 def app(test_db, test_tenets_file, monkeypatch):
     """Create Flask app configured for testing"""
     # Patch the TENETS_FILE to use test file
-    monkeypatch.setattr('feedback_app.TENETS_FILE', test_tenets_file)
+    monkeypatch.setattr('app.TENETS_FILE', test_tenets_file)
 
     # Patch init_db to use test database
     def mock_init_db(db_path=None):
@@ -195,7 +195,7 @@ def app(test_db, test_tenets_file, monkeypatch):
         Session = sessionmaker(bind=engine)
         return Session()
 
-    monkeypatch.setattr('feedback_app.init_db', mock_init_db)
+    monkeypatch.setattr('app.init_db', mock_init_db)
 
     # Configure app for testing
     flask_app.config['TESTING'] = True
