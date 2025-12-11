@@ -1,0 +1,454 @@
+{% extends "base.html" %}
+
+{% block title %}Provide Feedback{% if recipient_name %} for {{ recipient_name }}{% endif %}{% endblock %}
+{% block header %}Provide Feedback{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .recipient-header {
+        background: #e7f3ff;
+        border-left: 4px solid #2196F3;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+
+    .recipient-header h3 {
+        margin: 0 0 4px 0;
+        color: #1976D2;
+        font-size: 18px;
+    }
+
+    .recipient-header p {
+        margin: 0;
+        color: #666;
+        font-size: 14px;
+    }
+
+    .feedback-checklist {
+        background: #f8f9fa;
+        padding: 12px 16px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        font-size: 14px;
+    }
+
+    .feedback-checklist ul {
+        margin: 8px 0 0 0;
+        padding-left: 20px;
+    }
+
+    .feedback-checklist li {
+        margin: 4px 0;
+    }
+
+    .feedback-checklist li.complete {
+        color: #28a745;
+        text-decoration: line-through;
+    }
+
+    .feedback-checklist li.in-progress {
+        color: #ffc107;
+        font-weight: 600;
+    }
+
+    .save-indicator {
+        display: none;
+        color: #28a745;
+        font-weight: 600;
+        margin-left: 12px;
+        font-size: 13px;
+    }
+
+    .save-indicator.visible {
+        display: inline;
+    }
+
+    .copy-section {
+        background: #f0f9ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 24px;
+    }
+
+    .copy-section h3 {
+        margin: 0 0 12px 0;
+        color: #0066cc;
+        font-size: 16px;
+    }
+
+    .copy-preview {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 12px;
+        font-family: monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        max-height: 200px;
+        overflow-y: auto;
+        margin-bottom: 12px;
+    }
+
+    .copy-btn {
+        background: #0066cc;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .copy-btn:hover {
+        background: #0052a3;
+    }
+
+    .copy-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .copy-success {
+        color: #28a745;
+        font-weight: 600;
+        margin-left: 12px;
+        display: none;
+    }
+
+    .copy-success.visible {
+        display: inline;
+    }
+
+    .recipient-input-card {
+        background: #fff;
+        border: 2px solid #667eea;
+        border-radius: 8px;
+        padding: 24px;
+        text-align: center;
+    }
+
+    .recipient-input-card input {
+        font-size: 18px;
+        padding: 12px 16px;
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
+        border: 2px solid #ddd;
+        border-radius: 4px;
+        margin: 16px 0;
+    }
+
+    .recipient-input-card input:focus {
+        border-color: #667eea;
+        outline: none;
+    }
+
+    .section-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #495057;
+        margin-bottom: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .strengths-section .section-title {
+        color: #28a745;
+    }
+
+    .improvements-section .section-title {
+        color: #dc3545;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+{% if not recipient_name %}
+<!-- No recipient specified - show input form -->
+<div class="card recipient-input-card">
+    <h2>Who are you providing feedback for?</h2>
+    <p style="color: #666;">Enter the name of the person you're giving feedback to.</p>
+    <form id="recipientForm" onsubmit="setRecipient(event)">
+        <input type="text" id="recipientInput" placeholder="Enter name (e.g., Robin Rollback)" autofocus required>
+        <br>
+        <button type="submit" class="btn" style="margin-top: 8px;">Continue</button>
+    </form>
+    <p style="margin-top: 20px; font-size: 13px; color: #999;">
+        Tip: You can bookmark a direct link like <code>/feedback?for=Robin%20Rollback</code>
+    </p>
+</div>
+{% else %}
+<!-- Recipient specified - show feedback form -->
+<div class="recipient-header">
+    <h3>Feedback for: {{ recipient_name }}</h3>
+    <p>Select tenets and provide comments, then copy the formatted output back to Workday.</p>
+</div>
+
+<div class="card">
+    <div id="feedbackChecklist" class="feedback-checklist">
+        <strong>Feedback Progress:</strong>
+        <ul>
+            <li id="checkStrengths">Select 3 strengths (0/3)</li>
+            <li id="checkImprovements">Select 2-3 improvements (0/3)</li>
+            <li id="checkComments">Add comments (optional but encouraged)</li>
+        </ul>
+    </div>
+
+    <!-- Strengths Section -->
+    <div class="strengths-section" style="margin-bottom: 24px;">
+        <div class="section-title">Strengths (select exactly 3)</div>
+        <div class="tenet-selector" id="strengthsSelector">
+            {% for tenet in tenets %}
+            <div class="tenet-item" data-id="{{ tenet.id }}" data-type="strength" onclick="toggleTenet(this, 'strength')">
+                <div class="tenet-name">{{ tenet.name }}</div>
+                <div class="tenet-description">{{ tenet.description }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="strengthsText">Strengths Comments</label>
+            <textarea id="strengthsText" rows="3" placeholder="Provide context or examples for the strengths you selected..." oninput="updatePreview()"></textarea>
+        </div>
+    </div>
+
+    <!-- Improvements Section -->
+    <div class="improvements-section">
+        <div class="section-title">Areas for Improvement (select 2-3)</div>
+        <div class="tenet-selector" id="improvementsSelector">
+            {% for tenet in tenets %}
+            <div class="tenet-item" data-id="{{ tenet.id }}" data-type="improvement" onclick="toggleTenet(this, 'improvement')">
+                <div class="tenet-name">{{ tenet.name }}</div>
+                <div class="tenet-description">{{ tenet.description }}</div>
+            </div>
+            {% endfor %}
+        </div>
+        <div class="form-group">
+            <label for="improvementsText">Improvement Comments</label>
+            <textarea id="improvementsText" rows="3" placeholder="Suggest specific ways this person could grow in these areas..." oninput="updatePreview()"></textarea>
+        </div>
+    </div>
+</div>
+
+<!-- Copy for Workday Section -->
+<div class="copy-section">
+    <h3>Copy for Workday</h3>
+    <p style="margin-bottom: 12px; color: #666; font-size: 14px;">
+        When ready, copy this formatted feedback and paste it into Workday.
+    </p>
+    <div class="copy-preview" id="copyPreview">
+        <!-- Preview will be populated by JavaScript -->
+        <em style="color: #999;">Complete the feedback above to see preview...</em>
+    </div>
+    <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()" disabled>Copy to Clipboard</button>
+    <span class="copy-success" id="copySuccess">✓ Copied!</span>
+</div>
+
+<div style="margin-top: 24px; text-align: center;">
+    <a href="/feedback" style="color: #666; text-decoration: none; font-size: 13px;">
+        ← Give feedback to someone else
+    </a>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>
+{% if recipient_name %}
+const recipientName = {{ recipient_name | tojson | safe }};
+const tenets = {{ tenets | tojson | safe }};
+
+let selectedStrengths = [];
+let selectedImprovements = [];
+
+function toggleTenet(element, type) {
+    const tenetId = element.getAttribute('data-id');
+
+    if (type === 'strength') {
+        if (element.classList.contains('selected-strength')) {
+            // Deselect
+            element.classList.remove('selected-strength');
+            selectedStrengths = selectedStrengths.filter(id => id !== tenetId);
+        } else if (selectedStrengths.length < 3 && !selectedImprovements.includes(tenetId)) {
+            // Select if under limit and not already selected as improvement
+            element.classList.add('selected-strength');
+            selectedStrengths.push(tenetId);
+        }
+    } else {
+        if (element.classList.contains('selected-improvement')) {
+            // Deselect
+            element.classList.remove('selected-improvement');
+            selectedImprovements = selectedImprovements.filter(id => id !== tenetId);
+        } else if (selectedImprovements.length < 3 && !selectedStrengths.includes(tenetId)) {
+            // Select if under limit and not already selected as strength
+            element.classList.add('selected-improvement');
+            selectedImprovements.push(tenetId);
+        }
+    }
+
+    updateDisabledState();
+    updateChecklist();
+    updatePreview();
+}
+
+function updateDisabledState() {
+    // Disable unselected strengths if at limit OR if selected as improvement
+    document.querySelectorAll('#strengthsSelector .tenet-item').forEach(item => {
+        const tenetId = item.getAttribute('data-id');
+        if (!item.classList.contains('selected-strength')) {
+            if (selectedStrengths.length >= 3 || selectedImprovements.includes(tenetId)) {
+                item.classList.add('disabled');
+            } else {
+                item.classList.remove('disabled');
+            }
+        }
+    });
+
+    // Disable unselected improvements if at limit OR if selected as strength
+    document.querySelectorAll('#improvementsSelector .tenet-item').forEach(item => {
+        const tenetId = item.getAttribute('data-id');
+        if (!item.classList.contains('selected-improvement')) {
+            if (selectedImprovements.length >= 3 || selectedStrengths.includes(tenetId)) {
+                item.classList.add('disabled');
+            } else {
+                item.classList.remove('disabled');
+            }
+        }
+    });
+}
+
+function updateChecklist() {
+    const strengthsCheck = document.getElementById('checkStrengths');
+    const improvementsCheck = document.getElementById('checkImprovements');
+    const commentsCheck = document.getElementById('checkComments');
+
+    // Strengths
+    strengthsCheck.textContent = `Select 3 strengths (${selectedStrengths.length}/3)`;
+    if (selectedStrengths.length === 3) {
+        strengthsCheck.classList.add('complete');
+        strengthsCheck.classList.remove('in-progress');
+    } else if (selectedStrengths.length > 0) {
+        strengthsCheck.classList.remove('complete');
+        strengthsCheck.classList.add('in-progress');
+    } else {
+        strengthsCheck.classList.remove('complete', 'in-progress');
+    }
+
+    // Improvements
+    improvementsCheck.textContent = `Select 2-3 improvements (${selectedImprovements.length}/3)`;
+    if (selectedImprovements.length >= 2) {
+        improvementsCheck.classList.add('complete');
+        improvementsCheck.classList.remove('in-progress');
+    } else if (selectedImprovements.length > 0) {
+        improvementsCheck.classList.remove('complete');
+        improvementsCheck.classList.add('in-progress');
+    } else {
+        improvementsCheck.classList.remove('complete', 'in-progress');
+    }
+
+    // Comments
+    const hasComments = document.getElementById('strengthsText').value.trim() ||
+                        document.getElementById('improvementsText').value.trim();
+    if (hasComments) {
+        commentsCheck.classList.add('complete');
+    } else {
+        commentsCheck.classList.remove('complete');
+    }
+}
+
+function updatePreview() {
+    const previewEl = document.getElementById('copyPreview');
+    const copyBtn = document.getElementById('copyBtn');
+
+    // Check if feedback is complete
+    const isComplete = selectedStrengths.length === 3 && selectedImprovements.length >= 2;
+
+    if (!isComplete) {
+        previewEl.innerHTML = '<em style="color: #999;">Complete the feedback above to see preview...</em>';
+        copyBtn.disabled = true;
+        return;
+    }
+
+    copyBtn.disabled = false;
+
+    // Get tenet names
+    const strengthNames = selectedStrengths.map(id => {
+        const t = tenets.find(t => t.id === id);
+        return t ? t.name : id;
+    });
+    const improvementNames = selectedImprovements.map(id => {
+        const t = tenets.find(t => t.id === id);
+        return t ? t.name : id;
+    });
+
+    const strengthsText = document.getElementById('strengthsText').value.trim();
+    const improvementsText = document.getElementById('improvementsText').value.trim();
+
+    // Build formatted output - human-readable first, machine-parseable marker at bottom
+    let output = `Strengths:
+${strengthNames.map(n => '• ' + n).join('\n')}
+`;
+
+    if (strengthsText) {
+        output += `\n${strengthsText}\n`;
+    }
+
+    output += `
+Areas for Improvement:
+${improvementNames.map(n => '• ' + n).join('\n')}
+`;
+
+    if (improvementsText) {
+        output += `\n${improvementsText}\n`;
+    }
+
+    // Add machine-parseable marker at the end
+    output += `
+[TENETS]
+Strengths: ${selectedStrengths.join(', ')}
+Improvements: ${selectedImprovements.join(', ')}
+[/TENETS]`;
+
+    previewEl.textContent = output;
+}
+
+function copyToClipboard() {
+    const previewEl = document.getElementById('copyPreview');
+    const text = previewEl.textContent;
+
+    navigator.clipboard.writeText(text).then(() => {
+        const successEl = document.getElementById('copySuccess');
+        successEl.classList.add('visible');
+        setTimeout(() => {
+            successEl.classList.remove('visible');
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        // Fallback: select text
+        const range = document.createRange();
+        range.selectNode(previewEl);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+    });
+}
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateChecklist();
+    updatePreview();
+});
+
+{% else %}
+function setRecipient(event) {
+    event.preventDefault();
+    const name = document.getElementById('recipientInput').value.trim();
+    if (name) {
+        window.location.href = '/feedback?for=' + encodeURIComponent(name);
+    }
+}
+{% endif %}
+</script>
+{% endblock %}

@@ -42,7 +42,7 @@ Comprehensive development instructions and context for the Team Feedback Tool pr
 
 - **Butterfly charts**: Individual Chart.js instances per row in CSS Grid
 - **Session management**: Flask session for user/manager identity
-- **CSV export**: Browser downloads via `send_file()` and `io.BytesIO`
+- **Workday XLSX import**: Parse structured feedback with [TENETS] markers
 - **Manager selection**: One-time with session persistence + direct URL support
 - **Tenet validation**: 3 strengths, 2-3 improvements (enforced by API)
 - **JSON serialization**: Use get/set methods in models for tenet lists
@@ -81,11 +81,11 @@ The Team Feedback Tool was built through an iterative collaboration between huma
 - ✅ Flask web application architecture
 - ✅ SQLAlchemy ORM models and database schema
 - ✅ Individual feedback workflow with tenet selection
-- ✅ Manager feedback workflow with CSV import/export
+- ✅ Manager feedback workflow with Workday XLSX import
 - ✅ Auto-save functionality with 2-second debouncing
 - ✅ Butterfly charts for feedback visualization (Chart.js)
 - ✅ Session-based identity management
-- ✅ CSV export/import for cross-organizational feedback sharing
+- ✅ Workday XLSX import for feedback aggregation
 - ✅ Sortable tables with data attributes
 - ✅ Manager tenet selection and highlighting
 - ✅ Comprehensive pytest test suite
@@ -401,15 +401,14 @@ When adding new features, follow this pattern:
 2. View list of people organized by manager
 3. Give feedback: select tenets + write text
 4. Auto-saved as you work
-5. Export CSVs per manager when ready
 
 #### Manager Mode
 1. Select manager identity
-2. View team member list
-3. Import feedback CSVs from team
+2. Import Workday XLSX export ("Feedback on My Team")
+3. View team member list with feedback counts
 4. View aggregated reports per team member
 5. Highlight key tenets and add manager feedback
-6. Export or present final reports
+6. Export PDF reports
 
 ### Manager Feedback Integration
 
@@ -418,18 +417,14 @@ When adding new features, follow this pattern:
 - **Text feedback**: Separate field for manager's summary/commentary
 - **Auto-saved**: Manager inputs auto-save with 2-second debounce
 
-### CSV Import/Export
+### Workday XLSX Import
 
-- **Export from individual**: One CSV per manager (contains all feedback to that manager's team)
-- **Import to manager**: Upload CSVs to aggregate feedback
-- **Format**: Standard CSV with columns:
-  - From User ID
-  - To User ID
-  - Strengths (Tenet IDs) - comma-separated
-  - Improvements (Tenet IDs) - comma-separated
-  - Strengths Text
-  - Improvements Text
-- **Duplicate handling**: Skip existing feedback on re-import
+- **Source**: "Feedback on My Team" export from Workday
+- **Import to manager**: Upload XLSX to aggregate feedback
+- **Structured feedback**: Parsed from [TENETS] markers embedded in feedback text
+- **Generic feedback**: Free-text feedback without tenet selections
+- **Duplicate handling**: Skip existing feedback on re-import based on content hash
+- **Column detection**: Configurable via `workday_config.json`
 
 ---
 
@@ -554,7 +549,7 @@ python3 create_sample_data.py --large --demo  # Large org full demo
 **Demo mode creates:**
 - `sample-orgchart.csv` - Orgchart for import
 - `feedback.db` - Populated with Person, Feedback, and ManagerFeedback records
-- `sample-feedback-for-{manager}.csv` - Feedback CSVs for testing import workflow
+- `sample-workday-feedback.xlsx` - Workday XLSX for testing import workflow
 
 ### Testing
 
@@ -603,7 +598,7 @@ See `TESTING.md` for comprehensive testing documentation.
 #### `feedback_templates/manager_dashboard.html` (Manager Dashboard)
 - Team member list
 - Feedback counts per person
-- CSV import interface (drag & drop, multi-file support)
+- Workday XLSX import interface (drag & drop)
 - Navigation to individual reports
 - Team-wide butterfly chart
 
@@ -739,15 +734,15 @@ See `TESTING.md` for comprehensive testing documentation.
 **Should Work**: Manager selections add +1 to counts (see feedback_app.py:500-506)
 **Debug**: Verify ManagerFeedback record exists and get_selected_* methods work
 
-### Issue: CSV Import Creates Duplicates
+### Issue: Workday XLSX Import Creates Duplicates
 **Cause**: Import logic not checking for existing feedback
-**Should Never Happen**: Import skips if (from_user_id, to_user_id) exists (see feedback_app.py:446)
-**Debug**: Check database for duplicate pairs
+**Should Never Happen**: Import skips duplicates based on content hash
+**Debug**: Check database for duplicate entries, verify hash calculation
 
-### Issue: CSV Import Shows "Invalid CSV format" Error
-**Cause**: Wrong type of CSV file (e.g., orgchart instead of feedback export)
-**Expected**: Feedback CSVs must have columns: `From User ID`, `To User ID`, `Strengths (Tenet IDs)`, `Improvements (Tenet IDs)`, `Strengths Text`, `Improvements Text`
-**Solution**: Use the CSV files exported from the individual feedback view, not the orgchart file
+### Issue: Workday XLSX Import Shows Error
+**Cause**: Wrong file format or missing required columns
+**Expected**: XLSX file with columns: About, From, Feedback, etc.
+**Solution**: Use the "Feedback on My Team" export from Workday
 
 ---
 

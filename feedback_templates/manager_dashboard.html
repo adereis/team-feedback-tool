@@ -101,56 +101,6 @@
     .drop-zone input[type="file"] {
         display: none;
     }
-
-    .file-list {
-        margin-top: 16px;
-        text-align: left;
-    }
-
-    .file-item {
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        padding: 8px 12px;
-        background: #f5f5f5;
-        border-radius: 4px;
-        margin-bottom: 6px;
-    }
-
-    .file-item-name {
-        font-weight: 500;
-        color: #333;
-    }
-
-    .file-item-status {
-        font-size: 13px;
-        color: #666;
-    }
-
-    .file-item-status.success {
-        color: #28a745;
-    }
-
-    .file-item-status.error {
-        color: #dc3545;
-    }
-
-    .file-item-status.pending {
-        color: #999;
-    }
-
-    .file-item-remove {
-        background: none;
-        border: none;
-        color: #999;
-        cursor: pointer;
-        font-size: 18px;
-        padding: 0 4px;
-    }
-
-    .file-item-remove:hover {
-        color: #dc3545;
-    }
 </style>
 {% endblock %}
 
@@ -164,24 +114,58 @@
 </div>
 
 <div class="card">
-    <h2>Import Feedback</h2>
-    <p style="margin-bottom: 16px;">Upload CSV files that individuals have shared with you.</p>
+    <h2>Import Feedback from Workday</h2>
+    <p style="margin-bottom: 16px;">Upload the "Feedback on My Team" XLSX export from Workday.</p>
 
-    <div class="drop-zone" id="dropZone">
-        <div class="drop-zone-icon">📁</div>
-        <div class="drop-zone-text">Drag & drop CSV files here</div>
-        <div class="drop-zone-subtext">or click to browse • multiple files supported</div>
-        <input type="file" id="feedbackFile" accept=".csv" multiple />
+    <div class="drop-zone" id="dropZoneXlsx">
+        <div class="drop-zone-icon">📊</div>
+        <div class="drop-zone-text">Drag & drop Workday XLSX file here</div>
+        <div class="drop-zone-subtext">or click to browse • "Feedback on My Team" export</div>
+        <input type="file" id="xlsxFile" accept=".xlsx" />
     </div>
-    <div class="file-list" id="fileList"></div>
-    <div id="importStatus" style="margin-top: 12px;"></div>
+    <div id="xlsxImportStatus" style="margin-top: 12px;"></div>
+</div>
+
+<div class="card">
+    <h2>Workday Feedback Overview</h2>
+    <p style="margin-bottom: 16px; color: #666;">
+        Filter imported Workday feedback by date range.
+    </p>
+
+    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+        <div>
+            <label style="font-size: 13px; font-weight: 600;">Time Period:</label>
+            <select id="dateRangeSelect" onchange="updateDateRange()" style="padding: 6px 12px; border-radius: 4px; border: 1px solid #ccc;">
+                <option value="3m">Last 3 months</option>
+                <option value="6m">Last 6 months</option>
+                <option value="12m">Last 12 months</option>
+                <option value="all">All time</option>
+                <option value="custom">Custom range...</option>
+            </select>
+        </div>
+
+        <div id="customDateRange" style="display: none;">
+            <input type="date" id="startDate" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+            <span style="margin: 0 8px;">to</span>
+            <input type="date" id="endDate" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
+            <button onclick="applyCustomRange()" class="btn btn-secondary" style="padding: 6px 12px; margin-left: 8px;">Apply</button>
+        </div>
+    </div>
+
+    <div id="dateRangeSummary" style="background: #f8f9fa; padding: 12px 16px; border-radius: 4px; font-size: 13px;">
+        <span id="feedbackSummary">Loading...</span>
+    </div>
+
+    <div id="availablePeriods" style="margin-top: 12px; font-size: 12px; color: #666;"></div>
 </div>
 
 <div class="card">
     <h2>Your Team</h2>
 
     {% if team_members|length == 0 %}
-    <p style="color: #999;">No team members found. Make sure the orgchart has been imported correctly.</p>
+    <p style="color: #666;">
+        No team members found yet. Import a Workday XLSX file above to see your team.
+    </p>
     {% else %}
     <table>
         <thead>
@@ -194,10 +178,11 @@
         </thead>
         <tbody>
             {% for member in team_members %}
-            <tr data-name="{{ member.name }}" data-job="{{ member.job_title }}" data-feedback="{{ member.feedback_count }}">
+            {% set total_feedback = (member.feedback_count or 0) + (member.wd_feedback_count or 0) %}
+            <tr data-name="{{ member.name }}" data-job="{{ member.job_title or '' }}" data-feedback="{{ total_feedback }}">
                 <td><strong>{{ member.name }}</strong></td>
-                <td>{{ member.job_title }}</td>
-                <td>{{ member.feedback_count }} feedback(s)</td>
+                <td>{{ member.job_title or '-' }}</td>
+                <td>{{ total_feedback }} feedback(s)</td>
                 <td>
                     <a href="/manager/report/{{ member.user_id }}" class="btn" style="padding: 6px 16px;">Edit Report</a>
                 </td>
@@ -208,166 +193,122 @@
     {% endif %}
 </div>
 
-<div class="card">
+{% if team_members|length > 0 %}
+<div class="card" id="butterflyChartCard" style="display: none;">
     <h2>Team Overview - Butterfly Chart</h2>
     <p style="margin-bottom: 12px; color: #666;">
         Aggregated feedback across all team members. Strengths shown in green (right), improvements in red (left).
     </p>
     <div id="teamButterflyChart"></div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
-// File upload state
-let pendingFiles = [];
-
-// Initialize drop zone
+// Initialize XLSX drop zone (Workday import)
 document.addEventListener('DOMContentLoaded', function() {
-    const dropZone = document.getElementById('dropZone');
-    const fileInput = document.getElementById('feedbackFile');
+    const xlsxDropZone = document.getElementById('dropZoneXlsx');
+    const xlsxInput = document.getElementById('xlsxFile');
 
     // Click to browse
-    dropZone.addEventListener('click', () => fileInput.click());
+    xlsxDropZone.addEventListener('click', () => xlsxInput.click());
 
     // File input change
-    fileInput.addEventListener('change', (e) => {
-        addFiles(Array.from(e.target.files));
-        fileInput.value = ''; // Reset for re-selection
+    xlsxInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            importXlsxFile(e.target.files[0]);
+        }
+        xlsxInput.value = ''; // Reset for re-selection
     });
 
     // Drag events
-    dropZone.addEventListener('dragover', (e) => {
+    xlsxDropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        dropZone.classList.add('drag-over');
+        xlsxDropZone.classList.add('drag-over');
     });
 
-    dropZone.addEventListener('dragleave', (e) => {
+    xlsxDropZone.addEventListener('dragleave', (e) => {
         e.preventDefault();
-        dropZone.classList.remove('drag-over');
+        xlsxDropZone.classList.remove('drag-over');
     });
 
-    dropZone.addEventListener('drop', (e) => {
+    xlsxDropZone.addEventListener('drop', (e) => {
         e.preventDefault();
-        dropZone.classList.remove('drag-over');
-        const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
+        xlsxDropZone.classList.remove('drag-over');
+        const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.xlsx'));
         if (files.length > 0) {
-            addFiles(files);
+            importXlsxFile(files[0]);
         }
     });
 });
 
-function addFiles(files) {
-    files.forEach(file => {
-        // Avoid duplicates by name
-        if (!pendingFiles.some(f => f.name === file.name)) {
-            pendingFiles.push(file);
-        }
-    });
-    renderFileList();
-    // Auto-start import when files are added
-    if (pendingFiles.length > 0) {
-        importAllFiles();
-    }
-}
+async function importXlsxFile(file) {
+    const statusDiv = document.getElementById('xlsxImportStatus');
+    statusDiv.innerHTML = '<div style="color: #666;">Importing...</div>';
 
-function removeFile(index) {
-    pendingFiles.splice(index, 1);
-    renderFileList();
-}
+    try {
+        const formData = new FormData();
+        formData.append('file', file);
 
-function renderFileList() {
-    const container = document.getElementById('fileList');
-    if (pendingFiles.length === 0) {
-        container.innerHTML = '';
-        return;
-    }
+        const response = await fetch('/manager/import-xlsx', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
 
-    container.innerHTML = pendingFiles.map((file, index) => `
-        <div class="file-item" id="file-item-${index}">
-            <span class="file-item-name">${file.name}</span>
-            <span class="file-item-status pending" id="file-status-${index}">Pending</span>
-        </div>
-    `).join('');
-}
-
-async function importAllFiles() {
-    if (pendingFiles.length === 0) return;
-
-    const statusDiv = document.getElementById('importStatus');
-    statusDiv.innerHTML = '';
-
-    let totalImported = 0;
-    let totalUpdated = 0;
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (let i = 0; i < pendingFiles.length; i++) {
-        const file = pendingFiles[i];
-        const statusEl = document.getElementById(`file-status-${i}`);
-
-        if (statusEl) {
-            statusEl.textContent = 'Importing...';
-            statusEl.className = 'file-item-status';
-        }
-
-        try {
-            const formData = new FormData();
-            formData.append('file', file);
-
-            const response = await fetch('/manager/import', {
-                method: 'POST',
-                body: formData
-            });
-            const data = await response.json();
-
-            if (data.success) {
-                const total = data.new_count + data.updated_count;
-                if (statusEl) {
-                    let statusText = `✓ ${data.new_count} new`;
-                    if (data.updated_count > 0) {
-                        statusText += `, ${data.updated_count} updated`;
-                    }
-                    statusEl.textContent = statusText;
-                    statusEl.className = 'file-item-status success';
+        if (data.success) {
+            // Format date range
+            let dateRangeText = '';
+            if (data.date_range && data.date_range.min && data.date_range.max) {
+                const minDate = new Date(data.date_range.min);
+                const maxDate = new Date(data.date_range.max);
+                const options = { month: 'short', day: 'numeric', year: 'numeric' };
+                if (minDate.toDateString() === maxDate.toDateString()) {
+                    dateRangeText = minDate.toLocaleDateString('en-US', options);
+                } else {
+                    dateRangeText = `${minDate.toLocaleDateString('en-US', options)} – ${maxDate.toLocaleDateString('en-US', options)}`;
                 }
-                totalImported += data.new_count;
-                totalUpdated += data.updated_count;
-                successCount++;
-            } else {
-                if (statusEl) {
-                    statusEl.textContent = `✗ ${data.error}`;
-                    statusEl.className = 'file-item-status error';
-                }
-                errorCount++;
             }
-        } catch (err) {
-            if (statusEl) {
-                statusEl.textContent = `✗ ${err.message}`;
-                statusEl.className = 'file-item-status error';
-            }
-            errorCount++;
-        }
-    }
 
-    // Show summary
-    if (successCount > 0) {
-        let summaryHtml = `<div class="success-message">✓ Imported ${totalImported} new feedback entries from ${successCount} file(s). <a href="" style="color: #155724;">Reload page</a> to see updated counts.</div>`;
-
-        if (totalUpdated > 0) {
-            summaryHtml += `<div class="warning-message" style="background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px; border-radius: 4px; margin-top: 8px;">
-                ⚠️ Updated ${totalUpdated} existing feedback entries (content was replaced)
+            let html = `<div class="success-message">
+                ✓ Imported ${data.imported} feedback entries from ${file.name}<br>
+                <span style="font-size: 13px; color: #666;">
+                    ${data.recipient_count} team member${data.recipient_count !== 1 ? 's' : ''} •
+                    Structured: ${data.structured_count} •
+                    Generic: ${data.generic_count}
+                    ${dateRangeText ? `• ${dateRangeText}` : ''}
+                </span>
+                <br><a href="" style="color: #155724; font-size: 13px;">Reload page</a> to see updated team list.
             </div>`;
+
+            if (data.skipped_duplicates > 0) {
+                html += `<div style="color: #666; font-size: 13px; margin-top: 8px;">
+                    Skipped ${data.skipped_duplicates} duplicate entries (already imported)
+                </div>`;
+            }
+
+            if (data.warnings && data.warnings.length > 0) {
+                html += `<div class="warning-message" style="background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px; border-radius: 4px; margin-top: 8px;">
+                    ⚠️ Warnings:<br>
+                    ${data.warnings.map(w => '• ' + w).join('<br>')}
+                </div>`;
+            }
+
+            statusDiv.innerHTML = html;
+        } else {
+            statusDiv.innerHTML = `<div class="error-message">✗ ${data.error}</div>`;
+
+            if (data.errors && data.errors.length > 0) {
+                statusDiv.innerHTML += `<div style="color: #dc3545; font-size: 13px; margin-top: 8px;">
+                    ${data.errors.map(e => '• ' + e).join('<br>')}
+                </div>`;
+            }
         }
-
-        statusDiv.innerHTML = summaryHtml;
-    } else if (errorCount > 0) {
-        statusDiv.innerHTML = `<div class="error-message">Failed to import ${errorCount} file(s)</div>`;
+    } catch (err) {
+        statusDiv.innerHTML = `<div class="error-message">✗ ${err.message}</div>`;
     }
-
-    // Clear pending files after processing
-    pendingFiles = [];
 }
 
 // Table sorting functionality
@@ -447,13 +388,24 @@ function fetchAndRenderTeamButterflyChart() {
 
 function renderTeamButterflyChart(butterflyData) {
     const container = document.getElementById('teamButterflyChart');
+    const card = document.getElementById('butterflyChartCard');
+
+    if (!container || !card) return;
+
     container.innerHTML = '';
 
-    // Check if we have data
-    if (!butterflyData || butterflyData.length === 0) {
-        container.innerHTML = '<p style="color: #999; text-align: center; padding: 20px;">No feedback data available yet.</p>';
+    // Check if we have data with actual feedback counts
+    const hasData = butterflyData && butterflyData.length > 0 &&
+        butterflyData.some(t => t.strength_count > 0 || t.improvement_count > 0);
+
+    if (!hasData) {
+        // Hide the card entirely when no feedback data
+        card.style.display = 'none';
         return;
     }
+
+    // Show the card when we have data
+    card.style.display = 'block';
 
     // Calculate max value, ensure minimum of 1 for proper scaling
     const maxValue = Math.max(
@@ -580,6 +532,90 @@ function renderTeamButterflyChart(butterflyData) {
 // Load team butterfly chart on page load
 document.addEventListener('DOMContentLoaded', function() {
     fetchAndRenderTeamButterflyChart();
+    loadWorkdayFeedbackSummary();
+    loadAvailableDateRanges();
 });
+
+// Date range filtering for Workday feedback
+let currentPeriod = '3m';
+
+function updateDateRange() {
+    const select = document.getElementById('dateRangeSelect');
+    const customDiv = document.getElementById('customDateRange');
+
+    if (select.value === 'custom') {
+        customDiv.style.display = 'flex';
+    } else {
+        customDiv.style.display = 'none';
+        currentPeriod = select.value;
+        loadWorkdayFeedbackSummary();
+    }
+}
+
+function applyCustomRange() {
+    const startDate = document.getElementById('startDate').value;
+    const endDate = document.getElementById('endDate').value;
+
+    if (!startDate || !endDate) {
+        document.getElementById('feedbackSummary').textContent = 'Please select both start and end dates';
+        return;
+    }
+
+    loadWorkdayFeedbackSummary(startDate, endDate);
+}
+
+function loadWorkdayFeedbackSummary(startDate = null, endDate = null) {
+    const summaryEl = document.getElementById('feedbackSummary');
+    summaryEl.textContent = 'Loading...';
+
+    let url = '/api/workday-feedback/recipients';
+    // Note: The recipients endpoint doesn't filter by date yet.
+    // For now, show the overall summary. Date filtering applies to individual reports.
+
+    fetch(url)
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.recipients.length > 0) {
+                const total = data.recipients.reduce((sum, r) => sum + r.total_count, 0);
+                const structured = data.recipients.reduce((sum, r) => sum + r.structured_count, 0);
+                const generic = total - structured;
+
+                summaryEl.innerHTML = `
+                    <strong>${total} feedback entries</strong> from Workday
+                    <span style="margin-left: 16px; color: #666;">
+                        ${structured} structured (with tenets) • ${generic} generic
+                    </span>
+                    <span style="margin-left: 16px; color: #666;">
+                        ${data.recipients.length} recipients
+                    </span>
+                `;
+            } else {
+                summaryEl.innerHTML = 'No Workday feedback imported yet. <a href="#" onclick="document.getElementById(\'xlsxFile\').click(); return false;">Import XLSX</a>';
+            }
+        })
+        .catch(err => {
+            summaryEl.textContent = 'Error loading feedback summary';
+            console.error('Error:', err);
+        });
+}
+
+function loadAvailableDateRanges() {
+    fetch('/api/workday-feedback/date-ranges')
+        .then(r => r.json())
+        .then(data => {
+            if (data.success && data.ranges.length > 0) {
+                const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+                                    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                const rangeText = data.ranges.slice(0, 6).map(r =>
+                    `${monthNames[r.month - 1]} ${r.year} (${r.count})`
+                ).join(' • ');
+
+                document.getElementById('availablePeriods').innerHTML =
+                    `<strong>Feedback available:</strong> ${rangeText}` +
+                    (data.ranges.length > 6 ? ` + ${data.ranges.length - 6} more months` : '');
+            }
+        })
+        .catch(err => console.error('Error loading date ranges:', err));
+}
 </script>
 {% endblock %}

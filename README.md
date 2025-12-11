@@ -1,12 +1,12 @@
 # Team Feedback Tool
 
-A privacy-focused local web application for collecting and aggregating peer feedback based on team tenets.
+A privacy-focused local web application for collecting and aggregating peer feedback based on team tenets. Integrates with Workday for feedback requests and collection.
 
 ## Overview
 
 This tool enables teams to:
 - **Individuals**: Provide structured feedback to colleagues using team tenets
-- **Managers**: Aggregate anonymous peer feedback, add their own insights, and generate reports
+- **Managers**: Aggregate feedback from Workday, add insights, and generate reports
 
 All data stays local—no cloud sync, no external dependencies.
 
@@ -14,27 +14,45 @@ Example Report:
 
 ![Feedback Report Example](feedback-report-example.png)
 
+## Workday Integration Workflow
+
+The tool integrates with Workday (or similar HR systems) for feedback collection:
+
+1. **Request**: Manager or employee requests feedback via Workday, including a link to this tool
+2. **Notify**: Feedback providers receive notification with tool link
+3. **Provide**: Providers clone the repo, run locally, select tenets and provide feedback
+4. **Copy**: Click "Copy for Workday" to get formatted text, paste into Workday
+5. **Import**: Manager downloads "Feedback on My Team" XLSX from Workday, imports into tool
+6. **Report**: Tool aggregates feedback for butterfly charts and reports
+
+### Two Types of Feedback
+
+| Type | Source | In Butterfly Chart |
+|------|--------|-------------------|
+| **Structured** | Tool-assisted (contains `[TENETS]` marker) | Yes |
+| **Generic** | Other Workday workflows (free-text) | No (shown separately) |
+
 ## Features
 
-### For Individuals
-- Select 3 tenet strengths and 2-3 areas for improvement for each colleague
+### For Feedback Providers
+- Select 3 tenet strengths and 2-3 areas for improvement
 - Two-column compact tenet layout for faster selection
 - Auto-save with 2-second debounce (no manual save needed)
 - Visual progress checklist (yellow → green when complete)
-- Export feedback as CSV files (one per manager)
-- Browser-based downloads (no server-side files)
+- **Copy for Workday** button generates formatted text with tenets
+- Preview of formatted output before copying
 - Support for external feedback providers (not in orgchart)
 
 ### For Managers
-- One-time identity selection with session persistence
-- Direct URL access: `http://localhost:5001/manager/[your-user-id]`
-- Import feedback CSVs from team members
+- **Import Workday XLSX**: Drag & drop "Feedback on My Team" export
+- Automatic detection of structured vs generic feedback
+- Date range filtering (default: last 3 months, or custom range)
 - Sortable team table (name, job title, feedback count)
 - Butterfly chart visualization of aggregated peer feedback
+- Separate "Additional Feedback" section for generic entries
 - Highlight specific tenets for emphasis in reports
 - Add manager's own feedback and comments
-- Export PDF reports (browser print-to-PDF)
-- Anonymous peer feedback display
+- Export PDF reports
 
 ## Quick Start
 
@@ -43,7 +61,7 @@ Example Report:
 Try the tool with fictitious data:
 
 ```bash
-# Full demo setup: orgchart, peer feedback, manager feedback, export CSVs
+# Full demo setup: orgchart, peer feedback, manager feedback, sample XLSX
 python3 create_sample_data.py --demo
 
 # Or for a larger organization (50 employees, 5 managers)
@@ -75,9 +93,25 @@ python3 import_orgchart.py REAL-orgchart-export.csv
 
 ## Workflow
 
-1. **Setup**: Import your orgchart CSV (drag & drop on home page)
-2. **Individuals**: Give feedback for colleagues—select 3 strengths and 2-3 improvements per person, then export CSVs grouped by manager
-3. **Managers**: Import feedback CSVs from your team, review aggregated reports, highlight key tenets, add your own feedback, and export PDFs
+### Workday-Integrated Workflow (Recommended)
+
+1. **Request Feedback**: Manager or employee requests feedback via Workday, including a direct link like:
+   ```
+   http://localhost:5001/feedback?for=Robin%20Rollback
+   ```
+   This pre-fills the recipient name, making it easy for providers to start immediately.
+
+2. **Providers Give Feedback**:
+   - Clone this repo and run locally: `python3 feedback_app.py`
+   - Click the link from Workday (or go to http://localhost:5001/feedback)
+   - Select tenets and write feedback for the colleague
+   - Click "Copy for Workday" and paste the formatted text into Workday
+
+3. **Manager Aggregates**:
+   - Download "Feedback on My Team" XLSX from Workday
+   - Import XLSX at http://localhost:5001/manager
+   - Tool parses structured feedback (with tenets) and generic feedback separately
+   - Review reports, add highlights, export PDFs
 
 ## Requirements
 
@@ -90,21 +124,14 @@ Or install from requirements.txt:
 pip install -r requirements.txt
 ```
 
-## CSV Formats
+## Orgchart CSV Format (Optional)
 
-### Orgchart Import Format
+If you have an orgchart, the expected CSV format is:
 
 ```csv
 Name,User ID,Job Title,Location,Email,Manager UID
 Paige Duty,pduty,Staff SRE,Boston MA,pduty@example.com,dgate
 Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
-```
-
-### Feedback Export Format
-
-```csv
-From User ID,To User ID,Strengths (Tenet IDs),Improvements (Tenet IDs),Strengths Text,Improvements Text
-pduty,llatency,"ownership,quality,collaboration","communication,innovation","Lee excels...","I see opportunities..."
 ```
 
 ## Tenets Configuration
@@ -160,6 +187,13 @@ Set `"active": false` to temporarily disable a tenet without deleting it.
 - improvements (JSON array of tenet IDs)
 - strengths_text, improvements_text
 
+**workday_feedback**: Feedback imported from Workday XLSX
+- id (PK), about (recipient name), from_name (provider name)
+- question, feedback (raw text), asked_by, request_type, date
+- is_structured (1 if contains [TENETS] marker)
+- strengths, improvements (JSON arrays, if structured)
+- strengths_text, improvements_text (if structured)
+
 **manager_feedback**: Manager's feedback
 - id (PK), manager_uid (FK), team_member_uid (FK)
 - selected_strengths, selected_improvements (JSON arrays)
@@ -167,12 +201,23 @@ Set `"active": false` to temporarily disable a tenet without deleting it.
 
 ## Privacy & Security
 
-- **Local-first**: All data stays on your machine
-- **No authentication**: Designed for single-user local execution
-- **No telemetry**: No external API calls or cloud sync
-- **Anonymous peer feedback**: Manager reports don't show who gave feedback
-- **CSV includes provider ID**: For accountability during collection
-- **.gitignore**: Protects REAL-*.csv, feedback.db, tenets.json
+### Design Principle: No Data Leaves Official HR Tools
+
+This tool is designed as a **helper utility** that enhances the feedback experience without becoming a repository for sensitive employee data:
+
+- **Workday remains the source of truth**: All feedback ultimately lives in Workday (or your HR system)
+- **Copy-paste workflow**: Feedback providers paste formatted text *into* Workday, not out of it
+- **Managers import from Workday**: The XLSX is exported from Workday, imported here for visualization
+- **No data sharing between users**: Each user runs their own local instance
+- **Ephemeral local storage**: The local database can be deleted after each feedback cycle
+
+### Technical Safeguards
+
+- **Local-first**: All data stays on your machine—no cloud sync, no external servers
+- **No authentication**: Designed for single-user local execution (each person runs their own copy)
+- **No telemetry**: No external API calls, analytics, or phoning home
+- **Anonymous peer feedback**: Manager reports show feedback without identifying who gave it
+- **.gitignore**: Protects REAL-*.csv, REAL-*.xlsx, feedback.db, tenets.json from accidental commits
 
 ## Development
 
@@ -182,11 +227,13 @@ Set `"active": false` to temporarily disable a tenet without deleting it.
 .
 ├── feedback_app.py              # Flask application
 ├── feedback_models.py           # SQLAlchemy models
-├── import_orgchart.py           # CSV import utility
+├── import_workday.py            # Workday XLSX import utility
+├── import_orgchart.py           # Optional orgchart CSV import
 ├── create_sample_data.py        # Sample data generator
 ├── feedback_templates/          # Jinja2 templates
 ├── tests/                       # Test suite
 ├── tenets-sample.json           # Sample tenets configuration
+├── WORKDAY_INTEGRATION.md       # Workday integration design doc
 └── README.md                    # This file
 ```
 
@@ -212,9 +259,10 @@ Used consistently across the application:
 - Feedback tool uses port 5001
 - Change in feedback_app.py if needed: `app.run(port=5002)`
 
-**No managers found**
+**No managers found (when using orgchart)**
 - Make sure orgchart CSV has people with direct reports
 - Managers are auto-detected (people referenced in Manager UID column)
+- If not using orgchart, just enter manager name manually
 
 **Auto-save not working**
 - Check browser console for errors

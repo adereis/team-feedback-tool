@@ -1,0 +1,35 @@
+{
+    "description": "Configuration for Workday XLSX import. Column detection uses header matching.",
+    "version": "2.0",
+
+    "column_headers": {
+        "about": ["about", "recipient", "employee", "for"],
+        "from_name": ["from", "provider", "given by", "reviewer"],
+        "question": ["question"],
+        "feedback": ["feedback", "response", "answer", "comments"],
+        "asked_by": ["asked by", "requested by", "requester"],
+        "request_type": ["type", "request type"],
+        "date": ["date", "response date", "submitted"]
+    },
+
+    "optional_headers": {
+        "about_id": ["about id", "recipient id", "employee id"],
+        "from_id": ["from id", "provider id", "reviewer id"],
+        "feedback_also_given_to": ["feedback also given to", "also given to"]
+    },
+
+    "header_row": 2,
+
+    "request_types": {
+        "self": "Requested by Self",
+        "others": "Requested by Others"
+    },
+
+    "notes": [
+        "Column matching: looks for exact header match first, then prefix match (ignoring photo columns)",
+        "For each field, multiple possible header names are listed - first match wins",
+        "header_row indicates which row contains column headers (1-indexed)",
+        "Set optional_headers values to enable ID-based matching when your export includes employee IDs",
+        "Adjust request_types if your Workday uses different text for self vs other requests"
+    ]
+}

@@ -5,59 +5,72 @@
 
 {% block content %}
 <div class="card" style="max-width: 500px; margin: 60px auto;">
-    <h2 style="text-align: center; margin-bottom: 24px;">Select Your Manager Profile</h2>
+    <h2 style="text-align: center; margin-bottom: 24px;">Manager Dashboard</h2>
 
     <p style="color: #666; margin-bottom: 24px; text-align: center;">
-        Choose your name to access your team's feedback reports
+        Enter your name to access your team's feedback reports.
     </p>
 
-    <div class="form-group">
-        <label>Manager Name:</label>
-        <select id="managerSelect">
+    <form id="managerForm" onsubmit="continueAsManager(event)">
+        <div class="form-group">
+            <label>Your Name:</label>
+            <input type="text" id="managerName" placeholder="Enter your name (e.g., Della Gate)" autofocus required>
+        </div>
+
+        <button type="submit" class="btn" style="width: 100%;">Continue</button>
+    </form>
+
+    {% if managers and managers|length > 0 %}
+    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee;">
+        <p style="color: #999; font-size: 13px; margin-bottom: 12px; text-align: center;">
+            Or select from imported orgchart:
+        </p>
+        <select id="managerSelect" onchange="selectFromList()">
             <option value="">-- Select your name --</option>
             {% for manager in managers %}
-            <option value="{{ manager.user_id }}">{{ manager.name }} ({{ manager.user_id }})</option>
+            <option value="{{ manager.user_id }}" data-name="{{ manager.name }}">{{ manager.name }} ({{ manager.user_id }})</option>
             {% endfor %}
         </select>
     </div>
-
-    <button onclick="continueAsManager()" class="btn" style="width: 100%;">Continue</button>
+    {% endif %}
 
     <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; text-align: center;">
         <p style="color: #999; font-size: 13px; margin-bottom: 8px;">
-            Tip: Bookmark your direct URL for faster access
+            Tip: Bookmark a direct URL for faster access
         </p>
         <p style="color: #999; font-size: 12px; font-family: monospace;">
-            http://localhost:5001/manager/[your-user-id]
+            /manager?name=Your%20Name
         </p>
     </div>
 
     <div style="margin-top: 20px; text-align: center;">
-        <a href="/" style="color: #667eea; text-decoration: none; font-size: 14px;">← Back to Home</a>
+        <a href="/" style="color: #667eea; text-decoration: none; font-size: 14px;">&larr; Back to Home</a>
     </div>
 </div>
 {% endblock %}
 
 {% block scripts %}
 <script>
-function continueAsManager() {
-    const select = document.getElementById('managerSelect');
-    const managerUid = select.value;
+function continueAsManager(event) {
+    if (event) event.preventDefault();
 
-    if (!managerUid) {
-        alert('Please select your name');
+    const name = document.getElementById('managerName').value.trim();
+    if (!name) {
         return;
     }
 
-    // Redirect to manager URL (will set session and show dashboard)
-    window.location.href = '/manager/' + managerUid;
+    // Redirect with name parameter
+    window.location.href = '/manager?name=' + encodeURIComponent(name);
 }
 
-// Allow Enter key to submit
-document.getElementById('managerSelect').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        continueAsManager();
+function selectFromList() {
+    const select = document.getElementById('managerSelect');
+    const option = select.options[select.selectedIndex];
+
+    if (option.value) {
+        // Use the stored user_id for orgchart-based login
+        window.location.href = '/manager/' + option.value;
     }
-});
+}
 </script>
 {% endblock %}
