@@ -26,7 +26,7 @@ Comprehensive development instructions and context for the Team Feedback Tool pr
 - **Main application**: feedback_app.py (Flask, port 5001)
 - **Database models**: feedback_models.py (SQLAlchemy)
 - **Templates**: feedback_templates/
-- **Testing**: Run `pytest` (81 tests) - see TESTING.md
+- **Testing**: Run `pytest` (123 tests) - see TESTING.md
 
 ### Key Development Principles
 
@@ -570,9 +570,32 @@ See `TESTING.md` for comprehensive testing documentation.
 
 ### Templates (HTML/UI)
 
+**Route-to-Template Mapping** (verify you're editing the right file!):
+| Route | Template |
+|-------|----------|
+| `/` | `index.html` |
+| `/feedback` | `feedback.html` |
+| `/individual` | `individual_select.html` |
+| `/individual/<user_id>` | `individual_feedback.html` |
+| `/manager` | `manager_select.html` |
+| `/manager/<manager_uid>` | `manager_dashboard.html` |
+| `/manager/report/<user_id>` | `report.html` |
+
+#### `feedback_templates/base.html` (Base Template)
+- Shared styles and scripts inherited by all templates
+- **Contains shared tenet selector CSS and JS** - edit here for grid layout changes
+- Footer navigation links
+- Two-column grid CSS injection (workaround for specificity issues)
+
 #### `feedback_templates/index.html` (Home Page)
 - Mode selection (individual vs manager)
 - Landing page navigation
+
+#### `feedback_templates/feedback.html` (Workday Feedback Flow)
+- Streamlined feedback form for external providers
+- Used when accessing `/feedback?for=Name`
+- Copy-to-clipboard for pasting into Workday
+- No orgchart/database dependency
 
 #### `feedback_templates/individual_select.html` (Individual Login)
 - User selection/input interface
@@ -744,6 +767,23 @@ See `TESTING.md` for comprehensive testing documentation.
 **Expected**: XLSX file with columns: About, From, Feedback, etc.
 **Solution**: Use the "Feedback on My Team" export from Workday
 
+### Issue: Two-Column Tenet Grid Not Working
+**Cause**: CSS-only approaches fail due to specificity issues
+**Solution**: JavaScript CSS injection is REQUIRED (not just CSS)
+**Location**: `base.html` contains the shared JS injection that forces the grid
+**Pattern**: The workaround injects `!important` styles via JavaScript:
+```javascript
+const style = document.createElement('style');
+style.textContent = `.tenet-selector { display: grid !important; ... }`;
+document.head.appendChild(style);
+```
+**Warning**: If adding tenet selectors to a new template, ensure it extends `base.html`
+
+### Issue: Editing Wrong Template
+**Cause**: Multiple templates handle similar functionality
+**Prevention**: Check the route-to-template mapping in File Responsibilities section
+**Example**: `/feedback` uses `feedback.html`, NOT `individual_feedback.html`
+
 ---
 
 ## Development Best Practices
@@ -779,7 +819,7 @@ See `TESTING.md` for comprehensive testing documentation.
 4. Verify all tests pass
 5. Document testing patterns
 
-**Result**: 81 tests covering all major functionality ensures confidence in changes.
+**Result**: 123 tests covering all major functionality ensures confidence in changes.
 
 ### Session Management
 **Pattern**: Flask session for identity without full auth:
@@ -788,6 +828,19 @@ See `TESTING.md` for comprehensive testing documentation.
 3. Provide switch endpoints: `/individual/switch` clears session
 4. Test session persistence across requests
 5. Support external users not in database
+
+### Template Style Centralization
+**Lesson**: When the same CSS/JS appears in multiple templates, centralize it in `base.html`:
+1. Identify duplicate styles across templates (e.g., `.tenet-selector`, `.tenet-item`)
+2. Move shared styles to `base.html` in the main `<style>` block
+3. Move shared JS workarounds to `base.html` in a `<script>` before `{% block scripts %}`
+4. Remove duplicates from individual templates
+5. Test all affected pages to ensure styles still apply
+
+**Current shared styles in base.html**:
+- Tenet selector grid layout (CSS + JS injection workaround)
+- Tenet item states (hover, selected-strength, selected-improvement, disabled)
+- Common UI classes (.btn, .card, .form-group, etc.)
 
 ### Auto-Save Implementation
 **Pattern**: Consistent auto-save across all editable fields:
