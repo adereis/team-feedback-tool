@@ -231,7 +231,9 @@
     <h2>Your Team</h2>
 
     {% if team_members|length == 0 %}
-    <p style="color: #999;">No team members found. Make sure the orgchart has been imported correctly.</p>
+    <p style="color: #666;">
+        No team members found yet. Import a Workday XLSX file above to see your team.
+    </p>
     {% else %}
     <table>
         <thead>
@@ -244,10 +246,11 @@
         </thead>
         <tbody>
             {% for member in team_members %}
-            <tr data-name="{{ member.name }}" data-job="{{ member.job_title }}" data-feedback="{{ member.feedback_count }}">
+            {% set total_feedback = (member.feedback_count or 0) + (member.wd_feedback_count or 0) %}
+            <tr data-name="{{ member.name }}" data-job="{{ member.job_title or '' }}" data-feedback="{{ total_feedback }}">
                 <td><strong>{{ member.name }}</strong></td>
-                <td>{{ member.job_title }}</td>
-                <td>{{ member.feedback_count }} feedback(s)</td>
+                <td>{{ member.job_title or '-' }}</td>
+                <td>{{ total_feedback }} feedback(s)</td>
                 <td>
                     <a href="/manager/report/{{ member.user_id }}" class="btn" style="padding: 6px 16px;">Edit Report</a>
                 </td>

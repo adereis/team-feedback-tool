@@ -220,59 +220,21 @@
     <h2>Welcome to the Team Feedback Tool</h2>
     <p style="margin-bottom: 24px;">Collect peer feedback and generate performance reports for your team.</p>
 
-    <!-- Quick feedback link for Workday users -->
-    <div style="background: linear-gradient(135deg, #28a745 0%, #20c997 100%); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-        <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px;">
-            <div>
-                <strong style="font-size: 16px;">Responding to a Workday feedback request?</strong>
-                <p style="margin: 4px 0 0 0; opacity: 0.9; font-size: 14px;">Use the streamlined feedback form - no setup required.</p>
-            </div>
-            <a href="/feedback" class="btn" style="background: white; color: #28a745; font-weight: 600;">Give Feedback</a>
-        </div>
-    </div>
-
-    <!-- Setup prompt for first-time users (shown when database is empty) -->
-    <div class="setup-prompt" id="setupPrompt">
-        <h3>Get Started</h3>
-        <p>Import your orgchart CSV to enable the feedback workflow.</p>
-
-        <div class="drop-zone" id="dropZonePrompt">
-            <div class="drop-zone-icon">📁</div>
-            <div class="drop-zone-text">Drag & drop orgchart CSV here, or click to browse</div>
-            <input type="file" id="orgchartFilePrompt" accept=".csv" />
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <div class="card workflow-card" style="background: #e7f3ff; margin-bottom: 0;">
+            <h3>Provide Feedback</h3>
+            <p class="workflow-steps">Select tenets and provide feedback for a colleague, then copy to Workday.</p>
+            <a href="/feedback" class="btn">Give Feedback</a>
         </div>
 
-        <div id="importStatusPrompt"></div>
-
-        <details class="csv-format">
-            <summary>CSV Format Reference</summary>
-            <p style="margin-top: 12px; font-size: 14px;">Required columns for orgchart import:</p>
-            <pre>Name,User ID,Job Title,Location,Email,Manager UID
-Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
-Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate
-Lee Latency,llatency,Senior Developer,Boston MA,llatency@example.com,dgate</pre>
-            <p style="font-size: 13px; margin-top: 8px;">
-                <strong>Note:</strong> Leave "Manager UID" empty for top-level managers.
-                The "Location" column is optional.
-            </p>
-        </details>
-    </div>
-
-    <div class="db-status" id="dbStatus" style="margin-bottom: 20px;">Loading...</div>
-
-    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
-        <div class="card workflow-card disabled" id="individualCard" style="background: #e7f3ff; margin-bottom: 0;">
-            <h3>Individual Feedback</h3>
-            <p class="workflow-steps">Give feedback → Export CSVs → Share with managers</p>
-            <a href="/individual" class="btn">Start Giving Feedback</a>
-        </div>
-
-        <div class="card workflow-card disabled" id="managerCard" style="background: #fff3e0; margin-bottom: 0;">
+        <div class="card workflow-card" style="background: #fff3e0; margin-bottom: 0;">
             <h3>Manager Dashboard</h3>
-            <p class="workflow-steps">Import CSVs → Review reports → Add highlights → Export PDFs</p>
+            <p class="workflow-steps">Import Workday feedback, review reports, add highlights, export PDFs.</p>
             <a href="/manager" class="btn" style="background: #ff9800;">Access Manager Tools</a>
         </div>
     </div>
+
+    <div class="db-status" id="dbStatus">Loading...</div>
 </div>
 
 <details class="card" id="adminSection" style="padding: 0;">
@@ -327,31 +289,20 @@ document.addEventListener('DOMContentLoaded', function() {
     const resetCheckbox = document.getElementById('resetCheckbox');
     const statusDiv = document.getElementById('importStatus');
 
-    // Setup prompt elements (for first-time users)
-    const dropZonePrompt = document.getElementById('dropZonePrompt');
-    const fileInputPrompt = document.getElementById('orgchartFilePrompt');
-    const statusDivPrompt = document.getElementById('importStatusPrompt');
-    const setupPrompt = document.getElementById('setupPrompt');
-
-    // Workflow cards
-    const individualCard = document.getElementById('individualCard');
-    const managerCard = document.getElementById('managerCard');
-
     // Load database stats
     loadDbStats();
 
-    // Setup drop zone handlers for both zones
-    setupDropZone(dropZone, fileInput, statusDiv, true);
-    setupDropZone(dropZonePrompt, fileInputPrompt, statusDivPrompt, false);
+    // Setup drop zone handler
+    setupDropZone(dropZone, fileInput, statusDiv);
 
-    function setupDropZone(zone, input, status, useReset) {
+    function setupDropZone(zone, input, status) {
         // Click to browse
         zone.addEventListener('click', () => input.click());
 
         // File input change
         input.addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
-                handleFile(e.target.files[0], status, useReset);
+                handleFile(e.target.files[0], status);
             }
             input.value = '';
         });
@@ -372,13 +323,13 @@ document.addEventListener('DOMContentLoaded', function() {
             zone.classList.remove('drag-over');
             const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
             if (files.length > 0) {
-                handleFile(files[0], status, useReset);
+                handleFile(files[0], status);
             }
         });
     }
 
-    function handleFile(file, statusDiv, useReset) {
-        const reset = useReset ? resetCheckbox.checked : false;
+    function handleFile(file, statusDiv) {
+        const reset = resetCheckbox.checked;
 
         // Confirm if reset is checked
         if (reset) {
@@ -409,9 +360,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     message = `✓ Imported ${data.new_count} new people.`;
                 }
                 statusDiv.innerHTML = `<div class="success-message">${message}</div>`;
-                if (useReset) {
-                    resetCheckbox.checked = false;
-                }
+                resetCheckbox.checked = false;
                 loadDbStats();
             } else {
                 statusDiv.innerHTML = `<div class="error-message">Error: ${data.error}</div>`;
@@ -427,22 +376,23 @@ document.addEventListener('DOMContentLoaded', function() {
             .then(r => r.json())
             .then(data => {
                 const statusEl = document.getElementById('dbStatus');
-                const isEmpty = data.total_people === 0;
 
-                if (isEmpty) {
-                    // First-time user: show setup prompt, disable workflow cards
+                if (data.total_people === 0 && data.peer_feedback === 0 && data.manager_reviews === 0) {
                     statusEl.className = 'db-status empty';
-                    statusEl.textContent = 'Import an orgchart to get started.';
-                    setupPrompt.classList.remove('hidden');
-                    individualCard.classList.add('disabled');
-                    managerCard.classList.add('disabled');
+                    statusEl.textContent = 'No data yet. Use the workflows above to get started.';
                 } else {
-                    // Data loaded: hide setup prompt, enable workflow cards
                     statusEl.className = 'db-status';
-                    statusEl.textContent = `Loaded: ${data.total_people} people (${data.managers} managers) · ${data.peer_feedback} peer feedback · ${data.manager_reviews} manager reviews`;
-                    setupPrompt.classList.add('hidden');
-                    individualCard.classList.remove('disabled');
-                    managerCard.classList.remove('disabled');
+                    let parts = [];
+                    if (data.total_people > 0) {
+                        parts.push(`${data.total_people} people (${data.managers} managers)`);
+                    }
+                    if (data.peer_feedback > 0) {
+                        parts.push(`${data.peer_feedback} peer feedback`);
+                    }
+                    if (data.manager_reviews > 0) {
+                        parts.push(`${data.manager_reviews} manager reviews`);
+                    }
+                    statusEl.textContent = parts.join(' · ');
                 }
             })
             .catch(err => {

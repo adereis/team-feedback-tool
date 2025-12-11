@@ -10,8 +10,28 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy.orm import sessionmaker, relationship
 import json
 import re
+import hashlib
 
 Base = declarative_base()
+
+
+def name_to_user_id(name):
+    """Generate a derived user_id from a name.
+
+    Used for Workday-only users who don't have an orgchart user_id.
+    Returns a predictable ID based on name hash (e.g., 'wd_a1b2c3d4').
+
+    Args:
+        name: Person's display name
+
+    Returns:
+        Derived user_id string prefixed with 'wd_'
+    """
+    # Normalize name: lowercase and strip whitespace
+    normalized = name.lower().strip()
+    # Generate SHA-1 hash and take first 8 characters
+    hash_hex = hashlib.sha1(normalized.encode('utf-8')).hexdigest()[:8]
+    return f'wd_{hash_hex}'
 
 
 class Person(Base):
@@ -86,12 +106,17 @@ class Feedback(Base):
 
 
 class ManagerFeedback(Base):
-    """Manager's own feedback for their team members"""
+    """Manager's own feedback for their team members.
+
+    Note: team_member_uid may be either:
+    1. A real user_id from the persons table (orgchart workflow)
+    2. A derived ID from name_to_user_id() (Workday-only workflow)
+    """
     __tablename__ = 'manager_feedback'
 
     id = Column(Integer, primary_key=True, autoincrement=True)
-    manager_uid = Column(String, ForeignKey('persons.user_id'), nullable=False)
-    team_member_uid = Column(String, ForeignKey('persons.user_id'), nullable=False)
+    manager_uid = Column(String, nullable=False)  # Manager's user_id or derived ID
+    team_member_uid = Column(String, nullable=False)  # Team member's user_id or derived ID
 
     # Manager's selected tenets (highlighted in butterfly chart)
     selected_strengths = Column(Text)  # JSON array

@@ -12,7 +12,7 @@ Routes:
 """
 
 from flask import Flask, render_template, request, jsonify, send_file, session as flask_session, redirect
-from feedback_models import init_db, Person, Feedback, ManagerFeedback, WorkdayFeedback
+from feedback_models import init_db, Person, Feedback, ManagerFeedback, WorkdayFeedback, name_to_user_id
 from import_workday import import_workday_xlsx, get_available_date_ranges
 import json
 import csv
@@ -463,80 +463,184 @@ def export_feedback_csv(manager_uid):
 
 @app.route('/manager')
 def manager_dashboard():
-    """Manager dashboard - view team and feedback"""
+    """Manager dashboard - view team and feedback.
+
+    Supports two modes:
+    1. Name-based (Workday workflow): ?name=Manager%20Name or session['manager_name']
+       - Team derived from Workday feedback recipients
+    2. UID-based (orgchart workflow): session['manager_uid']
+       - Team derived from orgchart direct reports
+    """
+    # Check for name parameter (Workday workflow)
+    manager_name = request.args.get('name', '').strip()
+    if manager_name:
+        flask_session['manager_name'] = manager_name
+        flask_session.pop('manager_uid', None)  # Clear UID-based session
+        return redirect('/manager')
+
+    # Check session for manager identity
+    manager_name = flask_session.get('manager_name')
     manager_uid = flask_session.get('manager_uid')
 
     # If no manager selected, show selection page
-    if not manager_uid:
+    if not manager_name and not manager_uid:
         session = init_db()
-        # Get all managers (people who have direct reports)
+        # Get all managers from orgchart (if any)
         managers = session.query(Person).filter(Person.direct_reports.any()).order_by(Person.name).all()
         session.close()
         return render_template('manager_select.html', managers=[m.to_dict() for m in managers])
 
-    # Manager selected - show dashboard
-    manager = None
-    team_members = []
-
     session = init_db()
-    manager = session.query(Person).filter_by(user_id=manager_uid).first()
+    team_members = []
+    manager_info = {}
+    has_orgchart = False
 
-    if not manager:
-        # Invalid manager_uid in session - clear it
-        flask_session.pop('manager_uid', None)
-        session.close()
-        return redirect('/manager')
+    if manager_uid:
+        # UID-based workflow (from orgchart)
+        manager = session.query(Person).filter_by(user_id=manager_uid).first()
+        if not manager:
+            flask_session.pop('manager_uid', None)
+            session.close()
+            return redirect('/manager')
 
-    team_members_objs = session.query(Person).filter_by(manager_uid=manager_uid).all()
+        manager_info = manager.to_dict()
+        manager_name = manager.name
+        has_orgchart = True
 
-    # Convert to dicts and add feedback count
-    for tm in team_members_objs:
-        tm_dict = tm.to_dict()
-        tm_dict['feedback_count'] = session.query(Feedback).filter_by(to_user_id=tm.user_id).count()
-        team_members.append(tm_dict)
+        # Get team from orgchart
+        team_members_objs = session.query(Person).filter_by(manager_uid=manager_uid).all()
+        for tm in team_members_objs:
+            tm_dict = tm.to_dict()
+            # Count legacy feedback
+            tm_dict['feedback_count'] = session.query(Feedback).filter_by(to_user_id=tm.user_id).count()
+            # Count Workday feedback
+            tm_dict['wd_feedback_count'] = session.query(WorkdayFeedback).filter(
+                WorkdayFeedback.about == tm.name
+            ).count()
+            team_members.append(tm_dict)
+
+    else:
+        # Name-based workflow (Workday)
+        # Check if manager exists in orgchart for enrichment
+        manager_person = session.query(Person).filter_by(name=manager_name).first()
+        if manager_person:
+            manager_info = manager_person.to_dict()
+            has_orgchart = True
+        else:
+            # Use derived ID for manager
+            manager_info = {
+                'name': manager_name,
+                'user_id': name_to_user_id(manager_name),
+                'job_title': None,
+                'email': None
+            }
+
+        # Get team members from Workday feedback recipients
+        # Find all unique "about" names from Workday feedback
+        wd_recipients = session.query(
+            WorkdayFeedback.about,
+            func.count(WorkdayFeedback.id).label('count')
+        ).group_by(WorkdayFeedback.about).all()
+
+        for recipient_name, count in wd_recipients:
+            # Try to find in orgchart for enrichment
+            person = session.query(Person).filter_by(name=recipient_name).first()
+            if person:
+                tm_dict = person.to_dict()
+                tm_dict['feedback_count'] = session.query(Feedback).filter_by(to_user_id=person.user_id).count()
+            else:
+                # Create entry with derived ID from name
+                tm_dict = {
+                    'name': recipient_name,
+                    'user_id': name_to_user_id(recipient_name),
+                    'job_title': None,
+                    'email': None,
+                    'feedback_count': 0
+                }
+            tm_dict['wd_feedback_count'] = count
+            team_members.append(tm_dict)
 
     session.close()
 
     return render_template(
         'manager_dashboard.html',
-        manager=manager.to_dict(),
-        team_members=team_members
+        manager=manager_info,
+        team_members=team_members,
+        has_orgchart=has_orgchart
     )
 
 
 @app.route('/api/team-butterfly-data')
 def get_team_butterfly_data():
-    """Get aggregated butterfly chart data for entire team"""
+    """Get aggregated butterfly chart data for entire team.
+
+    Supports two modes:
+    1. UID-based (orgchart workflow): Uses manager_uid from session
+    2. Name-based (Workday workflow): Uses manager_name from session
+    """
     manager_uid = flask_session.get('manager_uid')
-    if not manager_uid:
+    manager_name = flask_session.get('manager_name')
+
+    if not manager_uid and not manager_name:
         return jsonify({"success": False, "error": "No manager selected"}), 400
 
     session = init_db()
-
-    # Get all team members
-    team_members = session.query(Person).filter_by(manager_uid=manager_uid).all()
-    team_member_ids = [tm.user_id for tm in team_members]
 
     # Aggregate tenet counts across all team members
     tenet_strengths = defaultdict(int)
     tenet_improvements = defaultdict(int)
 
-    # Get all feedback for team members
-    all_feedbacks = session.query(Feedback).filter(Feedback.to_user_id.in_(team_member_ids)).all()
+    if manager_uid:
+        # UID-based workflow (from orgchart)
+        team_members = session.query(Person).filter_by(manager_uid=manager_uid).all()
+        team_member_ids = [tm.user_id for tm in team_members]
+        team_member_names = [tm.name for tm in team_members]
 
-    for fb in all_feedbacks:
-        for tenet_id in fb.get_strengths():
-            tenet_strengths[tenet_id] += 1
-        for tenet_id in fb.get_improvements():
-            tenet_improvements[tenet_id] += 1
+        # Get legacy feedback for team members
+        all_feedbacks = session.query(Feedback).filter(Feedback.to_user_id.in_(team_member_ids)).all()
 
-    # Add manager's own feedback for each team member
-    manager_feedbacks = session.query(ManagerFeedback).filter_by(manager_uid=manager_uid).all()
-    for mfb in manager_feedbacks:
-        for tenet_id in mfb.get_selected_strengths():
-            tenet_strengths[tenet_id] += 1
-        for tenet_id in mfb.get_selected_improvements():
-            tenet_improvements[tenet_id] += 1
+        for fb in all_feedbacks:
+            for tenet_id in fb.get_strengths():
+                tenet_strengths[tenet_id] += 1
+            for tenet_id in fb.get_improvements():
+                tenet_improvements[tenet_id] += 1
+
+        # Add manager's own feedback for each team member
+        manager_feedbacks = session.query(ManagerFeedback).filter_by(manager_uid=manager_uid).all()
+        for mfb in manager_feedbacks:
+            for tenet_id in mfb.get_selected_strengths():
+                tenet_strengths[tenet_id] += 1
+            for tenet_id in mfb.get_selected_improvements():
+                tenet_improvements[tenet_id] += 1
+
+        # Also include Workday structured feedback for team members
+        wd_feedbacks = session.query(WorkdayFeedback).filter(
+            WorkdayFeedback.about.in_(team_member_names),
+            WorkdayFeedback.is_structured == 1
+        ).all()
+
+        for fb in wd_feedbacks:
+            for tenet_id in fb.get_strengths():
+                tenet_strengths[tenet_id] += 1
+            for tenet_id in fb.get_improvements():
+                tenet_improvements[tenet_id] += 1
+
+    else:
+        # Name-based workflow (Workday only)
+        # Get team from Workday feedback recipients
+        wd_recipients = session.query(WorkdayFeedback.about).distinct().all()
+        team_member_names = [r.about for r in wd_recipients]
+
+        # Get structured Workday feedback for all recipients
+        wd_feedbacks = session.query(WorkdayFeedback).filter(
+            WorkdayFeedback.is_structured == 1
+        ).all()
+
+        for fb in wd_feedbacks:
+            for tenet_id in fb.get_strengths():
+                tenet_strengths[tenet_id] += 1
+            for tenet_id in fb.get_improvements():
+                tenet_improvements[tenet_id] += 1
 
     tenets = load_tenets()
 
@@ -582,6 +686,7 @@ def manager_login(manager_uid):
 def manager_switch():
     """Clear manager session and return to selection"""
     flask_session.pop('manager_uid', None)
+    flask_session.pop('manager_name', None)
     return redirect('/manager')
 
 
@@ -826,26 +931,100 @@ def get_date_ranges():
 
 
 @app.route('/manager/report/<user_id>')
-def view_report(user_id):
-    """View feedback report for team member"""
+@app.route('/manager/report')
+def view_report(user_id=None):
+    """View feedback report for team member.
+
+    Supports multiple access modes:
+    1. Real user_id: /manager/report/emp001 (orgchart-based)
+    2. Derived user_id: /manager/report/wd_a1b2c3d4 (Workday-only)
+    3. Name query param: /manager/report?name=Robin%20Rollback (legacy)
+    """
     manager_uid = flask_session.get('manager_uid')
-    if not manager_uid:
-        return "Please select your manager ID first", 400
+    manager_name = flask_session.get('manager_name')
+
+    if not manager_uid and not manager_name:
+        return "Please access via the manager dashboard first", 400
+
+    # Get team member name from query param if no user_id
+    team_member_name = request.args.get('name', '').strip() if not user_id else None
+
+    if not user_id and not team_member_name:
+        return "Missing team member identifier", 400
 
     session = init_db()
 
-    # Get team member
-    team_member = session.query(Person).filter_by(user_id=user_id).first()
-    if not team_member or team_member.manager_uid != manager_uid:
-        session.close()
-        return "Team member not found or not in your team", 403
+    # Initialize team member info
+    team_member_info = None
+    team_member_user_id = user_id
 
-    # Get legacy feedback for this person
-    feedbacks = session.query(Feedback).filter_by(to_user_id=user_id).all()
+    # Check if this is a derived ID (starts with 'wd_')
+    is_derived_id = user_id and user_id.startswith('wd_')
+
+    if user_id and not is_derived_id:
+        # Real user_id from orgchart
+        team_member = session.query(Person).filter_by(user_id=user_id).first()
+        if not team_member:
+            session.close()
+            return "Team member not found", 404
+
+        # Verify team membership if using orgchart workflow
+        if manager_uid and team_member.manager_uid != manager_uid:
+            session.close()
+            return "Team member not in your team", 403
+
+        team_member_info = team_member.to_dict()
+        team_member_name = team_member.name
+
+    elif user_id and is_derived_id:
+        # Derived ID from Workday - find the name from Workday feedback
+        # Look for a recipient whose derived ID matches
+        wd_recipient = session.query(WorkdayFeedback.about).distinct().all()
+        for (name,) in wd_recipient:
+            if name_to_user_id(name) == user_id:
+                team_member_name = name
+                break
+
+        if not team_member_name:
+            session.close()
+            return "Team member not found", 404
+
+        # Try to find in orgchart for enrichment
+        team_member = session.query(Person).filter_by(name=team_member_name).first()
+        if team_member:
+            team_member_info = team_member.to_dict()
+        else:
+            team_member_info = {
+                'name': team_member_name,
+                'user_id': user_id,
+                'job_title': None,
+                'email': None
+            }
+
+    else:
+        # Name-based access (legacy query param)
+        # Try to find in orgchart for enrichment
+        team_member = session.query(Person).filter_by(name=team_member_name).first()
+        if team_member:
+            team_member_info = team_member.to_dict()
+            team_member_user_id = team_member.user_id
+        else:
+            team_member_user_id = name_to_user_id(team_member_name)
+            team_member_info = {
+                'name': team_member_name,
+                'user_id': team_member_user_id,
+                'job_title': None,
+                'email': None
+            }
+
+    # Get legacy feedback (only if not a derived ID)
+    feedbacks = []
+    if team_member_user_id and not team_member_user_id.startswith('wd_'):
+        feedbacks = session.query(Feedback).filter_by(to_user_id=team_member_user_id).all()
 
     # Get Workday feedback by name (both structured and generic)
     wd_feedbacks = session.query(WorkdayFeedback).filter(
-        WorkdayFeedback.about == team_member.name
+        WorkdayFeedback.about == team_member_name
     ).order_by(WorkdayFeedback.date.desc()).all()
 
     # Separate structured vs generic Workday feedback
@@ -870,10 +1049,15 @@ def view_report(user_id):
             tenet_improvements[tenet_id] += 1
 
     # Get manager's own feedback
-    manager_feedback = session.query(ManagerFeedback).filter_by(
-        manager_uid=manager_uid,
-        team_member_uid=user_id
-    ).first()
+    # Use manager_uid or derived ID from manager_name
+    effective_manager_uid = manager_uid or name_to_user_id(manager_name)
+
+    manager_feedback = None
+    if team_member_user_id and effective_manager_uid:
+        manager_feedback = session.query(ManagerFeedback).filter_by(
+            manager_uid=effective_manager_uid,
+            team_member_uid=team_member_user_id
+        ).first()
 
     # Add manager's selections to the counts (manager's input counts as +1)
     if manager_feedback:
@@ -918,7 +1102,7 @@ def view_report(user_id):
 
     return render_template(
         'report.html',
-        team_member=team_member.to_dict(),
+        team_member=team_member_info,
         feedbacks=feedbacks_with_names,
         generic_feedbacks=[fb.to_dict() for fb in wd_generic],
         butterfly_data=butterfly_data,
@@ -929,12 +1113,21 @@ def view_report(user_id):
 
 @app.route('/api/manager-feedback', methods=['POST'])
 def save_manager_feedback():
-    """Save manager's own feedback"""
+    """Save manager's own feedback.
+
+    Supports both orgchart-based (manager_uid from session) and
+    Workday-based (derived ID from manager_name) workflows.
+    """
     data = request.get_json()
 
     manager_uid = flask_session.get('manager_uid')
-    if not manager_uid:
+    manager_name = flask_session.get('manager_name')
+
+    if not manager_uid and not manager_name:
         return jsonify({"success": False, "error": "No manager selected"}), 400
+
+    # Use real manager_uid or derive from name
+    effective_manager_uid = manager_uid or name_to_user_id(manager_name)
 
     team_member_uid = data.get('team_member_uid')
     selected_strengths = data.get('selected_strengths', [])
@@ -955,7 +1148,7 @@ def save_manager_feedback():
 
     # Check if exists
     mgr_feedback = session.query(ManagerFeedback).filter_by(
-        manager_uid=manager_uid,
+        manager_uid=effective_manager_uid,
         team_member_uid=team_member_uid
     ).first()
 
@@ -967,7 +1160,7 @@ def save_manager_feedback():
     else:
         # Create
         mgr_feedback = ManagerFeedback(
-            manager_uid=manager_uid,
+            manager_uid=effective_manager_uid,
             team_member_uid=team_member_uid,
             feedback_text=feedback_text
         )
