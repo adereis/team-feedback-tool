@@ -32,7 +32,7 @@ from datetime import datetime, timedelta
 
 SAMPLES_DIR = 'samples'
 from collections import defaultdict
-from feedback_models import init_db, Feedback, ManagerFeedback
+from models import init_db, Feedback, ManagerFeedback
 
 try:
     import openpyxl

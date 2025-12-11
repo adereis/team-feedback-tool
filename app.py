@@ -12,7 +12,7 @@ Routes:
 """
 
 from flask import Flask, render_template, request, jsonify, send_file, session as flask_session, redirect
-from feedback_models import init_db, Person, Feedback, ManagerFeedback, WorkdayFeedback, name_to_user_id
+from models import init_db, Person, Feedback, ManagerFeedback, WorkdayFeedback, name_to_user_id
 from scripts.import_workday import import_workday_xlsx, get_available_date_ranges
 import json
 import csv

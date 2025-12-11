@@ -7,7 +7,7 @@ Usage:
 
 import sys
 import csv
-from feedback_models import init_db, Person
+from models import init_db, Person
 
 
 def import_orgchart(csv_path, db_path='feedback.db'):

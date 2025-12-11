@@ -18,7 +18,7 @@ from datetime import datetime, timedelta
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from feedback_models import WorkdayFeedback, Base, init_db
+from models import WorkdayFeedback, Base, init_db
 from scripts.import_workday import (
     detect_columns, get_cell_value, validate_row,
     import_workday_xlsx, ImportResult, DEFAULT_CONFIG

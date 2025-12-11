@@ -11,7 +11,7 @@ Tests cover:
 import pytest
 import tempfile
 import os
-from feedback_models import init_db, Person, Feedback, ManagerFeedback, Base
+from models import init_db, Person, Feedback, ManagerFeedback, Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 

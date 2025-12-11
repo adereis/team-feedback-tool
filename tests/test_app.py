@@ -12,7 +12,7 @@ Tests cover:
 import pytest
 import json
 import io
-from feedback_models import Feedback, ManagerFeedback, Person
+from models import Feedback, ManagerFeedback, Person
 
 
 class TestIndexRoute:

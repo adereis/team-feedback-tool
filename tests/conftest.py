@@ -17,7 +17,7 @@ import json
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from app import app as flask_app
-from feedback_models import init_db, Person, Feedback, ManagerFeedback, Base
+from models import init_db, Person, Feedback, ManagerFeedback, Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
