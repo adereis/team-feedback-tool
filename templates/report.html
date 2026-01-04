@@ -114,6 +114,65 @@
     .manager-context a:hover {
         text-decoration: underline;
     }
+
+    .copy-section {
+        background: #f0f9ff;
+        border: 1px solid #b3d9ff;
+        border-radius: 8px;
+        padding: 20px;
+        margin-top: 24px;
+    }
+
+    .copy-section h4 {
+        margin: 0 0 12px 0;
+        color: #0066cc;
+        font-size: 15px;
+    }
+
+    .copy-preview {
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        padding: 12px;
+        font-family: monospace;
+        font-size: 12px;
+        white-space: pre-wrap;
+        max-height: 200px;
+        overflow-y: auto;
+        margin-bottom: 12px;
+    }
+
+    .copy-btn {
+        background: #0066cc;
+        color: white;
+        border: none;
+        padding: 10px 24px;
+        border-radius: 4px;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background 0.2s;
+    }
+
+    .copy-btn:hover {
+        background: #0052a3;
+    }
+
+    .copy-btn:disabled {
+        background: #ccc;
+        cursor: not-allowed;
+    }
+
+    .copy-success {
+        color: #28a745;
+        font-weight: 600;
+        margin-left: 12px;
+        display: none;
+    }
+
+    .copy-success.visible {
+        display: inline;
+    }
 </style>
 {% endblock %}
 
@@ -244,6 +303,19 @@
         <label>Your Feedback Text</label>
         <textarea id="managerFeedbackText" placeholder="Write your feedback for this team member...">{{ manager_feedback.feedback_text if manager_feedback else '' }}</textarea>
         <span id="saveIndicator" class="save-indicator">✓ Saved</span>
+    </div>
+
+    <!-- Copy for Workday Section -->
+    <div class="copy-section">
+        <h4>Copy for Workday</h4>
+        <p style="margin-bottom: 12px; color: #666; font-size: 14px;">
+            Copy your manager feedback (tenet selections + text) to paste into Workday.
+        </p>
+        <div class="copy-preview" id="managerCopyPreview">
+            <em style="color: #999;">Complete 3 strengths and 2-3 improvements to see preview...</em>
+        </div>
+        <button class="copy-btn" id="managerCopyBtn" onclick="copyManagerFeedback()" disabled>Copy to Clipboard</button>
+        <span class="copy-success" id="managerCopySuccess">✓ Copied!</span>
     </div>
 </div>
 
@@ -472,6 +544,7 @@ function toggleManagerStrength(tenetId) {
     renderManagerTenetSelectors();
     renderButterflyChart();
     updateChecklist();
+    updateManagerCopyPreview();
     scheduleAutoSave();
 }
 
@@ -493,6 +566,7 @@ function toggleManagerImprovement(tenetId) {
     renderManagerTenetSelectors();
     renderButterflyChart();
     updateChecklist();
+    updateManagerCopyPreview();
     scheduleAutoSave();
 }
 
@@ -590,6 +664,80 @@ function exportPDF() {
     window.location.href = `/manager/export-pdf/${teamMemberId}`;
 }
 
+function updateManagerCopyPreview() {
+    const previewEl = document.getElementById('managerCopyPreview');
+    const copyBtn = document.getElementById('managerCopyBtn');
+
+    // Check if manager feedback is complete
+    const strengthsDone = managerSelectedStrengths.length === 3;
+    const improvementsDone = managerSelectedImprovements.length >= 2 && managerSelectedImprovements.length <= 3;
+    const isComplete = strengthsDone && improvementsDone;
+
+    if (!isComplete) {
+        previewEl.innerHTML = '<em style="color: #999;">Complete 3 strengths and 2-3 improvements to see preview...</em>';
+        copyBtn.disabled = true;
+        return;
+    }
+
+    copyBtn.disabled = false;
+
+    // Get tenet names
+    const strengthNames = managerSelectedStrengths.map(id => {
+        const t = tenets.find(t => t.id === id);
+        return t ? t.name : id;
+    });
+    const improvementNames = managerSelectedImprovements.map(id => {
+        const t = tenets.find(t => t.id === id);
+        return t ? t.name : id;
+    });
+
+    const feedbackText = document.getElementById('managerFeedbackText').value.trim();
+
+    // Build formatted output - human-readable first, machine-parseable marker at bottom
+    let output = `Strengths:
+${strengthNames.map(n => '• ' + n).join('\n')}
+
+Areas for Improvement:
+${improvementNames.map(n => '• ' + n).join('\n')}
+`;
+
+    if (feedbackText) {
+        output += `
+Manager's Feedback:
+${feedbackText}
+`;
+    }
+
+    // Add machine-parseable marker at the end
+    output += `
+[TENETS]
+Strengths: ${managerSelectedStrengths.join(', ')}
+Improvements: ${managerSelectedImprovements.join(', ')}
+[/TENETS]`;
+
+    previewEl.textContent = output;
+}
+
+function copyManagerFeedback() {
+    const previewEl = document.getElementById('managerCopyPreview');
+    const text = previewEl.textContent;
+
+    navigator.clipboard.writeText(text).then(() => {
+        const successEl = document.getElementById('managerCopySuccess');
+        successEl.classList.add('visible');
+        setTimeout(() => {
+            successEl.classList.remove('visible');
+        }, 2000);
+    }).catch(err => {
+        console.error('Failed to copy:', err);
+        // Fallback: select text
+        const range = document.createRange();
+        range.selectNode(previewEl);
+        window.getSelection().removeAllRanges();
+        window.getSelection().addRange(range);
+    });
+}
+
 // Initialize
 try {
     console.log('Butterfly data:', butterflyData);
@@ -597,16 +745,18 @@ try {
     renderButterflyChart();
     renderManagerTenetSelectors();
     updateChecklist();
+    updateManagerCopyPreview();
 } catch (error) {
     console.error('Error initializing charts:', error);
     document.getElementById('butterflyChart').innerHTML =
         '<p style="color: #dc3545; padding: 20px;">Error loading chart: ' + error.message + '</p>';
 }
 
-// Add auto-save to feedback text
+// Add auto-save and preview update to feedback text
 const feedbackTextArea = document.getElementById('managerFeedbackText');
 feedbackTextArea.addEventListener('input', () => {
     scheduleAutoSave();
+    updateManagerCopyPreview();
 });
 </script>
 {% endblock %}

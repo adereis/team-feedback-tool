@@ -32,6 +32,20 @@ The tool integrates with Workday (or similar HR systems) for feedback collection
 | **Structured** | Tool-assisted (contains `[TENETS]` marker) | Yes |
 | **Generic** | Other Workday workflows (free-text) | No (shown separately) |
 
+## Operating Modes
+
+The tool supports two modes for different use cases:
+
+| Mode | Set via | Use Case | Data Persistence |
+|------|---------|----------|-----------------|
+| **Local** (default) | Default | Prepare feedback for multiple team members | Persistent SQLite |
+| **Hosted** | `HOSTED_MODE=true` | Online service for Workday integration | Ephemeral (per-session) |
+
+**Hosted mode example:**
+```bash
+HOSTED_MODE=true python3 app.py
+```
+
 ## Features
 
 ### For Feedback Providers
@@ -52,7 +66,8 @@ The tool integrates with Workday (or similar HR systems) for feedback collection
 - Separate "Additional Feedback" section for generic entries
 - Highlight specific tenets for emphasis in reports
 - Add manager's own feedback and comments
-- Export PDF reports
+- **Copy for Workday**: Export manager feedback for pasting back to Workday
+- Export PDF reports for team members
 
 ## Quick Start
 

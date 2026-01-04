@@ -2,11 +2,11 @@
 Team Feedback Tool - Flask Application
 
 Routes:
-- / : Home page (select mode: individual or manager)
-- /individual : Individual feedback collection
-- /individual/export : Export feedback CSVs per manager
+- / : Home page (mode-aware navigation)
+- /feedback : Stateless feedback form (for hosted/Workday workflow)
+- /individual : Individual feedback collection (for local workflow)
 - /manager : Manager feedback dashboard
-- /manager/import : Import feedback CSVs
+- /manager/import-xlsx : Import feedback from Workday XLSX
 - /manager/report/<user_id> : View/edit report for team member
 - /manager/export-pdf/<user_id> : Export PDF report
 """
@@ -18,6 +18,9 @@ import json
 import csv
 import io
 import os
+
+# Mode detection: HOSTED_MODE=true for ephemeral online deployment
+HOSTED_MODE = os.environ.get('HOSTED_MODE', '').lower() == 'true'
 import base64
 import tempfile
 from collections import defaultdict
@@ -50,7 +53,7 @@ def index():
     session = init_db()
     total_people = session.query(Person).count()
     session.close()
-    return render_template('index.html', has_data=total_people > 0)
+    return render_template('index.html', has_data=total_people > 0, hosted_mode=HOSTED_MODE)
 
 
 @app.route('/feedback')
@@ -360,110 +363,6 @@ def delete_feedback(to_user_id):
     return jsonify({"success": True})
 
 
-@app.route('/individual/export-list')
-def export_feedback_list():
-    """Show list of managers to export feedback for"""
-    current_user_id = flask_session.get('user_id')
-    if not current_user_id:
-        return "Please select your user ID first", 400
-
-    session = init_db()
-
-    # Get all feedback from current user
-    feedbacks = session.query(Feedback).filter_by(from_user_id=current_user_id).all()
-
-    if not feedbacks:
-        session.close()
-        return "No feedback to export", 400
-
-    # Group by manager
-    feedback_by_manager = defaultdict(list)
-
-    for feedback in feedbacks:
-        receiver = session.query(Person).filter_by(user_id=feedback.to_user_id).first()
-        if receiver and receiver.manager_uid:
-            feedback_by_manager[receiver.manager_uid].append({
-                'feedback': feedback,
-                'receiver': receiver
-            })
-
-    # Build list of managers with feedback counts and associate names
-    export_list = []
-    for manager_uid, feedback_list in feedback_by_manager.items():
-        manager = session.query(Person).filter_by(user_id=manager_uid).first()
-
-        # Get list of unique associates (receivers)
-        associates = list({item['receiver'].name for item in feedback_list})
-        associates.sort()
-
-        export_list.append({
-            'manager_uid': manager_uid,
-            'manager_name': manager.name if manager else manager_uid,
-            'feedback_count': len(feedback_list),
-            'associates': associates
-        })
-
-    session.close()
-
-    return render_template('export_list.html', export_list=export_list)
-
-
-@app.route('/individual/export/<manager_uid>')
-def export_feedback_csv(manager_uid):
-    """Export feedback CSV for a specific manager - downloads through browser"""
-    current_user_id = flask_session.get('user_id')
-    if not current_user_id:
-        return "Please select your user ID first", 400
-
-    session = init_db()
-
-    # Get all feedback from current user to people managed by this manager
-    feedbacks = session.query(Feedback).filter_by(from_user_id=current_user_id).all()
-
-    feedback_list = []
-    for feedback in feedbacks:
-        receiver = session.query(Person).filter_by(user_id=feedback.to_user_id).first()
-        if receiver and receiver.manager_uid == manager_uid:
-            feedback_list.append(feedback)
-
-    if not feedback_list:
-        session.close()
-        return "No feedback for this manager", 400
-
-    # Create CSV in memory
-    output = io.StringIO()
-    writer = csv.writer(output)
-    writer.writerow([
-        'From User ID',
-        'To User ID',
-        'Strengths (Tenet IDs)',
-        'Improvements (Tenet IDs)',
-        'Strengths Text',
-        'Improvements Text'
-    ])
-
-    for fb in feedback_list:
-        writer.writerow([
-            fb.from_user_id,
-            fb.to_user_id,
-            ','.join(fb.get_strengths()),
-            ','.join(fb.get_improvements()),
-            fb.strengths_text,
-            fb.improvements_text
-        ])
-
-    session.close()
-
-    # Convert to bytes for download
-    output.seek(0)
-    return send_file(
-        io.BytesIO(output.getvalue().encode('utf-8')),
-        mimetype='text/csv',
-        as_attachment=True,
-        download_name=f'feedback_for_{manager_uid}.csv'
-    )
-
-
 @app.route('/manager')
 def manager_dashboard():
     """Manager dashboard - view team and feedback.
@@ -711,89 +610,6 @@ def set_manager():
 
     flask_session['manager_uid'] = manager_uid
     return jsonify({"success": True})
-
-
-@app.route('/manager/import', methods=['POST'])
-def import_feedback_csv():
-    """Import feedback CSV file"""
-    if 'file' not in request.files:
-        return jsonify({"success": False, "error": "No file uploaded"}), 400
-
-    file = request.files['file']
-    if file.filename == '':
-        return jsonify({"success": False, "error": "No file selected"}), 400
-
-    session = init_db()
-
-    try:
-        # Read CSV
-        stream = io.StringIO(file.stream.read().decode("UTF8"), newline=None)
-        reader = csv.DictReader(stream)
-
-        # Validate required columns
-        required_cols = ['From User ID', 'To User ID', 'Strengths (Tenet IDs)',
-                         'Improvements (Tenet IDs)', 'Strengths Text', 'Improvements Text']
-        if reader.fieldnames is None:
-            session.close()
-            return jsonify({"success": False, "error": "Empty or invalid CSV file"}), 400
-
-        missing_cols = [col for col in required_cols if col not in reader.fieldnames]
-        if missing_cols:
-            session.close()
-            return jsonify({
-                "success": False,
-                "error": f"Invalid CSV format. Missing columns: {', '.join(missing_cols)}"
-            }), 400
-
-        new_count = 0
-        updated_count = 0
-        updated_pairs = []
-
-        for row in reader:
-            from_user_id = row['From User ID']
-            to_user_id = row['To User ID']
-            strengths = row['Strengths (Tenet IDs)'].split(',') if row['Strengths (Tenet IDs)'] else []
-            improvements = row['Improvements (Tenet IDs)'].split(',') if row['Improvements (Tenet IDs)'] else []
-
-            # Check if already exists
-            existing = session.query(Feedback).filter_by(
-                from_user_id=from_user_id,
-                to_user_id=to_user_id
-            ).first()
-
-            if existing:
-                # Update existing record
-                existing.strengths_text = row['Strengths Text']
-                existing.improvements_text = row['Improvements Text']
-                existing.set_strengths(strengths)
-                existing.set_improvements(improvements)
-                updated_count += 1
-                updated_pairs.append(f"{from_user_id} → {to_user_id}")
-            else:
-                feedback = Feedback(
-                    from_user_id=from_user_id,
-                    to_user_id=to_user_id,
-                    strengths_text=row['Strengths Text'],
-                    improvements_text=row['Improvements Text']
-                )
-                feedback.set_strengths(strengths)
-                feedback.set_improvements(improvements)
-                session.add(feedback)
-                new_count += 1
-
-        session.commit()
-        session.close()
-
-        return jsonify({
-            "success": True,
-            "new_count": new_count,
-            "updated_count": updated_count,
-            "updated_pairs": updated_pairs
-        })
-
-    except Exception as e:
-        session.close()
-        return jsonify({"success": False, "error": str(e)}), 400
 
 
 @app.route('/manager/import-xlsx', methods=['POST'])

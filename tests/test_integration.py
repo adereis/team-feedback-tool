@@ -18,7 +18,7 @@ class TestIndividualFeedbackWorkflow:
     """Test complete individual feedback collection workflow"""
 
     def test_complete_individual_workflow(self, client, db_session):
-        """Test full workflow: login -> give feedback -> export"""
+        """Test full workflow: login -> give feedback -> view feedback"""
         # Step 1: Login as employee
         response = client.get('/individual/emp003', follow_redirects=True)
         assert response.status_code == 200
@@ -45,19 +45,11 @@ class TestIndividualFeedbackWorkflow:
         assert feedback is not None
         assert feedback.strengths_text == 'Excellent technical skills and collaboration'
 
-        # Step 4: View export list
-        response = client.get('/individual/export-list')
+        # Step 4: View individual page shows submitted feedback
+        response = client.get('/individual')
         assert response.status_code == 200
-        assert b'mgr001' in response.data or b'Alice' in response.data
-
-        # Step 5: Export CSV
-        response = client.get('/individual/export/mgr001')
-        assert response.status_code == 200
-        assert response.mimetype == 'text/csv'
-
-        csv_content = response.data.decode('utf-8')
-        assert 'emp003' in csv_content
-        assert 'emp001' in csv_content
+        # Page should show the submitted feedback is available
+        assert b'emp001' in response.data or b'Charlie' in response.data
 
     def test_multiple_users_giving_feedback(self, client, db_session):
         """Test multiple users can give feedback to the same person"""
@@ -194,7 +186,7 @@ class TestManagerWorkflow:
     """Test complete manager workflow"""
 
     def test_complete_manager_workflow(self, client, db_session):
-        """Test full workflow: login -> view dashboard -> import -> view report -> save feedback"""
+        """Test full workflow: login -> view dashboard -> view report -> save feedback"""
         # Step 1: Login as manager
         response = client.get('/manager/mgr001', follow_redirects=True)
         assert response.status_code == 200
@@ -204,28 +196,15 @@ class TestManagerWorkflow:
         assert response.status_code == 200
         assert b'emp001' in response.data or b'Charlie' in response.data
 
-        # Step 3: Import feedback CSV
-        csv_content = """From User ID,To User ID,Strengths (Tenet IDs),Improvements (Tenet IDs),Strengths Text,Improvements Text
-external001,emp001,tenet1,tenet2,Imported feedback,Imported improvements"""
-
-        data = {
-            'file': (io.BytesIO(csv_content.encode('utf-8')), 'import.csv')
-        }
-
-        response = client.post('/manager/import',
-                               data=data,
-                               content_type='multipart/form-data')
-        assert response.status_code == 200
-
-        # Step 4: View report for team member
+        # Step 3: View report for team member
         response = client.get('/manager/report/emp001')
         assert response.status_code == 200
 
-        # Step 5: Save manager's own feedback
+        # Step 4: Save manager's own feedback
         mgr_feedback = {
             'team_member_uid': 'emp001',
-            'selected_strengths': ['tenet1', 'tenet2'],
-            'selected_improvements': ['tenet3'],
+            'selected_strengths': ['tenet1', 'tenet2', 'tenet3'],
+            'selected_improvements': ['tenet4', 'tenet5'],
             'feedback_text': 'Great work this quarter'
         }
 
@@ -234,7 +213,7 @@ external001,emp001,tenet1,tenet2,Imported feedback,Imported improvements"""
                                content_type='application/json')
         assert response.status_code == 200
 
-        # Step 6: Verify manager feedback was saved
+        # Step 5: Verify manager feedback was saved
         db_session.expire_all()
         saved_feedback = db_session.query(ManagerFeedback).filter_by(
             manager_uid='mgr001',
@@ -294,45 +273,6 @@ external001,emp001,tenet1,tenet2,Imported feedback,Imported improvements"""
 
 class TestCrossWorkflowIntegration:
     """Test interactions between individual and manager workflows"""
-
-    def test_individual_export_and_manager_import(self, client, db_session):
-        """Test exporting from individual and importing to manager"""
-        # Individual gives feedback
-        with client.session_transaction() as sess:
-            sess['user_id'] = 'emp001'
-
-        feedback_data = {
-            'to_user_id': 'emp002',
-            'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
-            'strengths_text': 'Export test',
-            'improvements_text': 'Import test'
-        }
-
-        client.post('/api/feedback',
-                    data=json.dumps(feedback_data),
-                    content_type='application/json')
-
-        # Export CSV
-        response = client.get('/individual/export/mgr001')
-        assert response.status_code == 200
-        exported_csv = response.data.decode('utf-8')
-
-        # Clear session and login as different manager
-        client.get('/individual/switch')
-        with client.session_transaction() as sess:
-            sess['manager_uid'] = 'mgr002'
-
-        # Import the same CSV (should work even for different manager)
-        data = {
-            'file': (io.BytesIO(exported_csv.encode('utf-8')), 'reimport.csv')
-        }
-
-        response = client.post('/manager/import',
-                               data=data,
-                               content_type='multipart/form-data')
-        # Should succeed but count=0 because already exists
-        assert response.status_code == 200
 
     def test_manager_selection_affects_butterfly_chart(self, client, db_session):
         """Test that manager selections are counted in butterfly chart"""
@@ -541,13 +481,3 @@ class TestEdgeCases:
 
         # Should succeed - text is optional
         assert response.status_code == 200
-
-    def test_export_with_no_feedback(self, client):
-        """Test export when user has given no feedback"""
-        # Login as user with no feedback
-        client.get('/individual/mgr002')  # Manager, unlikely to have given feedback
-
-        response = client.get('/individual/export-list')
-
-        # Should handle gracefully
-        assert response.status_code in [200, 400]

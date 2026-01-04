@@ -34,6 +34,11 @@
 3. **Vanilla JS**: No frameworks, use fetch API, Chart.js for charts
 4. **No popups**: Use inline indicators ("Saved") never `alert()`
 5. **Tenet validation**: 3 strengths, 2-3 improvements (API-enforced)
+6. **Workday is source of truth**: Export via copy/paste, import from XLSX only
+
+### Operating Modes
+- **Local mode** (default): Persistent SQLite DB, import orgchart CSV, use `/individual`
+- **Hosted mode** (`HOSTED_MODE=true`): Ephemeral DB, use `/feedback?for=Name`
 
 ### Naming Conventions
 - `user_id` = individual contributor
@@ -109,8 +114,9 @@ document.head.appendChild(style);
 - Structure: `{version, tenets: [{id, name, category, description, active}]}`
 
 ### Feedback Flow
-- **Individual**: Select person → choose 3 strengths + 2-3 improvements → add text → auto-saved
-- **Manager**: Import Workday XLSX → view aggregated reports → highlight tenets → export PDF
+- **Individual (local)**: Import orgchart → select person → choose tenets → add text → auto-saved → copy for Workday
+- **Feedback (hosted)**: Access `/feedback?for=Name` → choose tenets → add text → copy for Workday → paste to HR tool
+- **Manager**: Import Workday XLSX → view aggregated reports → highlight tenets → copy for Workday / export PDF
 
 ### Session
 - Flask session stores `user_id` or `manager_uid`
