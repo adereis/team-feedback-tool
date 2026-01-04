@@ -13,8 +13,8 @@
 
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f7fa;
-            color: #2c3e50;
+            background: #f5f5f5;
+            color: #333;
             line-height: 1.6;
         }
 
@@ -29,25 +29,95 @@
             margin: 40px auto;
         }
 
-        header {
+        /* Hosted Mode Sticky Banner */
+        .hosted-banner-sticky {
+            position: sticky;
+            top: 0;
+            z-index: 9999;
+            background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .hosted-banner-content {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .hosted-banner-content svg {
+            flex-shrink: 0;
+        }
+
+        .hosted-banner-content span {
+            font-size: 14px;
+        }
+
+        .hosted-get-real {
             background: white;
-            border-bottom: 2px solid #667eea;
+            color: #c0392b;
+            padding: 5px 15px;
+            border-radius: 4px;
+            text-decoration: none;
+            font-weight: 600;
+            font-size: 13px;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .hosted-get-real:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        header {
+            background: #2c3e50;
+            color: white;
             padding: 20px 0;
             margin-bottom: 30px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
 
         header h1 {
-            color: #667eea;
             font-size: 24px;
             font-weight: 600;
+        }
+
+        nav {
+            margin-top: 15px;
+        }
+
+        nav a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            margin-right: 10px;
+            border-radius: 4px;
+            background: rgba(255,255,255,0.1);
+            transition: background 0.3s;
+        }
+
+        nav a:hover, nav a.active {
+            background: rgba(255,255,255,0.2);
         }
 
         .card {
             background: white;
             border-radius: 8px;
-            padding: 24px;
+            padding: 25px;
             margin-bottom: 20px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .card h2 {
+            margin-bottom: 20px;
+            color: #2c3e50;
+            font-size: 20px;
         }
 
         h2 {
@@ -162,17 +232,35 @@
         th, td {
             padding: 12px;
             text-align: left;
-            border-bottom: 1px solid #f0f0f0;
+            border-bottom: 1px solid #e0e0e0;
         }
 
         th {
             background: #f8f9fa;
             font-weight: 600;
-            color: #34495e;
+            color: #2c3e50;
         }
 
         tr:hover {
             background: #f8f9fa;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 4px;
+            margin-bottom: 20px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
         }
 
         /* Shared tenet selector styles */
@@ -233,23 +321,36 @@
     </style>
 </head>
 <body>
+    {% if hosted_mode %}
+    <!-- Sticky Hosted Mode Banner -->
+    <div class="hosted-banner-sticky">
+        <div class="hosted-banner-content">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+            </svg>
+            <span><strong>HOSTED MODE</strong> - No data is stored. Import and CSV features disabled.</span>
+            <a href="https://github.com/adereis/team-feedback-tool" target="_blank" class="hosted-get-real">Get the real tool</a>
+        </div>
+    </div>
+    {% endif %}
     <header>
         <div class="container">
-            <h1>{% block header %}Team Feedback Tool{% endblock %}</h1>
+            <h1>Team Feedback Tool</h1>
+            <nav>
+                <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>Home</a>
+                {% if not hosted_mode %}
+                <a href="{{ url_for('individual_feedback') }}" {% if request.endpoint == 'individual_feedback' %}class="active"{% endif %}>Individual Feedback</a>
+                <a href="{{ url_for('manager_dashboard') }}" {% if request.endpoint in ['manager_dashboard', 'manager_report'] %}class="active"{% endif %}>Manager Dashboard</a>
+                {% else %}
+                <a href="{{ url_for('feedback_for_workday') }}" {% if request.endpoint == 'feedback_for_workday' %}class="active"{% endif %}>Give Feedback</a>
+                {% endif %}
+            </nav>
         </div>
     </header>
 
     <div class="container">
         {% block content %}{% endblock %}
     </div>
-
-    <footer style="margin-top: 40px; padding: 20px 0; border-top: 1px solid #e0e0e0; text-align: center;">
-        <div class="container" style="color: #999; font-size: 13px;">
-            {% block footer %}
-            Switch to: <a href="/individual" style="color: #667eea;">Individual Feedback</a> · <a href="/manager" style="color: #667eea;">Manager Dashboard</a> · <a href="/" style="color: #667eea;">Home</a>
-            {% endblock %}
-        </div>
-    </footer>
 
     <script>
     // Force two-column grid for tenet selectors (CSS specificity workaround)

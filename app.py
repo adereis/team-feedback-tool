@@ -35,6 +35,13 @@ from dateutil.relativedelta import relativedelta
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'feedback-tool-secret-key-change-in-production'
 
+
+@app.context_processor
+def inject_hosted_mode():
+    """Make hosted_mode available to all templates"""
+    return dict(hosted_mode=HOSTED_MODE)
+
+
 # Load tenets configuration
 # Prefer tenets.json (org-specific), fall back to samples/tenets-sample.json
 TENETS_FILE = 'tenets.json' if os.path.exists('tenets.json') else 'samples/tenets-sample.json'
@@ -53,7 +60,7 @@ def index():
     session = init_db()
     total_people = session.query(Person).count()
     session.close()
-    return render_template('index.html', has_data=total_people > 0, hosted_mode=HOSTED_MODE)
+    return render_template('index.html', has_data=total_people > 0)
 
 
 @app.route('/feedback')
