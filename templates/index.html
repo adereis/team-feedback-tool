@@ -4,8 +4,6 @@
 <style>
     /* Empty State Styles */
     .empty-state {
-        max-width: 600px;
-        margin: 60px auto;
         text-align: center;
         padding: 40px;
         background: white;
@@ -289,16 +287,19 @@
 {% endblock %}
 
 {% block content %}
-{% if not has_data %}
-<!-- Empty State: First-time user experience -->
-<div class="empty-state">
+{% if hosted_mode %}
+<!-- Hosted Mode: Simple landing for Workday integration -->
+<div class="empty-state content-centered">
     <div class="empty-state-icon">
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
         </svg>
     </div>
-    <h2>Welcome to Team Feedback Tool</h2>
-    <p class="empty-state-description">Collect peer feedback and generate performance reports for your team. Choose how you want to get started:</p>
+    <h2>Team Feedback Tool</h2>
+    <p class="empty-state-description">
+        Provide structured feedback using team tenets. Select strengths and areas for improvement,
+        then copy the formatted text back to Workday.
+    </p>
 
     <div class="empty-state-actions">
         <a href="/feedback" class="btn-large">
@@ -307,12 +308,37 @@
             </svg>
             Give Feedback
         </a>
-        <a href="/manager" class="btn-large btn-secondary">
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-            </svg>
-            Manager Dashboard
-        </a>
+    </div>
+
+    <p style="margin-top: 30px; font-size: 13px; color: #888;">
+        Tip: Use links like <code>/feedback?for=Name</code> to pre-fill the recipient
+    </p>
+</div>
+{% elif not has_data %}
+<!-- Local Mode - Empty State: First-time user experience -->
+<div class="empty-state content-centered">
+    <div class="empty-state-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+        </svg>
+    </div>
+    <h2>Welcome to Team Feedback Tool</h2>
+    <p class="empty-state-description">To provide feedback for colleagues, first import your team's orgchart.</p>
+
+    <!-- Orgchart Import Section -->
+    <div style="margin-bottom: 30px; text-align: left;">
+        <div class="drop-zone" id="dropZone" style="margin-bottom: 12px;">
+            <div class="drop-zone-icon">+</div>
+            <div class="drop-zone-text">Drag & drop orgchart CSV here, or click to browse</div>
+            <input type="file" id="orgchartFile" accept=".csv" />
+        </div>
+        <div id="importStatus"></div>
+        <details class="csv-format" style="font-size: 13px;">
+            <summary>CSV Format Reference</summary>
+            <pre style="text-align: left;">Name,User ID,Job Title,Location,Email,Manager UID
+Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
+Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
+        </details>
     </div>
 
     <div class="empty-state-divider">
@@ -324,18 +350,37 @@
         <code>python3 scripts/create_sample_data.py --demo</code>
         <p class="hint">Creates orgchart, peer feedback, and sample Workday XLSX for import</p>
     </div>
+
+    <div class="empty-state-divider">
+        <span>or use a different workflow</span>
+    </div>
+
+    <div class="empty-state-actions" style="margin-top: 0;">
+        <a href="/feedback" class="btn-large" style="background: #6c757d;">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+            </svg>
+            Quick Feedback (no orgchart)
+        </a>
+        <a href="/manager" class="btn-large btn-secondary">
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+            </svg>
+            Manager Dashboard
+        </a>
+    </div>
 </div>
 {% else %}
-<!-- Normal State: Has data -->
-<div class="card">
+<!-- Local Mode - Normal State: Has data -->
+<div class="card content-centered">
     <h2>Welcome to the Team Feedback Tool</h2>
     <p style="margin-bottom: 24px;">Collect peer feedback and generate performance reports for your team.</p>
 
     <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
         <div class="card workflow-card" style="background: #e7f3ff; margin-bottom: 0;">
             <h3>Provide Feedback</h3>
-            <p class="workflow-steps">Select tenets and provide feedback for a colleague, then copy to Workday.</p>
-            <a href="/feedback" class="btn">Give Feedback</a>
+            <p class="workflow-steps">Select tenets and provide feedback for colleagues, then copy to Workday.</p>
+            <a href="/individual" class="btn">Give Feedback</a>
         </div>
 
         <div class="card workflow-card" style="background: #fff3e0; margin-bottom: 0;">
@@ -348,7 +393,7 @@
     <div class="db-status" id="dbStatus">Loading...</div>
 </div>
 
-<details class="card" id="adminSection" style="padding: 0;">
+<details class="card content-centered" id="adminSection" style="padding: 0;">
     <summary style="padding: 24px; cursor: pointer; font-weight: 600; font-size: 16px; color: #34495e;">
         Admin
     </summary>
@@ -395,16 +440,17 @@ Lee Latency,llatency,Senior Developer,Boston MA,llatency@example.com,dgate</pre>
 {% block scripts %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
-    // Only run admin scripts if we have data (admin section exists)
     const dropZone = document.getElementById('dropZone');
     if (!dropZone) return;
 
     const fileInput = document.getElementById('orgchartFile');
-    const resetCheckbox = document.getElementById('resetCheckbox');
+    const resetCheckbox = document.getElementById('resetCheckbox'); // May be null in empty state
     const statusDiv = document.getElementById('importStatus');
 
-    // Load database stats
-    loadDbStats();
+    // Load database stats only if dbStatus element exists (normal state)
+    if (document.getElementById('dbStatus')) {
+        loadDbStats();
+    }
 
     // Setup drop zone handler
     setupDropZone(dropZone, fileInput, statusDiv);
@@ -443,7 +489,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function handleFile(file, statusDiv) {
-        const reset = resetCheckbox.checked;
+        const reset = resetCheckbox ? resetCheckbox.checked : false;
 
         // Confirm if reset is checked
         if (reset) {
@@ -473,9 +519,10 @@ document.addEventListener('DOMContentLoaded', function() {
                 } else {
                     message = `Imported ${data.new_count} new people.`;
                 }
-                statusDiv.innerHTML = `<div class="success-message">${message}</div>`;
-                resetCheckbox.checked = false;
-                loadDbStats();
+                statusDiv.innerHTML = `<div class="success-message">${message} Reloading...</div>`;
+                if (resetCheckbox) resetCheckbox.checked = false;
+                // Reload page to show updated state
+                setTimeout(() => window.location.reload(), 1000);
             } else {
                 statusDiv.innerHTML = `<div class="error-message">Error: ${data.error}</div>`;
             }

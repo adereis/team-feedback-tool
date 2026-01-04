@@ -3,8 +3,89 @@
 {% block title %}Individual Feedback - Team Feedback{% endblock %}
 {% block header %}Individual Feedback{% endblock %}
 
+{% block extra_styles %}
+<style>
+    .drop-zone {
+        border: 2px dashed #ccc;
+        border-radius: 8px;
+        padding: 30px 20px;
+        text-align: center;
+        background: #fafafa;
+        transition: all 0.2s ease;
+        cursor: pointer;
+    }
+    .drop-zone:hover {
+        border-color: #667eea;
+        background: #f0f4ff;
+    }
+    .drop-zone.drag-over {
+        border-color: #667eea;
+        background: #e8efff;
+        border-style: solid;
+    }
+    .drop-zone-icon {
+        font-size: 36px;
+        color: #999;
+        margin-bottom: 8px;
+    }
+    .drop-zone-text {
+        color: #666;
+        font-size: 14px;
+    }
+    .drop-zone input[type="file"] {
+        display: none;
+    }
+    .success-message {
+        background: #d4edda;
+        color: #155724;
+        padding: 12px;
+        border-radius: 6px;
+        margin-top: 12px;
+    }
+    .error-message {
+        background: #f8d7da;
+        color: #721c24;
+        padding: 12px;
+        border-radius: 6px;
+        margin-top: 12px;
+    }
+</style>
+{% endblock %}
+
 {% block content %}
-<div class="card" style="max-width: 500px; margin: 60px auto;">
+{% if all_people|length == 0 %}
+<!-- No people in database - show import option -->
+<div class="card content-centered">
+    <h2 style="text-align: center; margin-bottom: 24px;">Import Orgchart to Get Started</h2>
+
+    <p style="color: #666; margin-bottom: 24px; text-align: center;">
+        To provide feedback for colleagues, first import your team's orgchart.
+    </p>
+
+    <div class="drop-zone" id="dropZone">
+        <div class="drop-zone-icon">+</div>
+        <div class="drop-zone-text">Drag & drop orgchart CSV here, or click to browse</div>
+        <input type="file" id="orgchartFile" accept=".csv" />
+    </div>
+
+    <div id="importStatus"></div>
+
+    <details style="margin-top: 16px; font-size: 13px;">
+        <summary style="cursor: pointer; color: #667eea;">CSV Format Reference</summary>
+        <pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; margin-top: 12px; font-size: 12px; overflow-x: auto;">Name,User ID,Job Title,Location,Email,Manager UID
+Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
+Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
+    </details>
+
+    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; text-align: center;">
+        <p style="color: #666; margin-bottom: 12px;">Or use a different workflow:</p>
+        <a href="/feedback" class="btn btn-secondary" style="margin-right: 8px;">Quick Feedback (no orgchart)</a>
+        <a href="/" style="color: #667eea; text-decoration: none; font-size: 14px;">← Back to Home</a>
+    </div>
+</div>
+{% else %}
+<!-- Normal state - show user selection -->
+<div class="card content-centered">
     <h2 style="text-align: center; margin-bottom: 24px;">Select Your Identity</h2>
 
     <p style="color: #666; margin-bottom: 24px; text-align: center;">
@@ -47,17 +128,98 @@
         <a href="/" style="color: #667eea; text-decoration: none; font-size: 14px;">← Back to Home</a>
     </div>
 </div>
+{% endif %}
 {% endblock %}
 
 {% block scripts %}
 <script>
-// Handle dropdown selection
-document.getElementById('userSelect').addEventListener('change', function() {
-    const customInput = document.getElementById('customUserInput');
-    if (this.value === '__CUSTOM__') {
-        customInput.style.display = 'block';
-    } else {
-        customInput.style.display = 'none';
+document.addEventListener('DOMContentLoaded', function() {
+    // Orgchart import (empty state)
+    const dropZone = document.getElementById('dropZone');
+    if (dropZone) {
+        const fileInput = document.getElementById('orgchartFile');
+        const statusDiv = document.getElementById('importStatus');
+
+        dropZone.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+            fileInput.value = '';
+        });
+
+        dropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropZone.classList.add('drag-over');
+        });
+
+        dropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+        });
+
+        dropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
+            if (files.length > 0) {
+                handleFile(files[0]);
+            }
+        });
+
+        function handleFile(file) {
+            statusDiv.innerHTML = '<p>Importing...</p>';
+
+            const formData = new FormData();
+            formData.append('file', file);
+            formData.append('reset', 'false');
+
+            fetch('/api/import-orgchart', {
+                method: 'POST',
+                body: formData
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    statusDiv.innerHTML = `<div class="success-message">Imported ${data.new_count} people. Reloading...</div>`;
+                    setTimeout(() => window.location.reload(), 1000);
+                } else {
+                    statusDiv.innerHTML = `<div class="error-message">Error: ${data.error}</div>`;
+                }
+            })
+            .catch(err => {
+                statusDiv.innerHTML = `<div class="error-message">Error: ${err.message}</div>`;
+            });
+        }
+    }
+
+    // User selection (normal state)
+    const userSelect = document.getElementById('userSelect');
+    if (userSelect) {
+        userSelect.addEventListener('change', function() {
+            const customInput = document.getElementById('customUserInput');
+            if (this.value === '__CUSTOM__') {
+                customInput.style.display = 'block';
+            } else {
+                customInput.style.display = 'none';
+            }
+        });
+
+        userSelect.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                continueAsUser();
+            }
+        });
+    }
+
+    const customUserId = document.getElementById('customUserId');
+    if (customUserId) {
+        customUserId.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                continueAsUser();
+            }
+        });
     }
 });
 
@@ -82,18 +244,5 @@ function continueAsUser() {
     // Redirect to individual URL (will set session and show feedback page)
     window.location.href = '/individual/' + userId;
 }
-
-// Allow Enter key to submit
-document.getElementById('userSelect').addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        continueAsUser();
-    }
-});
-
-document.getElementById('customUserId')?.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        continueAsUser();
-    }
-});
 </script>
 {% endblock %}

@@ -169,7 +169,7 @@
 {% block content %}
 {% if not recipient_name %}
 <!-- No recipient specified - show input form -->
-<div class="card recipient-input-card">
+<div class="card recipient-input-card content-centered">
     <h2>Who are you providing feedback for?</h2>
     <p style="color: #666;">Enter the name of the person you're giving feedback to.</p>
     <form id="recipientForm" onsubmit="setRecipient(event)">
@@ -183,6 +183,7 @@
 </div>
 {% else %}
 <!-- Recipient specified - show feedback form -->
+<div class="content-centered">
 <div class="recipient-header">
     <h3>Feedback for: {{ recipient_name }}</h3>
     <p>Select tenets and provide comments, then copy the formatted output back to Workday.</p>
@@ -252,6 +253,7 @@
         ← Give feedback to someone else
     </a>
 </div>
+</div><!-- .content-centered -->
 {% endif %}
 {% endblock %}
 

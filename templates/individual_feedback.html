@@ -245,7 +245,38 @@
     </div>
 </div>
 
-<div class="card">
+{% if all_people|length <= 1 %}
+<!-- No colleagues to give feedback to - show import option -->
+<div class="card content-centered">
+    <h2>Import Orgchart to Get Started</h2>
+    <p style="margin-bottom: 20px; color: #666;">
+        There are no colleagues in the database to provide feedback for. Import your team's orgchart to continue.
+    </p>
+
+    <div class="drop-zone" id="dropZone" style="border: 2px dashed #ccc; border-radius: 8px; padding: 30px 20px; text-align: center; background: #fafafa; cursor: pointer;">
+        <div style="font-size: 36px; color: #999; margin-bottom: 8px;">+</div>
+        <div style="color: #666; font-size: 14px;">Drag & drop orgchart CSV here, or click to browse</div>
+        <input type="file" id="orgchartFile" accept=".csv" style="display: none;" />
+    </div>
+
+    <div id="importStatus"></div>
+
+    <details style="margin-top: 16px; font-size: 13px;">
+        <summary style="cursor: pointer; color: #667eea;">CSV Format Reference</summary>
+        <pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; margin-top: 12px; font-size: 12px; overflow-x: auto;">Name,User ID,Job Title,Location,Email,Manager UID
+Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
+Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
+    </details>
+
+    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee;">
+        <p style="color: #666; margin-bottom: 12px;">Or use a different workflow:</p>
+        <a href="/feedback" class="btn btn-secondary" style="margin-right: 8px;">Quick Feedback (no orgchart)</a>
+        <a href="/" class="btn btn-secondary">Back to Home</a>
+    </div>
+</div>
+{% else %}
+<!-- Normal state - show feedback form -->
+<div class="card content-centered">
     <h2>Provide Feedback</h2>
     <p style="margin-bottom: 20px;">
         Select a colleague to provide feedback on. Choose 3 tenet strengths and 2-3 tenets for improvement.
@@ -324,11 +355,75 @@
     </div>
 
 </div>
+{% endif %}
 
 {% endblock %}
 
 {% block scripts %}
 <script>
+// Orgchart import (empty state)
+const dropZone = document.getElementById('dropZone');
+if (dropZone) {
+    const fileInput = document.getElementById('orgchartFile');
+    const statusDiv = document.getElementById('importStatus');
+
+    dropZone.addEventListener('click', () => fileInput.click());
+
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files.length > 0) {
+            handleImportFile(e.target.files[0]);
+        }
+        fileInput.value = '';
+    });
+
+    dropZone.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#667eea';
+        dropZone.style.background = '#e8efff';
+    });
+
+    dropZone.addEventListener('dragleave', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#ccc';
+        dropZone.style.background = '#fafafa';
+    });
+
+    dropZone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropZone.style.borderColor = '#ccc';
+        dropZone.style.background = '#fafafa';
+        const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
+        if (files.length > 0) {
+            handleImportFile(files[0]);
+        }
+    });
+
+    function handleImportFile(file) {
+        statusDiv.innerHTML = '<p>Importing...</p>';
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('reset', 'false');
+
+        fetch('/api/import-orgchart', {
+            method: 'POST',
+            body: formData
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                statusDiv.innerHTML = `<div style="background: #d4edda; color: #155724; padding: 12px; border-radius: 6px; margin-top: 12px;">Imported ${data.new_count} people. Reloading...</div>`;
+                setTimeout(() => window.location.reload(), 1000);
+            } else {
+                statusDiv.innerHTML = `<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; margin-top: 12px;">Error: ${data.error}</div>`;
+            }
+        })
+        .catch(err => {
+            statusDiv.innerHTML = `<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; margin-top: 12px;">Error: ${err.message}</div>`;
+        });
+    }
+}
+
 const tenets = {{ tenets | tojson | safe }};
 const allPeople = {{ all_people | tojson | safe }};
 const existingFeedback = {{ existing_feedback | tojson | safe }};
