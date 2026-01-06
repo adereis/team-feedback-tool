@@ -2,6 +2,8 @@
 
 A privacy-focused local web application for collecting and aggregating peer feedback based on team tenets. Integrates with Workday for feedback requests and collection.
 
+**[Live Demo](https://demo-team-feedback.apps.uoaar8p0.eastus.aroapp.io/demo)** - Explore with fictitious sample data
+
 ## Overview
 
 This tool enables teams to:
