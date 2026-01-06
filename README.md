@@ -51,6 +51,20 @@ HOSTED_MODE=true python3 app.py
 
 In hosted mode, `/manager` and `/individual` routes are blocked—users must use demo mode or the `/feedback` workflow.
 
+### Container Deployment (OpenShift/Kubernetes)
+
+```bash
+# Build and run with Docker/Podman
+podman build -t team-feedback .
+podman run -p 8080:8080 -e HOSTED_MODE=true team-feedback
+
+# OpenShift deployment
+oc new-app --strategy=docker --binary --name=team-feedback
+oc start-build team-feedback --from-dir=. --follow
+oc expose svc/team-feedback --name=demo
+oc patch route demo -p '{"spec":{"tls":{"termination":"edge","insecureEdgeTerminationPolicy":"Redirect"}}}'
+```
+
 ## Features
 
 ### For Feedback Providers

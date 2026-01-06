@@ -32,7 +32,7 @@ import base64
 import tempfile
 from collections import defaultdict
 from sqlalchemy import func
-from weasyprint import HTML, CSS
+# WeasyPrint imported lazily in PDF export functions (requires system libraries)
 import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend
 import matplotlib.pyplot as plt
@@ -1213,7 +1213,8 @@ def export_pdf_report(user_id):
         generation_date=datetime.now().strftime('%B %d, %Y at %I:%M %p')
     )
 
-    # Convert to PDF
+    # Convert to PDF (lazy import - requires system libraries)
+    from weasyprint import HTML
     pdf_buffer = io.BytesIO()
     HTML(string=html_content).write_pdf(pdf_buffer)
     pdf_buffer.seek(0)
@@ -1800,7 +1801,8 @@ def demo_export_pdf_report(user_id):
         generation_date=datetime.now().strftime('%B %d, %Y at %I:%M %p')
     )
 
-    # Convert to PDF
+    # Convert to PDF (lazy import - requires system libraries)
+    from weasyprint import HTML
     pdf_buffer = io.BytesIO()
     HTML(string=html_content).write_pdf(pdf_buffer)
     pdf_buffer.seek(0)

@@ -15,6 +15,8 @@
 | `create_sample_data.py` | Generate fictitious test data (`--demo` for full setup) |
 | `create_demo_template.py` | Generate demo template database |
 | `conftest.py` | Pytest fixtures |
+| `Dockerfile` | Container build for OpenShift/Kubernetes |
+| `gunicorn.conf.py` | Production WSGI server config (port 8080) |
 
 ### Route-to-Template Mapping
 | Route | Template |
