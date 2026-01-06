@@ -21,6 +21,13 @@ import os
 
 # Mode detection: HOSTED_MODE=true for ephemeral online deployment
 HOSTED_MODE = os.environ.get('HOSTED_MODE', '').lower() == 'true'
+
+# Demo mode imports and setup
+from demo_mode import (
+    get_demo_db, get_session_id, initialize_session_from_template,
+    reset_session_data, demo_response_wrapper, start_cleanup_thread,
+    session_has_data
+)
 import base64
 import tempfile
 from collections import defaultdict
@@ -36,10 +43,34 @@ app = Flask(__name__, template_folder='templates')
 app.secret_key = 'feedback-tool-secret-key-change-in-production'
 
 
+def is_demo_request():
+    """Check if current request is a demo mode request."""
+    return request.path.startswith('/demo')
+
+
+from functools import wraps
+
+def local_only(f):
+    """Decorator to block routes in hosted mode (only accessible locally)."""
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        if HOSTED_MODE:
+            return render_template('error.html',
+                error_title="Not Available",
+                error_message="This feature is only available when running locally.",
+                show_demo_link=True
+            ), 403
+        return f(*args, **kwargs)
+    return decorated_function
+
+
 @app.context_processor
-def inject_hosted_mode():
-    """Make hosted_mode available to all templates"""
-    return dict(hosted_mode=HOSTED_MODE)
+def inject_mode_flags():
+    """Make mode flags available to all templates"""
+    return dict(
+        hosted_mode=HOSTED_MODE,
+        demo_mode=is_demo_request()
+    )
 
 
 # Load tenets configuration
@@ -187,6 +218,7 @@ def import_orgchart_web():
 
 
 @app.route('/individual')
+@local_only
 def individual_feedback():
     """Individual feedback collection page"""
     current_user_id = flask_session.get('user_id')
@@ -263,6 +295,7 @@ def individual_feedback():
 
 
 @app.route('/individual/<user_id>')
+@local_only
 def individual_login(user_id):
     """Direct individual login via URL - sets session and redirects to feedback page"""
     # Allow any user_id (even if not in database) for external providers
@@ -271,6 +304,7 @@ def individual_login(user_id):
 
 
 @app.route('/individual/switch')
+@local_only
 def individual_switch():
     """Clear user session and return to selection"""
     flask_session.pop('user_id', None)
@@ -371,6 +405,7 @@ def delete_feedback(to_user_id):
 
 
 @app.route('/manager')
+@local_only
 def manager_dashboard():
     """Manager dashboard - view team and feedback.
 
@@ -575,6 +610,7 @@ def get_team_butterfly_data():
 
 
 @app.route('/manager/<manager_uid>')
+@local_only
 def manager_login(manager_uid):
     """Direct manager login via URL - sets session and redirects to dashboard"""
     session = init_db()
@@ -592,6 +628,7 @@ def manager_login(manager_uid):
 
 
 @app.route('/manager/switch')
+@local_only
 def manager_switch():
     """Clear manager session and return to selection"""
     flask_session.pop('manager_uid', None)
@@ -620,6 +657,7 @@ def set_manager():
 
 
 @app.route('/manager/import-xlsx', methods=['POST'])
+@local_only
 def import_workday_xlsx_route():
     """Import feedback from Workday XLSX export"""
     if 'file' not in request.files:
@@ -758,6 +796,7 @@ def get_date_ranges():
 
 @app.route('/manager/report/<user_id>')
 @app.route('/manager/report')
+@local_only
 def view_report(user_id=None):
     """View feedback report for team member.
 
@@ -1083,6 +1122,7 @@ def generate_butterfly_chart_image(butterfly_data, manager_selected_strengths, m
 
 
 @app.route('/manager/export-pdf/<user_id>')
+@local_only
 def export_pdf_report(user_id):
     """Export feedback report as PDF"""
     manager_uid = flask_session.get('manager_uid')
@@ -1187,6 +1227,808 @@ def export_pdf_report(user_id):
         as_attachment=True,
         download_name=filename
     )
+
+
+# =============================================================================
+# DEMO MODE ROUTES
+# These routes mirror the regular routes but use session-isolated demo databases
+# =============================================================================
+
+@app.route('/demo')
+def demo_index():
+    """Demo mode landing page"""
+    db = get_demo_db()
+    stats = {
+        'total_people': db.query(Person).count(),
+        'peer_feedback': db.query(Feedback).count(),
+        'manager_reviews': db.query(ManagerFeedback).count()
+    }
+    db.close()
+
+    response = render_template('demo_index.html', stats=stats)
+    return demo_response_wrapper(make_response(response))
+
+
+@app.route('/demo/individual')
+def demo_individual_feedback():
+    """Demo mode: Individual feedback collection page"""
+    current_user_id = flask_session.get('demo_user_id')
+
+    db = get_demo_db()
+
+    # If no user selected, show selection page
+    if not current_user_id:
+        all_people = db.query(Person).order_by(Person.name).all()
+        db.close()
+        response = render_template('individual_select.html', all_people=[p.to_dict() for p in all_people])
+        return demo_response_wrapper(make_response(response))
+
+    # User selected - show feedback page
+    current_user = db.query(Person).filter_by(user_id=current_user_id).first()
+
+    if not current_user:
+        current_user = type('obj', (object,), {
+            'user_id': current_user_id,
+            'name': current_user_id,
+            'email': '',
+            'job_title': 'External'
+        })
+
+    all_people = db.query(Person).order_by(Person.name).all()
+
+    # Group people by manager
+    people_by_manager = []
+    manager_groups = defaultdict(list)
+
+    for person in all_people:
+        if person.manager_uid:
+            manager_groups[person.manager_uid].append(person.to_dict())
+        else:
+            manager_groups['__TOP__'].append(person.to_dict())
+
+    for manager_uid, people in manager_groups.items():
+        if manager_uid == '__TOP__':
+            manager_name = 'No Manager / Top Level'
+        else:
+            manager = db.query(Person).filter_by(user_id=manager_uid).first()
+            manager_name = f"{manager.name} ({manager_uid})" if manager else manager_uid
+
+        people_by_manager.append({
+            'manager_uid': manager_uid,
+            'manager_name': manager_name,
+            'people': sorted(people, key=lambda x: x['name'])
+        })
+
+    people_by_manager.sort(key=lambda x: x['manager_name'])
+
+    existing_feedback = []
+    if current_user_id:
+        existing_feedback = db.query(Feedback).filter_by(from_user_id=current_user_id).all()
+
+    tenets = load_tenets()
+    db.close()
+
+    response = render_template(
+        'individual_feedback.html',
+        current_user=current_user,
+        all_people=[p.to_dict() for p in all_people],
+        people_by_manager=people_by_manager,
+        existing_feedback=[f.to_dict() for f in existing_feedback],
+        tenets=tenets
+    )
+    return demo_response_wrapper(make_response(response))
+
+
+@app.route('/demo/individual/<user_id>')
+def demo_individual_login(user_id):
+    """Demo mode: Direct individual login via URL"""
+    flask_session['demo_user_id'] = user_id
+    return redirect('/demo/individual')
+
+
+@app.route('/demo/individual/switch')
+def demo_individual_switch():
+    """Demo mode: Clear user session and return to selection"""
+    flask_session.pop('demo_user_id', None)
+    return redirect('/demo/individual')
+
+
+@app.route('/demo/api/set-user', methods=['POST'])
+def demo_set_user():
+    """Demo mode: Set current user in session"""
+    data = request.get_json()
+    user_id = data.get('user_id')
+
+    if not user_id:
+        return jsonify({"success": False, "error": "Missing user_id"}), 400
+
+    flask_session['demo_user_id'] = user_id
+    response = jsonify({"success": True})
+    return demo_response_wrapper(response)
+
+
+@app.route('/demo/api/feedback', methods=['POST'])
+def demo_save_feedback():
+    """Demo mode: Save individual feedback"""
+    data = request.get_json()
+
+    from_user_id = flask_session.get('demo_user_id')
+    if not from_user_id:
+        return jsonify({"success": False, "error": "No user selected"}), 400
+
+    to_user_id = data.get('to_user_id')
+    strengths = data.get('strengths', [])
+    improvements = data.get('improvements', [])
+    strengths_text = data.get('strengths_text', '')
+    improvements_text = data.get('improvements_text', '')
+
+    if not to_user_id:
+        return jsonify({"success": False, "error": "Missing to_user_id"}), 400
+
+    if len(strengths) != 3:
+        return jsonify({"success": False, "error": "Must select exactly 3 strengths"}), 400
+
+    if len(improvements) < 2 or len(improvements) > 3:
+        return jsonify({"success": False, "error": "Must select 2-3 improvements"}), 400
+
+    db = get_demo_db()
+
+    feedback = db.query(Feedback).filter_by(
+        from_user_id=from_user_id,
+        to_user_id=to_user_id
+    ).first()
+
+    if feedback:
+        feedback.set_strengths(strengths)
+        feedback.set_improvements(improvements)
+        feedback.strengths_text = strengths_text
+        feedback.improvements_text = improvements_text
+    else:
+        feedback = Feedback(
+            from_user_id=from_user_id,
+            to_user_id=to_user_id
+        )
+        feedback.set_strengths(strengths)
+        feedback.set_improvements(improvements)
+        feedback.strengths_text = strengths_text
+        feedback.improvements_text = improvements_text
+        db.add(feedback)
+
+    db.commit()
+    db.close()
+
+    response = jsonify({"success": True})
+    return demo_response_wrapper(response)
+
+
+@app.route('/demo/api/feedback/<to_user_id>', methods=['DELETE'])
+def demo_delete_feedback(to_user_id):
+    """Demo mode: Delete feedback for a specific person"""
+    from_user_id = flask_session.get('demo_user_id')
+    if not from_user_id:
+        return jsonify({"success": False, "error": "No user selected"}), 400
+
+    db = get_demo_db()
+    feedback = db.query(Feedback).filter_by(
+        from_user_id=from_user_id,
+        to_user_id=to_user_id
+    ).first()
+
+    if feedback:
+        db.delete(feedback)
+        db.commit()
+
+    db.close()
+    response = jsonify({"success": True})
+    return demo_response_wrapper(response)
+
+
+@app.route('/demo/manager')
+def demo_manager_dashboard():
+    """Demo mode: Manager dashboard"""
+    manager_name = request.args.get('name', '').strip()
+    if manager_name:
+        flask_session['demo_manager_name'] = manager_name
+        flask_session.pop('demo_manager_uid', None)
+        return redirect('/demo/manager')
+
+    manager_name = flask_session.get('demo_manager_name')
+    manager_uid = flask_session.get('demo_manager_uid')
+
+    db = get_demo_db()
+
+    if not manager_name and not manager_uid:
+        managers = db.query(Person).filter(Person.direct_reports.any()).order_by(Person.name).all()
+        db.close()
+        response = render_template('manager_select.html', managers=[m.to_dict() for m in managers])
+        return demo_response_wrapper(make_response(response))
+
+    team_members = []
+    manager_info = {}
+    has_orgchart = False
+
+    if manager_uid:
+        manager = db.query(Person).filter_by(user_id=manager_uid).first()
+        if not manager:
+            flask_session.pop('demo_manager_uid', None)
+            db.close()
+            return redirect('/demo/manager')
+
+        manager_info = manager.to_dict()
+        manager_name = manager.name
+        has_orgchart = True
+
+        team_members_objs = db.query(Person).filter_by(manager_uid=manager_uid).all()
+        for tm in team_members_objs:
+            tm_dict = tm.to_dict()
+            tm_dict['feedback_count'] = db.query(Feedback).filter_by(to_user_id=tm.user_id).count()
+            tm_dict['wd_feedback_count'] = db.query(WorkdayFeedback).filter(
+                WorkdayFeedback.about == tm.name
+            ).count()
+            team_members.append(tm_dict)
+    else:
+        manager_person = db.query(Person).filter_by(name=manager_name).first()
+        if manager_person:
+            manager_info = manager_person.to_dict()
+            has_orgchart = True
+        else:
+            manager_info = {
+                'name': manager_name,
+                'user_id': name_to_user_id(manager_name),
+                'job_title': None,
+                'email': None
+            }
+
+        wd_recipients = db.query(
+            WorkdayFeedback.about,
+            func.count(WorkdayFeedback.id).label('count')
+        ).group_by(WorkdayFeedback.about).all()
+
+        for recipient_name, count in wd_recipients:
+            person = db.query(Person).filter_by(name=recipient_name).first()
+            if person:
+                tm_dict = person.to_dict()
+                tm_dict['feedback_count'] = db.query(Feedback).filter_by(to_user_id=person.user_id).count()
+            else:
+                tm_dict = {
+                    'name': recipient_name,
+                    'user_id': name_to_user_id(recipient_name),
+                    'job_title': None,
+                    'email': None,
+                    'feedback_count': 0
+                }
+            tm_dict['wd_feedback_count'] = count
+            team_members.append(tm_dict)
+
+    db.close()
+
+    response = render_template(
+        'manager_dashboard.html',
+        manager=manager_info,
+        team_members=team_members,
+        has_orgchart=has_orgchart
+    )
+    return demo_response_wrapper(make_response(response))
+
+
+@app.route('/demo/manager/<manager_uid>')
+def demo_manager_login(manager_uid):
+    """Demo mode: Direct manager login via URL"""
+    db = get_demo_db()
+    manager = db.query(Person).filter_by(user_id=manager_uid).first()
+    db.close()
+
+    if not manager:
+        return "Manager not found", 404
+
+    flask_session['demo_manager_uid'] = manager_uid
+    return redirect('/demo/manager')
+
+
+@app.route('/demo/manager/switch')
+def demo_manager_switch():
+    """Demo mode: Clear manager session"""
+    flask_session.pop('demo_manager_uid', None)
+    flask_session.pop('demo_manager_name', None)
+    return redirect('/demo/manager')
+
+
+@app.route('/demo/api/set-manager', methods=['POST'])
+def demo_set_manager():
+    """Demo mode: Set current manager in session"""
+    data = request.get_json()
+    manager_uid = data.get('manager_uid')
+
+    if not manager_uid:
+        return jsonify({"success": False, "error": "Missing manager_uid"}), 400
+
+    db = get_demo_db()
+    manager = db.query(Person).filter_by(user_id=manager_uid).first()
+    db.close()
+
+    if not manager:
+        return jsonify({"success": False, "error": "Manager not found"}), 404
+
+    flask_session['demo_manager_uid'] = manager_uid
+    response = jsonify({"success": True})
+    return demo_response_wrapper(response)
+
+
+@app.route('/demo/manager/report/<user_id>')
+@app.route('/demo/manager/report')
+def demo_view_report(user_id=None):
+    """Demo mode: View feedback report for team member"""
+    manager_uid = flask_session.get('demo_manager_uid')
+    manager_name = flask_session.get('demo_manager_name')
+
+    if not manager_uid and not manager_name:
+        return "Please access via the manager dashboard first", 400
+
+    team_member_name = request.args.get('name', '').strip() if not user_id else None
+
+    if not user_id and not team_member_name:
+        return "Missing team member identifier", 400
+
+    db = get_demo_db()
+
+    team_member_info = None
+    team_member_user_id = user_id
+    is_derived_id = user_id and user_id.startswith('wd_')
+
+    if user_id and not is_derived_id:
+        team_member = db.query(Person).filter_by(user_id=user_id).first()
+        if not team_member:
+            db.close()
+            return "Team member not found", 404
+
+        if manager_uid and team_member.manager_uid != manager_uid:
+            db.close()
+            return "Team member not in your team", 403
+
+        team_member_info = team_member.to_dict()
+        team_member_name = team_member.name
+
+    elif user_id and is_derived_id:
+        wd_recipient = db.query(WorkdayFeedback.about).distinct().all()
+        for (name,) in wd_recipient:
+            if name_to_user_id(name) == user_id:
+                team_member_name = name
+                break
+
+        if not team_member_name:
+            db.close()
+            return "Team member not found", 404
+
+        team_member = db.query(Person).filter_by(name=team_member_name).first()
+        if team_member:
+            team_member_info = team_member.to_dict()
+        else:
+            team_member_info = {
+                'name': team_member_name,
+                'user_id': user_id,
+                'job_title': None,
+                'email': None
+            }
+    else:
+        team_member = db.query(Person).filter_by(name=team_member_name).first()
+        if team_member:
+            team_member_info = team_member.to_dict()
+            team_member_user_id = team_member.user_id
+        else:
+            team_member_user_id = name_to_user_id(team_member_name)
+            team_member_info = {
+                'name': team_member_name,
+                'user_id': team_member_user_id,
+                'job_title': None,
+                'email': None
+            }
+
+    feedbacks = []
+    if team_member_user_id and not team_member_user_id.startswith('wd_'):
+        feedbacks = db.query(Feedback).filter_by(to_user_id=team_member_user_id).all()
+
+    wd_feedbacks = db.query(WorkdayFeedback).filter(
+        WorkdayFeedback.about == team_member_name
+    ).order_by(WorkdayFeedback.date.desc()).all()
+
+    wd_structured = [fb for fb in wd_feedbacks if fb.is_structured]
+    wd_generic = [fb for fb in wd_feedbacks if not fb.is_structured]
+
+    tenet_strengths = defaultdict(int)
+    tenet_improvements = defaultdict(int)
+
+    for fb in feedbacks:
+        for tenet_id in fb.get_strengths():
+            tenet_strengths[tenet_id] += 1
+        for tenet_id in fb.get_improvements():
+            tenet_improvements[tenet_id] += 1
+
+    for fb in wd_structured:
+        for tenet_id in fb.get_strengths():
+            tenet_strengths[tenet_id] += 1
+        for tenet_id in fb.get_improvements():
+            tenet_improvements[tenet_id] += 1
+
+    effective_manager_uid = manager_uid or name_to_user_id(manager_name)
+
+    manager_feedback = None
+    if team_member_user_id and effective_manager_uid:
+        manager_feedback = db.query(ManagerFeedback).filter_by(
+            manager_uid=effective_manager_uid,
+            team_member_uid=team_member_user_id
+        ).first()
+
+    if manager_feedback:
+        for tenet_id in manager_feedback.get_selected_strengths():
+            tenet_strengths[tenet_id] += 1
+        for tenet_id in manager_feedback.get_selected_improvements():
+            tenet_improvements[tenet_id] += 1
+
+    tenets = load_tenets()
+
+    butterfly_data = []
+    for tenet in tenets:
+        butterfly_data.append({
+            'id': tenet['id'],
+            'name': tenet['name'],
+            'strength_count': tenet_strengths.get(tenet['id'], 0),
+            'improvement_count': tenet_improvements.get(tenet['id'], 0)
+        })
+
+    butterfly_data.sort(key=lambda x: (x['strength_count'] - x['improvement_count']), reverse=True)
+
+    feedbacks_with_names = []
+    for fb in feedbacks:
+        fb_dict = fb.to_dict()
+        giver = db.query(Person).filter_by(user_id=fb.from_user_id).first()
+        fb_dict['from_name'] = giver.name if giver else fb.from_user_id
+        fb_dict['source'] = 'legacy'
+        feedbacks_with_names.append(fb_dict)
+
+    for fb in wd_structured:
+        fb_dict = fb.to_dict()
+        fb_dict['from_name'] = fb.from_name
+        fb_dict['source'] = 'workday_structured'
+        feedbacks_with_names.append(fb_dict)
+
+    db.close()
+
+    response = render_template(
+        'report.html',
+        team_member=team_member_info,
+        feedbacks=feedbacks_with_names,
+        generic_feedbacks=[fb.to_dict() for fb in wd_generic],
+        butterfly_data=butterfly_data,
+        manager_feedback=manager_feedback.to_dict() if manager_feedback else None,
+        tenets=tenets
+    )
+    return demo_response_wrapper(make_response(response))
+
+
+@app.route('/demo/manager/export-pdf/<user_id>')
+def demo_export_pdf_report(user_id):
+    """Demo mode: Export feedback report as PDF"""
+    manager_uid = flask_session.get('demo_manager_uid')
+    manager_name = flask_session.get('demo_manager_name')
+
+    if not manager_uid and not manager_name:
+        return "Please select your manager ID first", 400
+
+    effective_manager_uid = manager_uid or name_to_user_id(manager_name)
+
+    db = get_demo_db()
+
+    # Get team member
+    team_member = db.query(Person).filter_by(user_id=user_id).first()
+    if not team_member:
+        db.close()
+        return "Team member not found", 404
+
+    # Get manager info
+    manager = db.query(Person).filter_by(user_id=effective_manager_uid).first()
+
+    # Get all feedback for this person
+    feedbacks = db.query(Feedback).filter_by(to_user_id=user_id).all()
+
+    # Aggregate tenet counts
+    tenet_strengths = defaultdict(int)
+    tenet_improvements = defaultdict(int)
+
+    for fb in feedbacks:
+        for tenet_id in fb.get_strengths():
+            tenet_strengths[tenet_id] += 1
+        for tenet_id in fb.get_improvements():
+            tenet_improvements[tenet_id] += 1
+
+    # Get manager's own feedback
+    manager_feedback = db.query(ManagerFeedback).filter_by(
+        manager_uid=effective_manager_uid,
+        team_member_uid=user_id
+    ).first()
+
+    # Add manager's selections to the counts
+    manager_selected_strengths = []
+    manager_selected_improvements = []
+
+    if manager_feedback:
+        manager_selected_strengths = manager_feedback.get_selected_strengths()
+        manager_selected_improvements = manager_feedback.get_selected_improvements()
+
+        for tenet_id in manager_selected_strengths:
+            tenet_strengths[tenet_id] += 1
+        for tenet_id in manager_selected_improvements:
+            tenet_improvements[tenet_id] += 1
+
+    tenets = load_tenets()
+
+    # Build butterfly chart data
+    butterfly_data = []
+    for tenet in tenets:
+        butterfly_data.append({
+            'id': tenet['id'],
+            'name': tenet['name'],
+            'strength_count': tenet_strengths.get(tenet['id'], 0),
+            'improvement_count': tenet_improvements.get(tenet['id'], 0)
+        })
+
+    # Sort by net score
+    butterfly_data.sort(key=lambda x: (x['strength_count'] - x['improvement_count']), reverse=True)
+
+    # Generate butterfly chart image
+    chart_image = generate_butterfly_chart_image(
+        butterfly_data,
+        manager_selected_strengths,
+        manager_selected_improvements
+    )
+
+    # Organize feedback comments
+    strengths_comments = [fb.strengths_text for fb in feedbacks if fb.strengths_text]
+    improvements_comments = [fb.improvements_text for fb in feedbacks if fb.improvements_text]
+
+    db.close()
+
+    # Render PDF template
+    html_content = render_template(
+        'report_pdf.html',
+        team_member=team_member.to_dict(),
+        manager=manager.to_dict() if manager else {'name': effective_manager_uid},
+        feedback_count=len(feedbacks),
+        chart_image=chart_image,
+        strengths_comments=strengths_comments,
+        improvements_comments=improvements_comments,
+        manager_feedback_text=(manager_feedback.feedback_text if manager_feedback else ''),
+        generation_date=datetime.now().strftime('%B %d, %Y at %I:%M %p')
+    )
+
+    # Convert to PDF
+    pdf_buffer = io.BytesIO()
+    HTML(string=html_content).write_pdf(pdf_buffer)
+    pdf_buffer.seek(0)
+
+    # Return PDF file
+    filename = f"Feedback_Report_{team_member.name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d')}.pdf"
+
+    response = send_file(
+        pdf_buffer,
+        mimetype='application/pdf',
+        as_attachment=True,
+        download_name=filename
+    )
+    return demo_response_wrapper(response)
+
+
+@app.route('/demo/api/manager-feedback', methods=['POST'])
+def demo_save_manager_feedback():
+    """Demo mode: Save manager's own feedback"""
+    data = request.get_json()
+
+    manager_uid = flask_session.get('demo_manager_uid')
+    manager_name = flask_session.get('demo_manager_name')
+
+    if not manager_uid and not manager_name:
+        return jsonify({"success": False, "error": "No manager selected"}), 400
+
+    effective_manager_uid = manager_uid or name_to_user_id(manager_name)
+
+    team_member_uid = data.get('team_member_uid')
+    selected_strengths = data.get('selected_strengths', [])
+    selected_improvements = data.get('selected_improvements', [])
+    feedback_text = data.get('feedback_text', '')
+
+    if not team_member_uid:
+        return jsonify({"success": False, "error": "Missing team_member_uid"}), 400
+
+    overlap = set(selected_strengths) & set(selected_improvements)
+    if overlap:
+        selected_strengths = [t for t in selected_strengths if t not in overlap]
+        selected_improvements = [t for t in selected_improvements if t not in overlap]
+
+    db = get_demo_db()
+
+    mgr_feedback = db.query(ManagerFeedback).filter_by(
+        manager_uid=effective_manager_uid,
+        team_member_uid=team_member_uid
+    ).first()
+
+    if mgr_feedback:
+        mgr_feedback.set_selected_strengths(selected_strengths)
+        mgr_feedback.set_selected_improvements(selected_improvements)
+        mgr_feedback.feedback_text = feedback_text
+    else:
+        mgr_feedback = ManagerFeedback(
+            manager_uid=effective_manager_uid,
+            team_member_uid=team_member_uid,
+            feedback_text=feedback_text
+        )
+        mgr_feedback.set_selected_strengths(selected_strengths)
+        mgr_feedback.set_selected_improvements(selected_improvements)
+        db.add(mgr_feedback)
+
+    db.commit()
+    db.close()
+
+    response = jsonify({"success": True})
+    return demo_response_wrapper(response)
+
+
+@app.route('/demo/api/load-sample-workday', methods=['POST'])
+def demo_load_sample_workday():
+    """Demo mode: Load/reload sample Workday feedback data"""
+    db = get_demo_db()
+
+    # Check if Workday feedback already exists
+    existing_count = db.query(WorkdayFeedback).count()
+
+    if existing_count > 0:
+        # Data already loaded
+        response = jsonify({
+            "success": True,
+            "imported": existing_count,
+            "message": "Sample data already loaded"
+        })
+    else:
+        # No data - the template should have it, but if not, report it
+        response = jsonify({
+            "success": True,
+            "imported": 0,
+            "message": "No sample data available. Try resetting your demo session."
+        })
+
+    db.close()
+    return demo_response_wrapper(response)
+
+
+@app.route('/demo/api/team-butterfly-data')
+def demo_get_team_butterfly_data():
+    """Demo mode: Get aggregated butterfly chart data for entire team"""
+    manager_uid = flask_session.get('demo_manager_uid')
+    manager_name = flask_session.get('demo_manager_name')
+
+    if not manager_uid and not manager_name:
+        return jsonify({"success": False, "error": "No manager selected"}), 400
+
+    db = get_demo_db()
+
+    tenet_strengths = defaultdict(int)
+    tenet_improvements = defaultdict(int)
+
+    if manager_uid:
+        team_members = db.query(Person).filter_by(manager_uid=manager_uid).all()
+        team_member_ids = [tm.user_id for tm in team_members]
+        team_member_names = [tm.name for tm in team_members]
+
+        all_feedbacks = db.query(Feedback).filter(Feedback.to_user_id.in_(team_member_ids)).all()
+
+        for fb in all_feedbacks:
+            for tenet_id in fb.get_strengths():
+                tenet_strengths[tenet_id] += 1
+            for tenet_id in fb.get_improvements():
+                tenet_improvements[tenet_id] += 1
+
+        manager_feedbacks = db.query(ManagerFeedback).filter_by(manager_uid=manager_uid).all()
+        for mfb in manager_feedbacks:
+            for tenet_id in mfb.get_selected_strengths():
+                tenet_strengths[tenet_id] += 1
+            for tenet_id in mfb.get_selected_improvements():
+                tenet_improvements[tenet_id] += 1
+
+        wd_feedbacks = db.query(WorkdayFeedback).filter(
+            WorkdayFeedback.about.in_(team_member_names),
+            WorkdayFeedback.is_structured == 1
+        ).all()
+
+        for fb in wd_feedbacks:
+            for tenet_id in fb.get_strengths():
+                tenet_strengths[tenet_id] += 1
+            for tenet_id in fb.get_improvements():
+                tenet_improvements[tenet_id] += 1
+    else:
+        wd_feedbacks = db.query(WorkdayFeedback).filter(
+            WorkdayFeedback.is_structured == 1
+        ).all()
+
+        for fb in wd_feedbacks:
+            for tenet_id in fb.get_strengths():
+                tenet_strengths[tenet_id] += 1
+            for tenet_id in fb.get_improvements():
+                tenet_improvements[tenet_id] += 1
+
+    tenets = load_tenets()
+
+    butterfly_data = []
+    for tenet in tenets:
+        butterfly_data.append({
+            'id': tenet['id'],
+            'name': tenet['name'],
+            'strength_count': tenet_strengths.get(tenet['id'], 0),
+            'improvement_count': tenet_improvements.get(tenet['id'], 0)
+        })
+
+    butterfly_data.sort(key=lambda x: (x['strength_count'] - x['improvement_count']), reverse=True)
+
+    db.close()
+
+    response = jsonify({
+        "success": True,
+        "butterfly_data": butterfly_data
+    })
+    return demo_response_wrapper(response)
+
+
+@app.route('/demo/api/reset', methods=['POST'])
+def demo_reset():
+    """Demo mode: Reset session data to fresh template"""
+    session_id = get_session_id()
+    success = reset_session_data(session_id)
+
+    # Clear demo-specific session keys
+    flask_session.pop('demo_user_id', None)
+    flask_session.pop('demo_manager_uid', None)
+    flask_session.pop('demo_manager_name', None)
+
+    response = jsonify({"success": success})
+    return demo_response_wrapper(response)
+
+
+@app.route('/demo/api/db-stats')
+def demo_get_db_stats():
+    """Demo mode: Get database statistics"""
+    db = get_demo_db()
+
+    total_people = db.query(Person).count()
+    managers = db.query(Person).filter(Person.direct_reports.any()).count()
+    team_members = total_people - managers
+    peer_feedback = db.query(Feedback).count()
+    manager_reviews = db.query(ManagerFeedback).count()
+
+    db.close()
+
+    response = jsonify({
+        "success": True,
+        "total_people": total_people,
+        "managers": managers,
+        "team_members": team_members,
+        "peer_feedback": peer_feedback,
+        "manager_reviews": manager_reviews
+    })
+    return demo_response_wrapper(response)
+
+
+# Need make_response for demo routes
+from flask import make_response
+
+# Start cleanup thread when running with gunicorn or similar
+# (Only starts if server is configured for demo sessions)
+import atexit
+_cleanup_started = False
+
+@app.before_request
+def ensure_demo_cleanup_started():
+    """Start demo cleanup thread on first request (if not already started)"""
+    global _cleanup_started
+    if not _cleanup_started and is_demo_request():
+        start_cleanup_thread()
+        _cleanup_started = True
 
 
 if __name__ == '__main__':

@@ -59,8 +59,9 @@ function continueAsManager(event) {
         return;
     }
 
-    // Redirect with name parameter
-    window.location.href = '/manager?name=' + encodeURIComponent(name);
+    // Redirect with name parameter (use demo prefix if in demo mode)
+    const baseUrl = IS_DEMO_MODE ? '/demo/manager' : '/manager';
+    window.location.href = baseUrl + '?name=' + encodeURIComponent(name);
 }
 
 function selectFromList() {
@@ -68,8 +69,9 @@ function selectFromList() {
     const option = select.options[select.selectedIndex];
 
     if (option.value) {
-        // Use the stored user_id for orgchart-based login
-        window.location.href = '/manager/' + option.value;
+        // Use the stored user_id for orgchart-based login (use demo prefix if in demo mode)
+        const baseUrl = IS_DEMO_MODE ? '/demo/manager/' : '/manager/';
+        window.location.href = baseUrl + option.value;
     }
 }
 </script>

@@ -181,7 +181,7 @@
     <div>
         <strong>Feedback report for:</strong> {{ team_member.name }}
     </div>
-    <a href="/manager">← Back to Dashboard</a>
+    <a href="{% if demo_mode %}/demo{% endif %}/manager">← Back to Dashboard</a>
 </div>
 
 <div class="card">
@@ -641,7 +641,7 @@ function saveManagerFeedback() {
         feedback_text: document.getElementById('managerFeedbackText').value
     };
 
-    fetch('/api/manager-feedback', {
+    fetch(API_PREFIX + '/manager-feedback', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)
@@ -661,7 +661,8 @@ function saveManagerFeedback() {
 
 function exportPDF() {
     // Trigger download by navigating to PDF export endpoint
-    window.location.href = `/manager/export-pdf/${teamMemberId}`;
+    const baseUrl = IS_DEMO_MODE ? '/demo/manager/export-pdf/' : '/manager/export-pdf/';
+    window.location.href = baseUrl + teamMemberId;
 }
 
 function updateManagerCopyPreview() {

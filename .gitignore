@@ -49,3 +49,7 @@ Thumbs.db
 .~lock.*#
 view-source_*
 cookies*.txt
+
+# Demo mode databases (auto-generated)
+demo-templates/*.db
+/tmp/demo_sessions/

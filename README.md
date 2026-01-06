@@ -34,17 +34,22 @@ The tool integrates with Workday (or similar HR systems) for feedback collection
 
 ## Operating Modes
 
-The tool supports two modes for different use cases:
+The tool supports three modes for different use cases:
 
 | Mode | Set via | Use Case | Data Persistence |
 |------|---------|----------|-----------------|
 | **Local** (default) | Default | Prepare feedback for multiple team members | Persistent SQLite |
 | **Hosted** | `HOSTED_MODE=true` | Online service for Workday integration | Ephemeral (per-session) |
+| **Demo** | `/demo` routes | Explore tool with fictitious sample data | Session-isolated SQLite |
 
-**Hosted mode example:**
+**Hosted mode** (includes demo):
 ```bash
 HOSTED_MODE=true python3 app.py
+# Access demo at http://localhost:5001/demo
+# Access hosted feedback at http://localhost:5001/feedback?for=Name
 ```
+
+In hosted mode, `/manager` and `/individual` routes are blocked—users must use demo mode or the `/feedback` workflow.
 
 ## Features
 
@@ -253,10 +258,13 @@ This tool is designed as a **helper utility** that enhances the feedback experie
 .
 ├── app.py                       # Flask application
 ├── models.py                    # SQLAlchemy models
+├── demo_mode.py                 # Demo mode session isolation
 ├── scripts/
 │   ├── import_workday.py        # Workday XLSX import utility
 │   ├── import_orgchart.py       # Optional orgchart CSV import
-│   └── create_sample_data.py    # Sample data generator
+│   ├── create_sample_data.py    # Sample data generator
+│   └── create_demo_template.py  # Generate demo template database
+├── demo-templates/              # Demo mode template DB (generated)
 ├── templates/                   # Jinja2 templates
 ├── tests/                       # Test suite
 ├── samples/

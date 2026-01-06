@@ -241,7 +241,7 @@
                 {{ current_user.user_id }}
             {% endif %}
         </div>
-        <a href="/individual/switch" style="color: #667eea; text-decoration: none; font-size: 13px;">Switch User</a>
+        <a href="{% if demo_mode %}/demo{% endif %}/individual/switch" style="color: #667eea; text-decoration: none; font-size: 13px;">Switch User</a>
     </div>
 </div>
 
@@ -585,7 +585,7 @@ function saveFeedback() {
         improvements_text: document.getElementById('improvementsText').value
     };
 
-    fetch('/api/feedback', {
+    fetch(API_PREFIX + '/feedback', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify(data)

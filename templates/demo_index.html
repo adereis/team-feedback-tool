@@ -1,0 +1,297 @@
+{% extends "base.html" %}
+
+{% block extra_styles %}
+<style>
+    .demo-landing {
+        max-width: 900px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .demo-banner {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .demo-features {
+        text-align: center;
+        margin-bottom: 40px;
+    }
+
+    .demo-badge {
+        display: inline-block;
+        background: linear-gradient(135deg, #e74c3c 0%, #c0392b 100%);
+        color: white;
+        padding: 8px 20px;
+        border-radius: 20px;
+        font-size: 13px;
+        font-weight: 600;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+        margin-bottom: 30px;
+    }
+
+    .demo-landing h1 {
+        font-size: 32px;
+        color: #2c3e50;
+        margin-bottom: 15px;
+    }
+
+    .demo-landing .subtitle {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 50px;
+    }
+
+    .demo-section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: #34495e;
+        margin-bottom: 25px;
+    }
+
+    .feature-cards {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 20px;
+        max-width: 700px;
+        margin: 0 auto 40px;
+    }
+
+    .feature-card {
+        background: white;
+        border-radius: 12px;
+        padding: 30px 25px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        text-decoration: none;
+        color: inherit;
+        transition: transform 0.2s, box-shadow 0.2s;
+        display: block;
+        text-align: center;
+    }
+
+    .feature-card:hover {
+        transform: translateY(-4px);
+        box-shadow: 0 8px 25px rgba(0, 0, 0, 0.12);
+    }
+
+    .feature-icon {
+        width: 56px;
+        height: 56px;
+        margin: 0 auto 20px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .feature-icon svg {
+        width: 28px;
+        height: 28px;
+        color: white;
+    }
+
+    .feature-icon.orange {
+        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+    }
+
+    .feature-card h3 {
+        font-size: 17px;
+        color: #2c3e50;
+        margin-bottom: 10px;
+    }
+
+    .feature-card p {
+        font-size: 14px;
+        color: #666;
+        line-height: 1.5;
+        margin: 0;
+    }
+
+    .session-note {
+        font-size: 13px;
+        color: #888;
+        margin-bottom: 50px;
+    }
+
+    .real-tool-section {
+        background: #f8f9fa;
+        border-radius: 12px;
+        padding: 35px;
+        max-width: 700px;
+        margin: 0 auto;
+        text-align: left;
+    }
+
+    .real-tool-section h3 {
+        font-size: 18px;
+        color: #2c3e50;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .real-tool-section .icon-box {
+        width: 40px;
+        height: 40px;
+        background: #e9ecef;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .real-tool-section p {
+        font-size: 14px;
+        color: #555;
+        margin-bottom: 20px;
+        line-height: 1.6;
+    }
+
+    .privacy-features {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 20px;
+        margin-bottom: 25px;
+    }
+
+    .privacy-feature {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 13px;
+        color: #27ae60;
+    }
+
+    .privacy-feature svg {
+        width: 16px;
+        height: 16px;
+    }
+
+    .github-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 24px;
+        background: white;
+        border: 1px solid #ddd;
+        border-radius: 8px;
+        color: #333;
+        text-decoration: none;
+        font-size: 14px;
+        font-weight: 500;
+        transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .github-link:hover {
+        border-color: #667eea;
+        box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
+    }
+
+    .github-link svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    .db-stats {
+        margin-top: 30px;
+        padding: 15px 20px;
+        background: #e8f4fd;
+        border-radius: 8px;
+        font-size: 13px;
+        color: #2980b9;
+        max-width: 500px;
+        margin-left: auto;
+        margin-right: auto;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="demo-landing">
+    <div class="demo-banner">
+        <div class="demo-badge">Demo Mode</div>
+        <h1>Team Feedback Tool</h1>
+        <p class="subtitle">Explore this tool with fictitious sample data</p>
+    </div>
+
+    <div class="demo-features">
+        <h4 class="demo-section-title">What You Can Explore</h4>
+
+        <div class="feature-cards">
+            <a href="/demo/individual" class="feature-card">
+                <div class="feature-icon">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                </div>
+                <h3>Give Feedback</h3>
+                <p>Select tenets for strengths and improvements, add comments, and copy formatted text</p>
+            </a>
+
+            <a href="/demo/manager" class="feature-card">
+                <div class="feature-icon orange">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                </div>
+                <h3>Manager Dashboard</h3>
+                <p>View aggregated feedback, highlight tenets, and generate reports for team members</p>
+            </a>
+        </div>
+
+        <p class="session-note">Your session is isolated - changes you make won't affect other visitors.</p>
+    </div>
+
+    <div class="real-tool-section">
+        <h3>
+            <span class="icon-box">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#666">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+            </span>
+            Want to Use This for Real?
+        </h3>
+        <p>
+            <strong>This tool is designed for local use.</strong> Run it on your own computer
+            where your employee data stays completely private.
+        </p>
+
+        <div class="privacy-features">
+            <span class="privacy-feature">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                No cloud - SQLite database
+            </span>
+            <span class="privacy-feature">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                No telemetry
+            </span>
+            <span class="privacy-feature">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+                </svg>
+                Data never leaves your machine
+            </span>
+        </div>
+
+        <a href="https://github.com/adereis/team-feedback-tool" target="_blank" class="github-link">
+            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/>
+            </svg>
+            Get the code on GitHub
+        </a>
+    </div>
+
+    {% if stats %}
+    <div class="db-stats">
+        Demo data: {{ stats.total_people }} people | {{ stats.peer_feedback }} peer feedback entries | {{ stats.manager_reviews }} manager reviews
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -110,9 +110,20 @@
         <strong>Managing team for:</strong> {{ manager.name }} ({{ manager.user_id }})
         <span style="color: #666; margin-left: 12px;">{{ team_members|length }} direct reports</span>
     </div>
-    <a href="/manager/switch">Switch Manager</a>
+    <a href="{% if demo_mode %}/demo{% endif %}/manager/switch">Switch Manager</a>
 </div>
 
+{% if demo_mode %}
+<div class="card">
+    <h2>Sample Workday Data</h2>
+    <p style="margin-bottom: 16px;">Load sample Workday feedback to explore the manager dashboard features.</p>
+
+    <button onclick="loadSampleWorkdayData()" class="btn" id="loadSampleBtn">
+        Load Sample Workday Data
+    </button>
+    <div id="xlsxImportStatus" style="margin-top: 12px;"></div>
+</div>
+{% else %}
 <div class="card">
     <h2>Import Feedback from Workday</h2>
     <p style="margin-bottom: 16px;">Upload the "Feedback on My Team" XLSX export from Workday.</p>
@@ -125,6 +136,7 @@
     </div>
     <div id="xlsxImportStatus" style="margin-top: 12px;"></div>
 </div>
+{% endif %}
 
 <div class="card">
     <h2>Workday Feedback Overview</h2>
@@ -184,7 +196,7 @@
                 <td>{{ member.job_title or '-' }}</td>
                 <td>{{ total_feedback }} feedback(s)</td>
                 <td>
-                    <a href="/manager/report/{{ member.user_id }}" class="btn" style="padding: 6px 16px;">Edit Report</a>
+                    <a href="{% if demo_mode %}/demo{% endif %}/manager/report/{{ member.user_id }}" class="btn" style="padding: 6px 16px;">Edit Report</a>
                 </td>
             </tr>
             {% endfor %}
@@ -207,42 +219,78 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script>
-// Initialize XLSX drop zone (Workday import)
+// Initialize XLSX drop zone (Workday import) - only in non-demo mode
 document.addEventListener('DOMContentLoaded', function() {
     const xlsxDropZone = document.getElementById('dropZoneXlsx');
     const xlsxInput = document.getElementById('xlsxFile');
 
-    // Click to browse
-    xlsxDropZone.addEventListener('click', () => xlsxInput.click());
+    // Only initialize if elements exist (not in demo mode)
+    if (xlsxDropZone && xlsxInput) {
+        // Click to browse
+        xlsxDropZone.addEventListener('click', () => xlsxInput.click());
 
-    // File input change
-    xlsxInput.addEventListener('change', (e) => {
-        if (e.target.files.length > 0) {
-            importXlsxFile(e.target.files[0]);
-        }
-        xlsxInput.value = ''; // Reset for re-selection
-    });
+        // File input change
+        xlsxInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                importXlsxFile(e.target.files[0]);
+            }
+            xlsxInput.value = ''; // Reset for re-selection
+        });
 
-    // Drag events
-    xlsxDropZone.addEventListener('dragover', (e) => {
-        e.preventDefault();
-        xlsxDropZone.classList.add('drag-over');
-    });
+        // Drag events
+        xlsxDropZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            xlsxDropZone.classList.add('drag-over');
+        });
 
-    xlsxDropZone.addEventListener('dragleave', (e) => {
-        e.preventDefault();
-        xlsxDropZone.classList.remove('drag-over');
-    });
+        xlsxDropZone.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            xlsxDropZone.classList.remove('drag-over');
+        });
 
-    xlsxDropZone.addEventListener('drop', (e) => {
-        e.preventDefault();
-        xlsxDropZone.classList.remove('drag-over');
-        const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.xlsx'));
-        if (files.length > 0) {
-            importXlsxFile(files[0]);
-        }
-    });
+        xlsxDropZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            xlsxDropZone.classList.remove('drag-over');
+            const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.xlsx'));
+            if (files.length > 0) {
+                importXlsxFile(files[0]);
+            }
+        });
+    }
 });
+
+// Load sample Workday data (demo mode only)
+async function loadSampleWorkdayData() {
+    const statusDiv = document.getElementById('xlsxImportStatus');
+    const btn = document.getElementById('loadSampleBtn');
+
+    btn.disabled = true;
+    btn.textContent = 'Loading...';
+    statusDiv.innerHTML = '<div style="color: #666;">Loading sample data...</div>';
+
+    try {
+        const response = await fetch(API_PREFIX + '/load-sample-workday', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'}
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            statusDiv.innerHTML = `<div class="success-message">
+                ✓ Loaded ${data.imported} sample feedback entries
+                <br><a href="" style="color: #155724; font-size: 13px;">Reload page</a> to see updated data.
+            </div>`;
+        } else {
+            statusDiv.innerHTML = `<div class="error-message">✗ ${data.error}</div>`;
+            btn.disabled = false;
+            btn.textContent = 'Load Sample Workday Data';
+        }
+    } catch (err) {
+        statusDiv.innerHTML = `<div class="error-message">✗ ${err.message}</div>`;
+        btn.disabled = false;
+        btn.textContent = 'Load Sample Workday Data';
+    }
+}
 
 async function importXlsxFile(file) {
     const statusDiv = document.getElementById('xlsxImportStatus');
@@ -375,7 +423,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
 // Fetch and render team butterfly chart
 function fetchAndRenderTeamButterflyChart() {
-    fetch('/api/team-butterfly-data')
+    fetch(API_PREFIX + '/team-butterfly-data')
         .then(r => r.json())
         .then(data => {
             if (data.success) {
@@ -606,7 +654,7 @@ function loadWorkdayFeedbackSummary(startDate = null, endDate = null) {
 }
 
 function loadAvailableDateRanges() {
-    fetch('/api/workday-feedback/date-ranges')
+    fetch(API_PREFIX + '/workday-feedback/date-ranges')
         .then(r => r.json())
         .then(data => {
             if (data.success && data.ranges.length > 0) {

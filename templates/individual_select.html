@@ -242,7 +242,9 @@ function continueAsUser() {
     }
 
     // Redirect to individual URL (will set session and show feedback page)
-    window.location.href = '/individual/' + userId;
+    // Use demo prefix if in demo mode
+    const baseUrl = IS_DEMO_MODE ? '/demo/individual/' : '/individual/';
+    window.location.href = baseUrl + userId;
 }
 </script>
 {% endblock %}

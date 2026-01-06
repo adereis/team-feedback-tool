@@ -10,8 +10,10 @@
 |------|---------|
 | `app.py` | Flask routes, API endpoints, session management |
 | `models.py` | SQLAlchemy models (Person, Feedback, ManagerFeedback) |
+| `demo_mode.py` | Demo mode session isolation (per-visitor SQLite databases) |
 | `import_orgchart.py` | Excel orgchart import |
 | `create_sample_data.py` | Generate fictitious test data (`--demo` for full setup) |
+| `create_demo_template.py` | Generate demo template database |
 | `conftest.py` | Pytest fixtures |
 
 ### Route-to-Template Mapping
@@ -24,6 +26,8 @@
 | `/manager` | `manager_select.html` |
 | `/manager/<manager_uid>` | `manager_dashboard.html` |
 | `/manager/report/<user_id>` | `report.html` |
+| `/demo` | `demo_index.html` |
+| `/demo/*` | Same templates as above (uses demo session DB) |
 
 ---
 
@@ -39,6 +43,7 @@
 ### Operating Modes
 - **Local mode** (default): Persistent SQLite DB, import orgchart CSV, use `/individual`
 - **Hosted mode** (`HOSTED_MODE=true`): Ephemeral DB, use `/feedback?for=Name`
+- **Demo mode** (route-based): Access via `/demo/*` routes, session-isolated fictitious data
 
 ### Naming Conventions
 - `user_id` = individual contributor

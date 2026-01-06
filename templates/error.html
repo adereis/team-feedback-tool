@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+
+{% block title %}{{ error_title }} - Team Feedback{% endblock %}
+{% block header %}{{ error_title }}{% endblock %}
+
+{% block content %}
+<div class="card content-centered" style="text-align: center; padding: 60px 40px;">
+    <h2 style="color: #e74c3c; margin-bottom: 20px;">{{ error_title }}</h2>
+    <p style="color: #666; font-size: 16px; margin-bottom: 30px;">
+        {{ error_message }}
+    </p>
+
+    {% if show_demo_link %}
+    <p style="margin-bottom: 20px;">
+        <a href="/demo" class="btn">Try the Demo</a>
+    </p>
+    <p style="color: #888; font-size: 14px;">
+        Or <a href="https://github.com/adereis/team-feedback-tool" style="color: #667eea;">get the code</a> to run locally.
+    </p>
+    {% else %}
+    <p>
+        <a href="/" class="btn">Back to Home</a>
+    </p>
+    {% endif %}
+</div>
+{% endblock %}
