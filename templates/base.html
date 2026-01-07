@@ -365,6 +365,100 @@
 
         {% block extra_styles %}{% endblock %}
     </style>
+
+    <!-- Global Auto-Save Manager: Handles debounced saves with keepalive on page unload -->
+    <script>
+    window.AutoSave = (function() {
+        const pending = {};  // { id: { timer, saveFn, data } }
+
+        // Save with keepalive (survives page navigation)
+        function saveWithKeepalive(url, data) {
+            fetch(url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(data),
+                keepalive: true
+            }).catch(() => {});
+        }
+
+        // Flush all pending saves on page unload
+        window.addEventListener('beforeunload', function() {
+            Object.keys(pending).forEach(id => {
+                const entry = pending[id];
+                if (entry.timer) {
+                    clearTimeout(entry.timer);
+                    // Execute the keepalive save
+                    if (entry.url && entry.getData) {
+                        saveWithKeepalive(entry.url, entry.getData());
+                    }
+                    delete pending[id];
+                }
+            });
+        });
+
+        return {
+            /**
+             * Register a debounced auto-save that survives page navigation.
+             *
+             * @param {string} id - Unique identifier for this save operation
+             * @param {string} url - API endpoint to POST to
+             * @param {function} getData - Function that returns the data object to save
+             * @param {number} delayMs - Debounce delay in milliseconds (default: 2000)
+             */
+            debounce: function(id, url, getData, delayMs = 2000) {
+                // Clear existing timer
+                if (pending[id] && pending[id].timer) {
+                    clearTimeout(pending[id].timer);
+                }
+
+                // Store the save info and start new timer
+                pending[id] = {
+                    url: url,
+                    getData: getData,
+                    timer: setTimeout(() => {
+                        // Normal save (with response handling possible)
+                        fetch(url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(getData())
+                        }).then(r => r.json()).catch(() => {});
+                        delete pending[id];
+                    }, delayMs)
+                };
+            },
+
+            /**
+             * Cancel a pending save without executing it.
+             * @param {string} id - The save operation ID to cancel
+             */
+            cancel: function(id) {
+                if (pending[id]) {
+                    clearTimeout(pending[id].timer);
+                    delete pending[id];
+                }
+            },
+
+            /**
+             * Immediately execute a pending save (useful for blur events).
+             * @param {string} id - The save operation ID to flush
+             */
+            flush: function(id) {
+                if (pending[id]) {
+                    clearTimeout(pending[id].timer);
+                    const entry = pending[id];
+                    if (entry.url && entry.getData) {
+                        fetch(entry.url, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(entry.getData())
+                        }).then(r => r.json()).catch(() => {});
+                    }
+                    delete pending[id];
+                }
+            }
+        };
+    })();
+    </script>
 </head>
 <body>
     {% if demo_mode %}

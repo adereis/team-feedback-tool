@@ -340,9 +340,6 @@ const teamMemberId = "{{ team_member.user_id }}";
 let managerSelectedStrengths = {{ (manager_feedback.selected_strengths if manager_feedback else []) | tojson | safe }};
 let managerSelectedImprovements = {{ (manager_feedback.selected_improvements if manager_feedback else []) | tojson | safe }};
 
-// Auto-save state
-let autoSaveTimer = null;
-
 // Render butterfly chart
 function renderButterflyChart() {
     const container = document.getElementById('butterflyChart');
@@ -570,13 +567,33 @@ function toggleManagerImprovement(tenetId) {
     scheduleAutoSave();
 }
 
+// Collect manager feedback data for saving
+function collectManagerFeedbackData() {
+    return {
+        team_member_uid: teamMemberId,
+        selected_strengths: managerSelectedStrengths,
+        selected_improvements: managerSelectedImprovements,
+        feedback_text: document.getElementById('managerFeedbackText').value
+    };
+}
+
+// Check if manager feedback is valid for saving
+function isManagerFeedbackValid() {
+    if (managerSelectedStrengths.length !== 3) return false;
+    if (managerSelectedImprovements.length < 2 || managerSelectedImprovements.length > 3) return false;
+    return true;
+}
+
 function scheduleAutoSave() {
-    if (autoSaveTimer) {
-        clearTimeout(autoSaveTimer);
-    }
-    autoSaveTimer = setTimeout(() => {
-        saveManagerFeedback();
-    }, 2000);
+    if (!isManagerFeedbackValid()) return;
+
+    // Use global AutoSave manager - handles debounce and keepalive on unload
+    window.AutoSave.debounce(
+        `manager_feedback_${teamMemberId}`,
+        API_PREFIX + '/manager-feedback',
+        collectManagerFeedbackData,
+        2000
+    );
 }
 
 function showSaveIndicator() {

@@ -431,7 +431,6 @@ const existingFeedback = {{ existing_feedback | tojson | safe }};
 let selectedColleague = null;
 let selectedStrengths = [];
 let selectedImprovements = [];
-let autoSaveTimer = null;
 
 function renderTenets() {
     const strengthsDiv = document.getElementById('strengthsSelector');
@@ -553,14 +552,35 @@ function selectColleague() {
     document.getElementById('improvementsText').addEventListener('input', scheduleAutoSave);
 }
 
-function scheduleAutoSave() {
-    if (autoSaveTimer) {
-        clearTimeout(autoSaveTimer);
-    }
+// Collect feedback data for saving
+function collectFeedbackData() {
+    return {
+        to_user_id: selectedColleague,
+        strengths: selectedStrengths,
+        improvements: selectedImprovements,
+        strengths_text: document.getElementById('strengthsText').value,
+        improvements_text: document.getElementById('improvementsText').value
+    };
+}
 
-    autoSaveTimer = setTimeout(() => {
-        saveFeedback();
-    }, 2000);
+// Check if feedback data is valid for saving
+function isValidForSave() {
+    if (!selectedColleague) return false;
+    if (selectedStrengths.length !== 3) return false;
+    if (selectedImprovements.length < 2 || selectedImprovements.length > 3) return false;
+    return true;
+}
+
+function scheduleAutoSave() {
+    if (!isValidForSave()) return;
+
+    // Use global AutoSave manager - handles debounce and keepalive on unload
+    window.AutoSave.debounce(
+        `feedback_${selectedColleague}`,
+        API_PREFIX + '/feedback',
+        collectFeedbackData,
+        2000
+    );
 }
 
 function saveFeedback() {
