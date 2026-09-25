@@ -17,7 +17,8 @@ import sys
 from datetime import datetime
 
 # Add parent directory to path for imports when running as standalone script
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
 
 from models import init_db, WorkdayFeedback
 
@@ -49,7 +50,7 @@ DEFAULT_CONFIG = {
 
 def load_config():
     """Load Workday import configuration from workday_config.json if it exists."""
-    config_path = os.path.join(os.path.dirname(__file__), 'workday_config.json')
+    config_path = os.path.join(PROJECT_ROOT, 'workday_config.json')
     if os.path.exists(config_path):
         with open(config_path, 'r') as f:
             return json.load(f)

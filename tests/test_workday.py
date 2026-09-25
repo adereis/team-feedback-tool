@@ -20,8 +20,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from models import WorkdayFeedback, Base, init_db
 from scripts.import_workday import (
-    detect_columns, get_cell_value, validate_row,
-    import_workday_xlsx, ImportResult, DEFAULT_CONFIG
+    detect_columns, get_cell_value, validate_row, load_config,
+    import_workday_xlsx, ImportResult, DEFAULT_CONFIG, PROJECT_ROOT
 )
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -342,6 +342,17 @@ class TestColumnDetection:
         assert col_mapping['about'] == 0
         assert col_mapping.get('from_name') is None
         assert any('From' in w for w in warnings)
+
+
+class TestLoadConfig:
+    """Tests for import configuration loading."""
+
+    def test_load_config_reads_project_root_file(self):
+        """Test that the documented workday_config.json (repo root) is used."""
+        with open(os.path.join(PROJECT_ROOT, 'workday_config.json')) as f:
+            expected = json.load(f)
+
+        assert load_config() == expected
 
 
 class TestGetCellValue:
