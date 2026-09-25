@@ -665,7 +665,7 @@ def get_team_butterfly_data():
     if manager_uid:
         tally = orgchart_team_tally(session, manager_uid)
     else:
-        tally = workday_team_tally(session)
+        tally = workday_team_tally(session, name_to_user_id(manager_name))
 
     butterfly_data = tally.butterfly(load_tenets())
 

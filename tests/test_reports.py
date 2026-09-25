@@ -14,7 +14,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models import ManagerFeedback, WorkdayFeedback
+from models import ManagerFeedback, WorkdayFeedback, name_to_user_id
 from reports import Tally, load_member_feedback, orgchart_team_tally, workday_team_tally
 
 TENETS = [{'id': f'tenet{i}', 'name': f'Tenet {i}'} for i in range(1, 6)]
@@ -122,12 +122,25 @@ class TestTeamTallies:
 
         assert team.strengths['tenet5'] == 0
 
-    def test_workday_team_counts_only_structured_workday(self, db_session):
-        """Test the by-name team chart ignores in-tool feedback and manager picks"""
-        add_workday(db_session, 'Anyone', ['tenet5', 'tenet4', 'tenet3'], ['tenet1', 'tenet2'])
-        add_workday(db_session, 'Anyone')
+    def test_workday_team_is_sum_of_member_views(self, db_session):
+        """Test the by-name team chart agrees with the report pages too"""
+        manager_uid = name_to_user_id('Alice Manager')
+        add_workday(db_session, 'Charlie Developer', ['tenet5', 'tenet4', 'tenet3'], ['tenet1', 'tenet2'])
+        add_workday(db_session, 'Outside Person', ['tenet1', 'tenet2', 'tenet3'], ['tenet4', 'tenet5'])
+        picks = ManagerFeedback(manager_uid=manager_uid, team_member_uid='emp001')
+        picks.set_selected_strengths(['tenet5', 'tenet4', 'tenet1'])
+        picks.set_selected_improvements(['tenet2', 'tenet3'])
+        db_session.add(picks)
+        db_session.commit()
 
-        team = workday_team_tally(db_session)
+        team = workday_team_tally(db_session, manager_uid)
 
-        assert sum(team.strengths.values()) == 3
-        assert sum(team.improvements.values()) == 2
+        expected = Tally()
+        expected.add_tally(load_member_feedback(db_session, 'emp001', 'Charlie Developer', manager_uid).manager_view())
+        expected.add_tally(load_member_feedback(db_session, name_to_user_id('Outside Person'), 'Outside Person',
+                                                manager_uid).manager_view())
+        assert team.strengths == expected.strengths
+        assert team.improvements == expected.improvements
+        # Charlie's in-tool peer feedback and the manager's picks both count now
+        assert team.strengths['tenet5'] == 2  # Workday + manager pick
+        assert team.strengths['tenet2'] == 2  # peer (emp002) + Outside Person's Workday entry

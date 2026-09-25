@@ -17,7 +17,7 @@ from collections import Counter
 from dataclasses import dataclass
 from typing import List, Optional
 
-from models import Feedback, ManagerFeedback, Person, WorkdayFeedback
+from models import Feedback, ManagerFeedback, Person, WorkdayFeedback, name_to_user_id
 
 
 class Tally:
@@ -123,14 +123,20 @@ def orgchart_team_tally(db, manager_uid):
     return tally
 
 
-def workday_team_tally(db):
+def workday_team_tally(db, manager_uid):
     """Team chart for a manager who signed in by name (Workday workflow).
 
-    Structured Workday feedback for every recipient in the import. Unlike the
-    orgchart team chart, it adds neither in-tool peer feedback nor the
-    manager's picks.
+    The team is every recipient in the Workday import, as on the dashboard,
+    and the chart is the sum of each recipient's manager view, like the
+    orgchart team chart. A recipient whose name is in the orgchart uses that
+    person's ID, anyone else a derived one: the same IDs the report pages use.
+
+    Args:
+        manager_uid: the manager's derived ID (name_to_user_id of their name)
     """
     tally = Tally()
-    for fb in db.query(WorkdayFeedback).filter(WorkdayFeedback.is_structured == 1).all():
-        tally.add(fb.get_strengths(), fb.get_improvements())
+    for (name,) in db.query(WorkdayFeedback.about).distinct().all():
+        person = db.query(Person).filter_by(name=name).first()
+        user_id = person.user_id if person else name_to_user_id(name)
+        tally.add_tally(load_member_feedback(db, user_id, name, manager_uid).manager_view())
     return tally
