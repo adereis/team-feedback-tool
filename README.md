@@ -44,8 +44,10 @@ The tool supports three modes for different use cases:
 | **Hosted** | `HOSTED_MODE=true` | Online service for Workday integration | Ephemeral (per-session) |
 | **Demo** | `/demo` routes | Explore tool with fictitious sample data | Session-isolated SQLite |
 
-**Hosted mode** (includes demo):
+**Hosted mode** (includes demo) needs a `SECRET_KEY`, shared by all workers, to sign
+session cookies (local mode creates one in `instance/secret_key` automatically):
 ```bash
+export SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
 HOSTED_MODE=true python3 app.py
 # Access demo at http://localhost:5001/demo
 # Access hosted feedback at http://localhost:5001/feedback?for=Name
@@ -58,11 +60,13 @@ In hosted mode, `/manager` and `/individual` routes are blocked—users must use
 ```bash
 # Build and run with Docker/Podman
 podman build -t team-feedback .
-podman run -p 8080:8080 -e HOSTED_MODE=true team-feedback
+podman run -p 8080:8080 -e HOSTED_MODE=true -e SECRET_KEY="$SECRET_KEY" team-feedback
 
 # OpenShift deployment
 oc new-app --strategy=docker --binary --name=team-feedback
 oc start-build team-feedback --from-dir=. --follow
+oc create secret generic team-feedback --from-literal=SECRET_KEY="$SECRET_KEY"
+oc set env deployment/team-feedback --from=secret/team-feedback
 oc expose svc/team-feedback --name=demo
 oc patch route demo -p '{"spec":{"tls":{"termination":"edge","insecureEdgeTerminationPolicy":"Redirect"}}}'
 ```

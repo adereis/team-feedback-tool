@@ -33,6 +33,7 @@ RUN python3 scripts/create_demo_template.py
 EXPOSE 8080
 
 # Set environment variables
+# Hosted mode also needs SECRET_KEY at runtime (never baked into the image)
 ENV HOSTED_MODE=true
 
 # Run with gunicorn

@@ -4,6 +4,9 @@ REAL-*.csv
 real-*.xlsx
 real-*.csv
 
+# Local session signing key (app.instance_path)
+instance/
+
 # Feedback database (keep private)
 feedback.db
 feedback.db-journal

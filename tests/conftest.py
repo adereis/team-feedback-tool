@@ -16,6 +16,9 @@ import json
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# Set before importing app, so tests never create the local key file (instance/)
+os.environ.setdefault('SECRET_KEY', 'test-secret-key')
+
 from app import app as flask_app, dispose_db_engine
 from models import init_db, Person, Feedback, ManagerFeedback, Base
 from sqlalchemy import create_engine

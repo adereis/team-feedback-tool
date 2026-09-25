@@ -48,7 +48,8 @@
 
 ### Operating Modes
 - **Local mode** (default): Persistent SQLite DB, import orgchart CSV, use `/individual`
-- **Hosted mode** (`HOSTED_MODE=true`): Ephemeral DB, use `/feedback?for=Name`
+- **Hosted mode** (`HOSTED_MODE=true`): Ephemeral DB, use `/feedback?for=Name`;
+  refuses to start without a `SECRET_KEY` env var (session signing key)
 - **Demo mode** (route-based): Access via `/demo/*` routes, session-isolated fictitious data
 
 `@local_only` returns 403 in hosted mode for every non-demo page and `/api/*`
@@ -86,7 +87,7 @@ call APIs via `API_PREFIX`. The prefix itself is `DEMO_PREFIX` in `app.py`.
 ## Critical Constraints
 
 ### Never Commit
-- `feedback.db`, `tenets.json`, `REAL-*.csv` (in .gitignore)
+- `feedback.db`, `tenets.json`, `REAL-*.csv`, `instance/` (local session key; all in .gitignore)
 - Any real employee names/feedback in code, comments, or commits
 
 ### Never Change Without Full Audit

@@ -32,6 +32,7 @@ import csv
 import io
 import os
 import base64
+import secrets
 import tempfile
 import threading
 from collections import defaultdict
@@ -49,7 +50,48 @@ from dateutil.relativedelta import relativedelta
 HOSTED_MODE = os.environ.get('HOSTED_MODE', '').lower() == 'true'
 
 app = Flask(__name__, template_folder='templates')
-app.secret_key = 'feedback-tool-secret-key-change-in-production'
+
+
+def load_secret_key(instance_path, hosted, environ=os.environ):
+    """Key that signs Flask session cookies.
+
+    SECRET_KEY from the environment wins. Hosted mode requires it: every
+    worker and replica must share one key, and a key shipped in the source or
+    the image would let anyone forge sessions. Locally, a random key is
+    created once in the instance folder and reused, so the chosen identity
+    survives restarts.
+    """
+    key = environ.get('SECRET_KEY')
+    if key:
+        return key
+    if hosted:
+        raise RuntimeError(
+            "SECRET_KEY must be set when HOSTED_MODE=true, e.g. "
+            "SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')")
+
+    path = os.path.join(instance_path, 'secret_key')
+    if not os.path.exists(path):
+        os.makedirs(instance_path, exist_ok=True)
+        # Publish atomically: write a private temp file, then hard-link it into
+        # place. If another process got there first, os.link fails and its key wins.
+        fd, tmp = tempfile.mkstemp(dir=instance_path)
+        try:
+            with os.fdopen(fd, 'w') as f:
+                f.write(secrets.token_hex(32))
+            try:
+                os.link(tmp, path)
+            except FileExistsError:
+                pass
+        finally:
+            os.unlink(tmp)
+    with open(path) as f:
+        key = f.read().strip()
+    if not key:
+        raise RuntimeError(f"{path} is empty; delete it to generate a new key")
+    return key
+
+
+app.secret_key = load_secret_key(app.instance_path, HOSTED_MODE)
 app.config['DATABASE'] = 'feedback.db'  # local mode DB; tests point this elsewhere
 
 _engine_lock = threading.Lock()

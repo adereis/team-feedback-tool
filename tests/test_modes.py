@@ -199,6 +199,45 @@ class TestSharedRoutes:
             assert is_demo_request() is is_demo
 
 
+class TestSecretKey:
+    """Tests for how the session signing key is chosen."""
+
+    def test_secret_key_from_environment_wins(self, tmp_path):
+        """Test an explicit SECRET_KEY is used as is, in any mode"""
+        from app import load_secret_key
+
+        assert load_secret_key(str(tmp_path), hosted=True, environ={'SECRET_KEY': 'k'}) == 'k'
+        assert not (tmp_path / 'secret_key').exists()
+
+    def test_hosted_without_secret_key_refuses_to_start(self, tmp_path):
+        """Test hosted mode never falls back to a per-machine or built-in key"""
+        from app import load_secret_key
+
+        with pytest.raises(RuntimeError, match='SECRET_KEY must be set'):
+            load_secret_key(str(tmp_path), hosted=True, environ={})
+
+    def test_local_key_created_once_and_reused(self, tmp_path):
+        """Test local mode creates a private random key and keeps using it"""
+        from app import load_secret_key
+
+        instance = tmp_path / 'instance'
+        first = load_secret_key(str(instance), hosted=False, environ={})
+        second = load_secret_key(str(instance), hosted=False, environ={})
+
+        assert first == second and len(first) == 64
+        assert (instance / 'secret_key').stat().st_mode & 0o777 == 0o600
+        assert sorted(p.name for p in instance.iterdir()) == ['secret_key']  # temp file removed
+
+    def test_empty_key_file_is_an_error(self, tmp_path):
+        """Test a truncated key file fails loudly instead of disabling sessions"""
+        from app import load_secret_key
+
+        (tmp_path / 'secret_key').write_text('')
+
+        with pytest.raises(RuntimeError, match='is empty'):
+            load_secret_key(str(tmp_path), hosted=False, environ={})
+
+
 class TestPdfExportByName:
     """Tests for PDF export in the Workday (name-based) manager workflow."""
 
