@@ -332,8 +332,15 @@
         /* Shared tenet selector styles */
         .tenet-selector {
             display: grid;
+            grid-template-columns: repeat(2, 1fr);
             gap: 8px;
             margin-bottom: 20px;
+        }
+
+        @media (max-width: 768px) {
+            .tenet-selector {
+                grid-template-columns: 1fr;
+            }
         }
 
         .tenet-item {
@@ -596,26 +603,6 @@
         }
     }
     {% endif %}
-
-    // Force two-column grid for tenet selectors (CSS specificity workaround)
-    (function() {
-        const style = document.createElement('style');
-        style.textContent = `
-            .tenet-selector {
-                display: grid !important;
-                grid-template-columns: repeat(2, 1fr) !important;
-                gap: 8px !important;
-                margin-bottom: 20px !important;
-                width: 100% !important;
-            }
-            @media (max-width: 768px) {
-                .tenet-selector {
-                    grid-template-columns: 1fr !important;
-                }
-            }
-        `;
-        document.head.appendChild(style);
-    })();
     </script>
     {% block scripts %}{% endblock %}
 </body>

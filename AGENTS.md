@@ -158,13 +158,12 @@ def endpoint():
 - Charts via matplotlib as base64 PNG images
 - Filename: `{Type}_{Name}_{YYYYMMDD}.pdf`
 
-### Two-Column Tenet Grid
-CSS-only fails; requires JS injection in `base.html`:
-```javascript
-const style = document.createElement('style');
-style.textContent = `.tenet-selector { display: grid !important; ... }`;
-document.head.appendChild(style);
-```
+### Page Styles
+- A page adds CSS in `{% block extra_styles %}` wrapped in its own `<style>`
+  tag; `base.html` renders that block after its own `</style>`. Never move it
+  back inside: a nested `<style>` tag silently drops the page's first rule
+  (`tests/test_pages.py` guards this).
+- The two-column tenet grid is plain CSS on `.tenet-selector` in `base.html`.
 
 ---
 
@@ -208,7 +207,7 @@ Test naming: `test_[feature]_[scenario]_[expected]`
 | Auto-save not working | Check browser console; verify 2s debounce |
 | XLSX import error | Must be "Feedback on My Team" Workday export |
 | Wrong template edited | Check route-to-template mapping above |
-| Tenet grid broken | Ensure template extends `base.html` (JS injection required) |
+| Tenet grid broken | Ensure template extends `base.html` (grid CSS lives there) |
 
 ---
 
