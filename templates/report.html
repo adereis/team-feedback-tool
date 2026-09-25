@@ -335,7 +335,7 @@
 <script>
 const butterflyData = {{ butterfly_data | tojson | safe }};
 const tenets = {{ tenets | tojson | safe }};
-const teamMemberId = "{{ team_member.user_id }}";
+const teamMemberId = {{ team_member.user_id | tojson }};
 
 let managerSelectedStrengths = {{ (manager_feedback.selected_strengths if manager_feedback else []) | tojson | safe }};
 let managerSelectedImprovements = {{ (manager_feedback.selected_improvements if manager_feedback else []) | tojson | safe }};

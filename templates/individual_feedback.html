@@ -628,6 +628,8 @@ function renderFeedbackList() {
     listDiv.innerHTML = existingFeedback.map((fb, index) => {
         const person = allPeople.find(p => p.user_id === fb.to_user_id);
         const personName = person ? person.name : fb.to_user_id;
+        // Inline handlers take the ID as a JS string literal, HTML-escaped for the attribute
+        const idArg = escapeHtml(JSON.stringify(fb.to_user_id));
 
         // Get tenet names
         const strengthTenets = fb.strengths.map(id => {
@@ -644,13 +646,13 @@ function renderFeedbackList() {
             <div class="feedback-item" id="feedback-item-${index}">
                 <div class="feedback-item-header" onclick="toggleFeedbackItem(${index})">
                     <div class="feedback-item-name">
-                        ${personName}
+                        ${escapeHtml(personName)}
                         <span class="feedback-item-summary">${fb.strengths.length} strengths, ${fb.improvements.length} improvements</span>
                     </div>
                     <div class="feedback-item-actions" onclick="event.stopPropagation()">
                         <button onclick="copyFeedbackForWorkday(${index})" class="btn" style="padding: 6px 12px;" title="Copy formatted feedback to clipboard">📋 Copy</button>
-                        <button onclick="editFeedback('${fb.to_user_id}')" class="btn btn-secondary" style="padding: 6px 12px;">Edit</button>
-                        <button onclick="deleteFeedback('${fb.to_user_id}')" class="btn btn-danger" style="padding: 6px 12px;">Delete</button>
+                        <button onclick="editFeedback(${idArg})" class="btn btn-secondary" style="padding: 6px 12px;">Edit</button>
+                        <button onclick="deleteFeedback(${idArg})" class="btn btn-danger" style="padding: 6px 12px;">Delete</button>
                     </div>
                 </div>
                 <div class="feedback-item-body">
@@ -658,16 +660,16 @@ function renderFeedbackList() {
                         <div class="tenet-group strengths">
                             <div class="tenet-group-title">Strengths (${fb.strengths.length})</div>
                             <ul class="tenet-list strengths">
-                                ${strengthTenets.map(name => `<li>${name}</li>`).join('')}
+                                ${strengthTenets.map(name => `<li>${escapeHtml(name)}</li>`).join('')}
                             </ul>
-                            ${fb.strengths_text ? `<div style="margin-top: 8px; font-size: 13px; color: #495057; font-style: italic;">${fb.strengths_text}</div>` : ''}
+                            ${fb.strengths_text ? `<div style="margin-top: 8px; font-size: 13px; color: #495057; font-style: italic;">${escapeHtml(fb.strengths_text)}</div>` : ''}
                         </div>
                         <div class="tenet-group improvements">
                             <div class="tenet-group-title">Improvements (${fb.improvements.length})</div>
                             <ul class="tenet-list improvements">
-                                ${improvementTenets.map(name => `<li>${name}</li>`).join('')}
+                                ${improvementTenets.map(name => `<li>${escapeHtml(name)}</li>`).join('')}
                             </ul>
-                            ${fb.improvements_text ? `<div style="margin-top: 8px; font-size: 13px; color: #495057; font-style: italic;">${fb.improvements_text}</div>` : ''}
+                            ${fb.improvements_text ? `<div style="margin-top: 8px; font-size: 13px; color: #495057; font-style: italic;">${escapeHtml(fb.improvements_text)}</div>` : ''}
                         </div>
                     </div>
                 </div>
