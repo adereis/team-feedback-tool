@@ -11,26 +11,24 @@ Routes:
 - /manager/export-pdf/<user_id> : Export PDF report
 """
 
-from flask import Flask, render_template, request, jsonify, send_file, session as flask_session, redirect
+from flask import (
+    Flask, render_template, request, jsonify, send_file, redirect, make_response,
+    session as flask_session
+)
 from models import init_db, Person, Feedback, ManagerFeedback, WorkdayFeedback, name_to_user_id
 from scripts.import_workday import import_workday_xlsx, get_available_date_ranges
+from demo_mode import (
+    get_demo_db, get_session_id, reset_session_data, demo_response_wrapper,
+    start_cleanup_thread
+)
 import json
 import csv
 import io
 import os
-
-# Mode detection: HOSTED_MODE=true for ephemeral online deployment
-HOSTED_MODE = os.environ.get('HOSTED_MODE', '').lower() == 'true'
-
-# Demo mode imports and setup
-from demo_mode import (
-    get_demo_db, get_session_id, initialize_session_from_template,
-    reset_session_data, demo_response_wrapper, start_cleanup_thread,
-    session_has_data
-)
 import base64
 import tempfile
 from collections import defaultdict
+from functools import wraps
 from sqlalchemy import func
 # WeasyPrint imported lazily in PDF export functions (requires system libraries)
 import matplotlib
@@ -38,6 +36,9 @@ matplotlib.use('Agg')  # Non-interactive backend
 import matplotlib.pyplot as plt
 from datetime import datetime
 from dateutil.relativedelta import relativedelta
+
+# Mode detection: HOSTED_MODE=true for ephemeral online deployment
+HOSTED_MODE = os.environ.get('HOSTED_MODE', '').lower() == 'true'
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'feedback-tool-secret-key-change-in-production'
@@ -47,8 +48,6 @@ def is_demo_request():
     """Check if current request is a demo mode request."""
     return request.path.startswith('/demo')
 
-
-from functools import wraps
 
 def local_only(f):
     """Decorator to block routes in hosted mode (only accessible locally)."""
@@ -2016,12 +2015,8 @@ def demo_get_db_stats():
     return demo_response_wrapper(response)
 
 
-# Need make_response for demo routes
-from flask import make_response
-
 # Start cleanup thread when running with gunicorn or similar
 # (Only starts if server is configured for demo sessions)
-import atexit
 _cleanup_started = False
 
 @app.before_request
