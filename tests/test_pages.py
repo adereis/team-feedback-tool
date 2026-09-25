@@ -146,6 +146,21 @@ class TestMarkup:
         assert re.findall(r'\b(?:alert|confirm|prompt)\(', source) == []
 
 
+class TestReportLayout:
+    """Tests for the order of the manager's report page."""
+
+    def test_report_puts_manager_work_before_comments(self, client):
+        """Test the chart, the manager's picks and the export come before the
+        peer comments, so the manager's work is not below every comment."""
+        html = render(client, 'manager_uid', 'mgr001', '/manager/report/emp001')
+
+        order = [html.index(marker) for marker in (
+            'id="butterflyChart"', 'id="your-feedback"', 'id="export"', 'id="peer-comments"')]
+        assert order == sorted(order)
+        for anchor in ('#your-feedback', '#peer-comments', '#export'):
+            assert f'href="{anchor}"' in html
+
+
 class TestTypedText:
     """Tests for how text people typed is shown on pages."""
 

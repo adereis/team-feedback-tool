@@ -145,7 +145,7 @@
     }
     </script>
 </head>
-<body>
+<body{% if demo_mode or hosted_mode %} class="with-mode-banner"{% endif %}>
     {% if demo_mode %}
     <!-- Sticky Demo Mode Banner -->
     <div class="mode-banner">

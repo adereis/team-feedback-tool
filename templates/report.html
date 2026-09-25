@@ -5,12 +5,106 @@
 
 {% block extra_styles %}
 <style>
+    .report-summary h2 {
+        margin-bottom: 4px;
+    }
+
+    .report-counts {
+        margin: 12px 0;
+    }
+
+    .jump-links {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 18px;
+        font-size: 14px;
+    }
+
+    /* Chart beside the manager's picks, so each click shows its effect */
+    .report-workspace {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr);
+        gap: 0 20px;
+        align-items: start;
+    }
+
+    .report-chart {
+        position: sticky;
+        top: var(--sticky-top);
+        max-height: calc(100vh - var(--sticky-top) - 16px);
+        overflow-y: auto;
+    }
+
+    @media (max-width: 1000px) {
+        .report-workspace {
+            grid-template-columns: 1fr;
+        }
+
+        .report-chart {
+            position: static;
+            max-height: none;
+        }
+    }
+
+    .comment-columns {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0 20px;
+    }
+
+    @media (max-width: 800px) {
+        .comment-columns {
+            grid-template-columns: 1fr;
+        }
+    }
+
     .feedback-text-item {
         background: var(--surface-alt);
         padding: 12px;
         border-radius: 6px;
         margin-bottom: 10px;
         border-left: 4px solid var(--accent);
+    }
+
+    .feedback-text-item.workday-generic {
+        border-left-color: var(--warning);
+    }
+
+    .comment-from {
+        display: flex;
+        justify-content: space-between;
+        gap: 8px;
+        font-weight: 600;
+        color: var(--accent);
+        margin-bottom: 6px;
+        font-size: 13px;
+    }
+
+    .workday-generic .comment-from {
+        color: var(--warning-ink);
+    }
+
+    .comment-date {
+        font-weight: normal;
+        color: var(--subtle);
+        font-size: 11px;
+    }
+
+    .comment-question {
+        font-style: italic;
+        color: var(--muted);
+        font-size: 12px;
+        margin-bottom: 8px;
+    }
+
+    .source-badge {
+        background: var(--info-soft);
+        color: var(--info-ink);
+        padding: 2px 6px;
+        border-radius: 3px;
+        font-size: 11px;
+        font-weight: 600;
+        margin-left: 8px;
     }
 </style>
 {% endblock %}
@@ -23,148 +117,137 @@
     <a href="{{ url_for(views ~ '.manager_dashboard') }}">← Back to Dashboard</a>
 </div>
 
-<div class="card">
-
+<div class="card report-summary">
     <h2>{{ team_member.name }}</h2>
-    <p style="color: #666; margin-bottom: 20px;">
-        {{ team_member.job_title }} | {{ team_member.email }}
+    <p class="muted">
+        {{ team_member.job_title }}{% if team_member.email %} | {{ team_member.email }}{% endif %}
     </p>
-
-    <div class="info-box">
-        <strong>{{ feedbacks|length | plural('structured feedback entry', 'structured feedback entries') }}</strong>
+    <p class="report-counts">
+        <strong>{{ feedbacks|length | plural('feedback entry', 'feedback entries') }} with tenets</strong>
         {% if generic_feedbacks|length > 0 %}
-        <span style="margin-left: 12px; color: #856404;">+ {{ generic_feedbacks|length }} additional from Workday</span>
+        <span class="muted"> · {{ generic_feedbacks|length | plural('free-text Workday entry', 'free-text Workday entries') }}</span>
         {% endif %}
-    </div>
-</div>
-
-<div class="card">
-    <h2>Tenet Overview</h2>
-    <p class="chart-legend">
-        How often each tenet was picked as a strength or an improvement, counting peer feedback
-        from this tool, structured Workday feedback and your own picks.
-        A darker bar with a <span class="bf-star">★</span> is one of your picks; it counts +1, like a peer's.
     </p>
-    <div id="butterflyChart"></div>
+    <div class="jump-links">
+        <a href="#your-feedback">Your feedback</a>
+        <a href="#peer-comments">Peer comments</a>
+        {% if generic_feedbacks|length > 0 %}<a href="#workday-feedback">Workday free-text feedback</a>{% endif %}
+        <a href="#export">Export PDF</a>
+    </div>
 </div>
 
-<div class="card">
-    <h2>Peer Feedback Comments</h2>
-    <p style="color: #666; font-size: 13px; margin-bottom: 16px;">
-        Structured feedback from peers (with tenet selections).
+<div class="report-workspace">
+    <section class="card report-chart" aria-labelledby="chartHeading">
+        <h2 id="chartHeading">Tenet Overview</h2>
+        <p class="chart-legend">
+            How often each tenet was picked as a strength or an improvement, counting peer feedback
+            from this tool, structured Workday feedback and your own picks.
+            A darker bar with a <span class="bf-star">★</span> is one of your picks; it counts +1, like a peer's.
+        </p>
+        <div id="butterflyChart"></div>
+    </section>
+
+    <section class="card" id="your-feedback">
+        <h2>Your Feedback</h2>
+        <p class="intro">
+            Pick the tenets to highlight and write your feedback. The chart updates as you pick.
+        </p>
+
+        <div id="feedbackChecklist" class="feedback-checklist">
+            <strong data-check="title"></strong>
+            <ul>
+                <li data-check="strengths"></li>
+                <li data-check="improvements"></li>
+            </ul>
+        </div>
+
+        <h3>Strengths to Highlight</h3>
+        <div id="managerStrengthsSelector" class="tenet-selector"></div>
+
+        <h3>Improvements to Highlight</h3>
+        <div id="managerImprovementsSelector" class="tenet-selector"></div>
+
+        <div class="form-group">
+            <label for="managerFeedbackText">Your Feedback Text</label>
+            <textarea id="managerFeedbackText" placeholder="Write your feedback for this team member...">{{ manager_feedback.feedback_text if manager_feedback else '' }}</textarea>
+            <span id="saveIndicator" class="save-indicator">✓ Saved</span>
+        </div>
+
+        <div class="copy-section">
+            <h3>Copy for Workday</h3>
+            <p class="intro">Your picks and text, formatted to paste into Workday.</p>
+            <div class="copy-preview" id="managerCopyPreview">
+                <em class="empty-note">Pick 3 strengths and 2 or 3 improvements to see the text to copy.</em>
+            </div>
+            <button class="btn" id="managerCopyBtn" onclick="copyManagerFeedback()" disabled>Copy to Clipboard</button>
+            <span class="inline-status ok" id="managerCopySuccess" hidden>✓ Copied!</span>
+        </div>
+    </section>
+</div>
+
+<section class="card" id="export">
+    <h2>Export PDF for {{ team_member.name }}</h2>
+    <p class="intro">
+        The PDF is written for the team member: your picks and text, the tenet chart and the peer
+        comments given in this tool, with peer names removed. Workday feedback is left out,
+        since some of it may not be visible to the team member.
+    </p>
+    <button onclick="exportPDF()" class="btn">Export PDF Report</button>
+</section>
+
+<section class="card" id="peer-comments">
+    <h2>Peer Comments</h2>
+    <p class="intro">
+        Comments that came with tenet picks, from this tool and from structured Workday feedback.
+        Names are shown here only; the PDF leaves them out.
     </p>
 
-    <h3>Strengths</h3>
-    {% if feedbacks|length == 0 %}
-    <p style="color: #999;">No structured feedback received yet.</p>
-    {% else %}
-    {% for fb in feedbacks %}
-    {% if fb.strengths_text %}
+    {% macro comment(fb, text) %}
     <div class="feedback-text-item">
-        <div style="font-weight: 600; color: #667eea; margin-bottom: 6px; font-size: 13px;">
-            From: {{ fb.from_name }}
-            {% if fb.source == 'workday_structured' %}
-            <span style="background: #e7f3ff; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">Workday</span>
-            {% endif %}
+        <div class="comment-from">
+            <span>From: {{ fb.from_name }}{% if fb.source == 'workday_structured' %}<span class="source-badge">Workday</span>{% endif %}</span>
         </div>
-        <div class="user-text">{{ fb.strengths_text }}</div>
+        <div class="user-text">{{ text }}</div>
     </div>
-    {% endif %}
-    {% endfor %}
-    {% endif %}
+    {% endmacro %}
 
-    <h3 style="margin-top: 24px;">Areas for Improvement</h3>
-    {% for fb in feedbacks %}
-    {% if fb.improvements_text %}
-    <div class="feedback-text-item">
-        <div style="font-weight: 600; color: #667eea; margin-bottom: 6px; font-size: 13px;">
-            From: {{ fb.from_name }}
-            {% if fb.source == 'workday_structured' %}
-            <span style="background: #e7f3ff; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">Workday</span>
-            {% endif %}
+    <div class="comment-columns">
+        <div>
+            <h3>Strengths</h3>
+            {% set strengths = feedbacks | selectattr('strengths_text') | list %}
+            {% for fb in strengths %}{{ comment(fb, fb.strengths_text) }}{% endfor %}
+            {% if not strengths %}<p class="empty-note">No strength comments yet.</p>{% endif %}
         </div>
-        <div class="user-text">{{ fb.improvements_text }}</div>
+        <div>
+            <h3>Areas for Improvement</h3>
+            {% set improvements = feedbacks | selectattr('improvements_text') | list %}
+            {% for fb in improvements %}{{ comment(fb, fb.improvements_text) }}{% endfor %}
+            {% if not improvements %}<p class="empty-note">No improvement comments yet.</p>{% endif %}
+        </div>
     </div>
-    {% endif %}
-    {% endfor %}
-</div>
+</section>
 
 {% if generic_feedbacks|length > 0 %}
-<div class="card">
-    <h2>Additional Feedback from Workday</h2>
-    <p style="color: #666; font-size: 13px; margin-bottom: 16px;">
-        Generic feedback from Workday (free-text, not included in butterfly chart).
-    </p>
+<section class="card" id="workday-feedback">
+    <h2>Workday Free-Text Feedback</h2>
+    <p class="intro">Feedback without tenet picks, so it is not counted in the chart.</p>
 
     {% for fb in generic_feedbacks %}
-    <div class="feedback-text-item" style="border-left-color: #ffc107;">
-        <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
-            <div style="font-weight: 600; color: #856404; font-size: 13px;">From: {{ fb.from_name }}</div>
-            <div style="font-size: 11px; color: #999;">
-                {% if fb.date %}{{ fb.date[:10] }}{% endif %}
-            </div>
+    <div class="feedback-text-item workday-generic">
+        <div class="comment-from">
+            <span>From: {{ fb.from_name }}</span>
+            {% if fb.date %}<span class="comment-date">{{ fb.date[:10] }}</span>{% endif %}
         </div>
         {% if fb.question %}
-        <div style="font-style: italic; color: #666; font-size: 12px; margin-bottom: 8px;">
+        <div class="comment-question">
             Q: {{ fb.question[:100] }}{% if fb.question|length > 100 %}...{% endif %}
         </div>
         {% endif %}
         <div class="user-text">{{ fb.feedback }}</div>
     </div>
     {% endfor %}
-</div>
+</section>
 {% endif %}
-
-<div class="card">
-    <h2>Your Feedback (Manager)</h2>
-    <p style="margin-bottom: 16px; color: #666;">
-        Select tenets to highlight in the report and add your own feedback text.
-    </p>
-
-    <div id="feedbackChecklist" class="feedback-checklist">
-        <strong data-check="title"></strong>
-        <ul>
-            <li data-check="strengths"></li>
-            <li data-check="improvements"></li>
-        </ul>
-    </div>
-
-    <h3>Select Strengths to Highlight</h3>
-    <div id="managerStrengthsSelector" class="tenet-selector"></div>
-
-    <h3>Select Improvements to Highlight</h3>
-    <div id="managerImprovementsSelector" class="tenet-selector"></div>
-
-    <div class="form-group">
-        <label>Your Feedback Text</label>
-        <textarea id="managerFeedbackText" placeholder="Write your feedback for this team member...">{{ manager_feedback.feedback_text if manager_feedback else '' }}</textarea>
-        <span id="saveIndicator" class="save-indicator">✓ Saved</span>
-    </div>
-
-    <!-- Copy for Workday Section -->
-    <div class="copy-section">
-        <h3>Copy for Workday</h3>
-        <p style="margin-bottom: 12px; color: #666; font-size: 14px;">
-            Copy your manager feedback (tenet selections + text) to paste into Workday.
-        </p>
-        <div class="copy-preview" id="managerCopyPreview">
-            <em class="empty-note">Pick 3 strengths and 2 or 3 improvements to see the text to copy.</em>
-        </div>
-        <button class="btn" id="managerCopyBtn" onclick="copyManagerFeedback()" disabled>Copy to Clipboard</button>
-        <span class="inline-status ok" id="managerCopySuccess" hidden>✓ Copied!</span>
-    </div>
-</div>
-
-<div class="card">
-    <h2>Export Report</h2>
-    <p style="margin-bottom: 16px;">
-        Generate a PDF report with the butterfly chart, the peer feedback given in this tool and your own feedback.
-        This report is intended for the team member, so peer feedback will be <strong>anonymous</strong> (names removed),
-        while your manager feedback will be attributed. Feedback imported from Workday is left out, since some of it
-        may not be visible to the team member.
-    </p>
-    <button onclick="exportPDF()" class="btn">📄 Export PDF Report</button>
-</div>
 
 {% endblock %}
 

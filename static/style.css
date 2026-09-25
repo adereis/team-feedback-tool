@@ -41,6 +41,13 @@
 
     /* Role color for the manager workflow (home and demo cards) */
     --manager: #ff9800;
+
+    /* Where sticky panels stop: below the sticky mode banner when shown */
+    --sticky-top: 16px;
+}
+
+body.with-mode-banner {
+    --sticky-top: 70px;
 }
 
 * {
@@ -160,14 +167,14 @@ header h1 {
 }
 
 /* Flex, not inline links: wrapped rows of padded inline links overlap */
-nav {
+header nav {
     margin-top: 15px;
     display: flex;
     flex-wrap: wrap;
     gap: 8px 10px;
 }
 
-nav a {
+header nav a {
     color: white;
     text-decoration: none;
     padding: 8px 16px;
@@ -176,7 +183,7 @@ nav a {
     transition: background 0.3s;
 }
 
-nav a:hover, nav a.active {
+header nav a:hover, header nav a.active {
     background: rgba(255, 255, 255, 0.2);
 }
 
