@@ -5,6 +5,7 @@ Tests cover:
 - Hosted mode blocks the local-only JSON API but keeps the stateless form
 - Demo requests are served from the visitor's sandbox, even in hosted mode
 - Demo session cookies are validated before being used in file paths
+- Shared routes keep demo identity, redirects and links under /demo
 """
 
 import json
@@ -20,7 +21,7 @@ from sqlalchemy.orm import sessionmaker
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import demo_mode
-from models import WorkdayFeedback
+from models import Person, WorkdayFeedback
 
 
 @pytest.fixture
@@ -39,6 +40,7 @@ def demo_db(tmp_path, monkeypatch):
     Session = sessionmaker(bind=engine)
 
     session = Session()
+    session.add(Person(user_id='sbx001', name='Sandbox Person', job_title='Engineer'))
     session.add(WorkdayFeedback(
         about='Sandbox Person', from_name='Sandbox Giver',
         feedback='Nice work', date=datetime(2025, 11, 15)
@@ -126,3 +128,65 @@ class TestDemoSessionId:
 
             response = demo_mode.demo_response_wrapper(app.response_class())
             assert session_id in response.headers['Set-Cookie']
+
+
+class TestSharedRoutes:
+    """Tests for routes served at both / and /demo from one definition."""
+
+    def test_demo_page_lists_sandbox_people(self, client, demo_db):
+        """Test that a shared page reads the sandbox under /demo."""
+        response = client.get('/demo/individual')
+
+        assert b'Sandbox Person' in response.data
+        assert b'Charlie Developer' not in response.data  # local test DB
+
+    def test_demo_login_uses_demo_session_key(self, client, demo_db):
+        """Test that demo identity never lands in the local session keys."""
+        client.get('/demo/individual/sbx001')
+
+        with client.session_transaction() as sess:
+            assert sess.get('demo_user_id') == 'sbx001'
+            assert 'user_id' not in sess
+
+    @pytest.mark.parametrize('path,target', [
+        ('/demo/individual/sbx001', '/demo/individual'),
+        ('/demo/manager/switch', '/demo/manager'),
+        ('/individual/emp001', '/individual'),
+        ('/manager/switch', '/manager'),
+    ])
+    def test_redirect_stays_in_current_mode(self, client, demo_db, path, target):
+        """Test that redirects resolve against the blueprint that served the request."""
+        response = client.get(path)
+
+        assert response.status_code == 302
+        assert response.headers['Location'] == target
+
+    def test_demo_nav_links_point_to_demo(self, client, demo_db):
+        """Test that the shared nav bar links to the demo copies of the pages."""
+        response = client.get('/demo/individual')
+
+        assert b'href="/demo/manager"' in response.data
+        assert b'href="/manager"' not in response.data
+
+
+class TestPdfExportByName:
+    """Tests for PDF export in the Workday (name-based) manager workflow."""
+
+    def test_export_pdf_for_name_based_manager(self, client):
+        """Test that a manager who signed in by name can export a report."""
+        with client.session_transaction() as sess:
+            sess['manager_name'] = 'Alice Manager'
+
+        response = client.get('/manager/export-pdf/emp001')
+
+        assert response.status_code == 200
+        assert response.content_type == 'application/pdf'
+
+    def test_export_pdf_unknown_member_returns_404(self, client):
+        """Test that exporting someone who does not exist is a 404, not a 403."""
+        with client.session_transaction() as sess:
+            sess['manager_uid'] = 'mgr001'
+
+        response = client.get('/manager/export-pdf/nobody')
+
+        assert response.status_code == 404

@@ -517,17 +517,15 @@
         <div class="container">
             <h1>Team Feedback Tool</h1>
             <nav>
-                {% if demo_mode %}
-                <a href="/demo" {% if request.endpoint == 'demo_index' %}class="active"{% endif %}>Home</a>
-                <a href="/demo/individual" {% if 'demo_individual' in (request.endpoint or '') %}class="active"{% endif %}>Individual Feedback</a>
-                <a href="/demo/manager" {% if 'demo_manager' in (request.endpoint or '') %}class="active"{% endif %}>Manager Dashboard</a>
-                {% elif hosted_mode %}
+                {% if hosted_mode and not demo_mode %}
                 <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>Home</a>
                 <a href="{{ url_for('feedback_for_workday') }}" {% if request.endpoint == 'feedback_for_workday' %}class="active"{% endif %}>Give Feedback</a>
                 {% else %}
-                <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>Home</a>
-                <a href="{{ url_for('individual_feedback') }}" {% if request.endpoint == 'individual_feedback' %}class="active"{% endif %}>Individual Feedback</a>
-                <a href="{{ url_for('manager_dashboard') }}" {% if request.endpoint in ['manager_dashboard', 'view_report'] %}class="active"{% endif %}>Manager Dashboard</a>
+                {# Shared routes are registered as 'local' at / and 'demo' at /demo #}
+                {% set views = 'demo' if demo_mode else 'local' %}
+                <a href="{{ url_for('demo_index' if demo_mode else 'index') }}" {% if request.endpoint in ['index', 'demo_index'] %}class="active"{% endif %}>Home</a>
+                <a href="{{ url_for(views ~ '.individual_feedback') }}" {% if request.endpoint == views ~ '.individual_feedback' %}class="active"{% endif %}>Individual Feedback</a>
+                <a href="{{ url_for(views ~ '.manager_dashboard') }}" {% if request.endpoint in [views ~ '.manager_dashboard', views ~ '.view_report'] %}class="active"{% endif %}>Manager Dashboard</a>
                 {% endif %}
             </nav>
         </div>

@@ -49,10 +49,19 @@
 - **Demo mode** (route-based): Access via `/demo/*` routes, session-isolated fictitious data
 
 `@local_only` returns 403 in hosted mode for every non-demo page and `/api/*`
-route (JSON body for API routes). A route that serves both the local DB and the
-demo sandbox registers both URLs, opens its DB with `get_db()` and wraps the
-response in `respond()` (sets the demo session cookie under `/demo`). Front-end
-calls must use `API_PREFIX`, never a hard-coded `/api/...`.
+route (JSON body for API routes).
+
+Pages and APIs used by both local and demo mode are defined once, on the `views`
+blueprint in `app.py`. It is registered twice: as `local` at `/` and as `demo`
+at `/demo`, so each route exists under both prefixes. Inside a `views` route:
+- open the DB with `get_db()` (local DB, or the visitor's sandbox under `/demo`)
+- read/write identity via `flask_session[session_key('user_id')]` (demo keys get
+  a `demo_` prefix, so the two modes never share an identity)
+- redirect with `url_for('.endpoint')`, which stays in the current mode
+
+Only routes that exist in one mode go on `app` directly (`/`, `/feedback`,
+imports, `/demo`, demo reset). The demo cookie is set by an `after_request`
+hook. Front-end calls must use `API_PREFIX`, never a hard-coded `/api/...`.
 
 ### Naming Conventions
 - `user_id` = individual contributor
@@ -99,8 +108,8 @@ the confirmation callback.
 
 ### API Endpoints
 ```python
-@app.route('/api/endpoint', methods=['POST'])
-@local_only  # 403 in hosted mode
+@views.route('/api/endpoint', methods=['POST'])  # also served at /demo/api/...
+@local_only  # 403 in hosted mode (demo requests pass)
 def endpoint():
     data = request.get_json()
     if not data.get('required_field'):
@@ -176,7 +185,8 @@ Test naming: `test_[feature]_[scenario]_[expected]`
 ## Adding Features
 
 ### New API Endpoint
-1. Add route to `app.py` with try/except, JSON responses
+1. Add route to `app.py` with try/except, JSON responses (`@views.route` if demo
+   mode needs it too)
 2. Return `{"success": bool}` or `{"success": false, "error": "msg"}`
 3. Add tests to `tests/test_app.py` (hosted/demo behavior: `tests/test_modes.py`)
 
