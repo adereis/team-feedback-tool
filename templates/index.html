@@ -227,7 +227,7 @@
     </p>
 
     <div class="empty-state-actions">
-        <a href="/feedback" class="btn-large">
+        <a href="{{ url_for('feedback_for_workday') }}" class="btn-large">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
@@ -236,7 +236,7 @@
     </div>
 
     <p style="margin-top: 30px; font-size: 13px; color: #888;">
-        Tip: Use links like <code>/feedback?for=Name</code> to pre-fill the recipient
+        Tip: Use links like <code>{{ url_for('feedback_for_workday') }}?for=Name</code> to pre-fill the recipient
     </p>
 </div>
 {% elif not has_data %}
@@ -281,7 +281,7 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
     </div>
 
     <div class="empty-state-actions" style="margin-top: 0;">
-        <a href="/feedback" class="btn-large" style="background: #6c757d;">
+        <a href="{{ url_for('feedback_for_workday') }}" class="btn-large" style="background: #6c757d;">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
             </svg>
@@ -429,7 +429,7 @@ document.addEventListener('DOMContentLoaded', function() {
         formData.append('file', file);
         formData.append('reset', reset.toString());
 
-        fetch('/api/import-orgchart', {
+        fetch({{ url_for('import_orgchart_web') | tojson }}, {
             method: 'POST',
             body: formData
         })
@@ -458,7 +458,7 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function loadDbStats() {
-        fetch('/api/db-stats')
+        fetch(API_PREFIX + '/db-stats')
             .then(r => r.json())
             .then(data => {
                 const statusEl = document.getElementById('dbStatus');

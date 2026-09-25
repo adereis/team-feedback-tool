@@ -50,7 +50,7 @@
         <button type="submit" class="btn" style="margin-top: 8px;">Continue</button>
     </form>
     <p style="margin-top: 20px; font-size: 13px; color: #999;">
-        Tip: You can bookmark a direct link like <code>/feedback?for=Robin%20Rollback</code>
+        Tip: You can bookmark a direct link like <code>{{ url_for('feedback_for_workday') }}?for=Robin%20Rollback</code>
     </p>
 </div>
 {% else %}
@@ -123,7 +123,7 @@
 </div>
 
 <div style="margin-top: 24px; text-align: center;">
-    <a href="/feedback" style="color: #666; text-decoration: none; font-size: 13px;">
+    <a href="{{ url_for('feedback_for_workday') }}" style="color: var(--muted); text-decoration: none; font-size: 13px;">
         ← Give feedback to someone else
     </a>
 </div>
@@ -270,7 +270,7 @@ function setRecipient(event) {
     event.preventDefault();
     const name = document.getElementById('recipientInput').value.trim();
     if (name) {
-        window.location.href = '/feedback?for=' + encodeURIComponent(name);
+        window.location.href = {{ url_for('feedback_for_workday') | tojson }} + '?for=' + encodeURIComponent(name);
     }
 }
 {% endif %}

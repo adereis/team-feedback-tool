@@ -73,10 +73,14 @@ Only routes that exist in one mode go on `app` directly (`/`, `/feedback`,
 imports, `/demo`, demo reset). The demo cookie is set by an `after_request`
 hook.
 
-Never hard-code `/demo` or `/api` in templates. In Jinja, link with
+Never hard-code a URL path (or host) in templates; `tests/test_pages.py`
+rejects `href="/..."`, `fetch('/...')` and the like. In Jinja, link with
 `url_for(views ~ '.endpoint')` (`views` is `local` or `demo`, from the context
-processor). In JavaScript, build URLs from `VIEWS_ROOT` (`''` or `/demo`) and
-call APIs via `API_PREFIX`. The prefix itself is `DEMO_PREFIX` in `app.py`.
+processor), `url_for(home_endpoint)` for the mode's home page, and plain
+`url_for('endpoint')` for app-only routes. In JavaScript, build URLs from
+`VIEWS_ROOT` (`''` or `/demo`), call APIs via `API_PREFIX`, and pass app-only
+URLs in with `{{ url_for(...) | tojson }}`. The prefix itself is `DEMO_PREFIX`
+in `app.py`.
 
 ### Naming Conventions
 - `user_id` = individual contributor

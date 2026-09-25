@@ -173,7 +173,7 @@
                 <a href="{{ url_for('feedback_for_workday') }}" {% if request.endpoint == 'feedback_for_workday' %}class="active"{% endif %}>Give Feedback</a>
                 {% else %}
                 {# views: the shared routes' blueprint for this mode, 'local' or 'demo' #}
-                <a href="{{ url_for('demo_index' if demo_mode else 'index') }}" {% if request.endpoint in ['index', 'demo_index'] %}class="active"{% endif %}>Home</a>
+                <a href="{{ url_for(home_endpoint) }}" {% if request.endpoint in ['index', 'demo_index'] %}class="active"{% endif %}>Home</a>
                 <a href="{{ url_for(views ~ '.individual_feedback') }}" {% if request.endpoint == views ~ '.individual_feedback' %}class="active"{% endif %}>Individual Feedback</a>
                 <a href="{{ url_for(views ~ '.manager_dashboard') }}" {% if request.endpoint in [views ~ '.manager_dashboard', views ~ '.view_report'] %}class="active"{% endif %}>Manager Dashboard</a>
                 {% endif %}

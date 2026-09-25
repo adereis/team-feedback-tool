@@ -39,12 +39,12 @@
             Tip: Bookmark a direct URL for faster access
         </p>
         <p style="color: #999; font-size: 12px; font-family: monospace;">
-            /manager?name=Your%20Name
+            {{ request.host_url.rstrip('/') }}{{ url_for(views ~ '.manager_dashboard') }}?name=Your%20Name
         </p>
     </div>
 
     <div style="margin-top: 20px; text-align: center;">
-        <a href="/" style="color: #667eea; text-decoration: none; font-size: 14px;">&larr; Back to Home</a>
+        <a href="{{ url_for(home_endpoint) }}" style="text-decoration: none; font-size: 14px;">&larr; Back to Home</a>
     </div>
 </div>
 {% endblock %}

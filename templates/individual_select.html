@@ -30,8 +30,8 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
 
     <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; text-align: center;">
         <p style="color: #666; margin-bottom: 12px;">Or use a different workflow:</p>
-        <a href="/feedback" class="btn btn-secondary" style="margin-right: 8px;">Quick Feedback (no orgchart)</a>
-        <a href="/" style="color: #667eea; text-decoration: none; font-size: 14px;">← Back to Home</a>
+        <a href="{{ url_for('feedback_for_workday') }}" class="btn btn-secondary" style="margin-right: 8px;">Quick Feedback (no orgchart)</a>
+        <a href="{{ url_for(home_endpoint) }}" style="text-decoration: none; font-size: 14px;">← Back to Home</a>
     </div>
 </div>
 {% else %}
@@ -71,12 +71,12 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
             Tip: Bookmark your direct URL for faster access
         </p>
         <p style="color: #999; font-size: 12px; font-family: monospace;">
-            http://localhost:5001/individual/[your-user-id]
+            {{ request.host_url.rstrip('/') }}{{ url_for(views ~ '.individual_feedback') }}/[your-user-id]
         </p>
     </div>
 
     <div style="margin-top: 20px; text-align: center;">
-        <a href="/" style="color: #667eea; text-decoration: none; font-size: 14px;">← Back to Home</a>
+        <a href="{{ url_for(home_endpoint) }}" style="text-decoration: none; font-size: 14px;">← Back to Home</a>
     </div>
 </div>
 {% endif %}
@@ -126,7 +126,7 @@ document.addEventListener('DOMContentLoaded', function() {
             formData.append('file', file);
             formData.append('reset', 'false');
 
-            fetch('/api/import-orgchart', {
+            fetch({{ url_for('import_orgchart_web') | tojson }}, {
                 method: 'POST',
                 body: formData
             })

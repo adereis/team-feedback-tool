@@ -232,7 +232,7 @@ async function importXlsxFile(file) {
         const formData = new FormData();
         formData.append('file', file);
 
-        const response = await fetch('/manager/import-xlsx', {
+        const response = await fetch({{ url_for('import_workday_xlsx_route') | tojson }}, {
             method: 'POST',
             body: formData
         });

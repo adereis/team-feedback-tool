@@ -4,9 +4,12 @@ Tests for the structure of rendered pages.
 Tests cover:
 - Page styles are emitted as their own <style> elements, never nested
 - Typed text sits alone in an element that keeps its line breaks
+- Links and fetches follow the mode that served the page
 """
 
+import glob
 import os
+import re
 import sys
 from html.parser import HTMLParser
 
@@ -99,3 +102,35 @@ class TestTypedText:
         html = render(client, 'manager_uid', 'mgr001', '/manager/report/emp001')
 
         assert '<div class="user-text">Owns incidents.\n\nWrites the follow-up.</div>' in html
+
+
+TEMPLATES = sorted(glob.glob(os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'templates', '*.html')))
+
+# A root-relative URL written into markup or JS: href="/...", fetch('/...'), ...
+HARD_CODED_URL = re.compile(
+    r"""(?:href|action|src)=["']/|fetch\(\s*["'`]/|location\.href\s*=\s*["'`]/|localhost:\d""")
+
+
+class TestModeLinks:
+    """Tests that pages never pin a URL to one mode."""
+
+    @pytest.mark.parametrize('path', TEMPLATES, ids=os.path.basename)
+    def test_template_has_no_hard_coded_urls(self, path):
+        """Test templates build URLs with url_for, VIEWS_ROOT or API_PREFIX.
+
+        A literal "/individual" or "/" sends a demo visitor to the local DB's
+        pages, and a literal host only works on one machine.
+        """
+        with open(path) as f:
+            source = f.read()
+
+        assert HARD_CODED_URL.findall(source) == []
+
+    @pytest.mark.parametrize('path', ['/demo/individual', '/demo/manager'])
+    def test_demo_page_links_home_to_demo(self, client, demo_db, path):
+        """Test "Back to Home" on a demo page returns to the demo home"""
+        html = client.get(path).get_data(as_text=True)
+
+        assert re.search(r'<a href="/demo"[^>]*>(?:←|&larr;) Back to Home', html)
+        assert 'href="/"' not in html

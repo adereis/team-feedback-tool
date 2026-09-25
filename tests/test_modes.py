@@ -12,45 +12,12 @@ import json
 import os
 import sys
 import uuid
-from datetime import datetime
 
 import pytest
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import demo_mode
-from models import Person, WorkdayFeedback
-
-
-@pytest.fixture
-def hosted(monkeypatch):
-    """Run the app as the public hosted deployment."""
-    monkeypatch.setattr('app.HOSTED_MODE', True)
-
-
-@pytest.fixture
-def demo_db(tmp_path, monkeypatch):
-    """Stand in for the visitor's sandbox with a DB holding one Workday entry."""
-    db_path = tmp_path / 'demo.db'
-    engine = create_engine(f'sqlite:///{db_path}')
-    from models import Base
-    Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
-
-    session = Session()
-    session.add(Person(user_id='sbxmgr', name='Sandbox Manager', job_title='Manager'))
-    session.add(Person(user_id='sbx001', name='Sandbox Person', job_title='Engineer',
-                       manager_uid='sbxmgr'))
-    session.add(WorkdayFeedback(
-        about='Sandbox Person', from_name='Sandbox Giver',
-        feedback='Nice work', date=datetime(2025, 11, 15)
-    ))
-    session.commit()
-    session.close()
-
-    monkeypatch.setattr('app.get_demo_db', Session)
 
 
 class TestHostedMode:

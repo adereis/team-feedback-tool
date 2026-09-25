@@ -12,6 +12,7 @@ import tempfile
 import os
 import sys
 import json
+from datetime import datetime
 
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -20,7 +21,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.environ.setdefault('SECRET_KEY', 'test-secret-key')
 
 from app import app as flask_app, dispose_db_engine
-from models import init_db, Person, Feedback, ManagerFeedback, Base
+from models import init_db, Person, Feedback, ManagerFeedback, WorkdayFeedback, Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
@@ -245,3 +246,31 @@ def db_session(test_db):
     session = Session()
     yield session
     session.close()
+
+
+@pytest.fixture
+def hosted(monkeypatch):
+    """Run the app as the public hosted deployment."""
+    monkeypatch.setattr('app.HOSTED_MODE', True)
+
+
+@pytest.fixture
+def demo_db(tmp_path, monkeypatch):
+    """Stand in for the visitor's sandbox with a DB holding one Workday entry."""
+    db_path = tmp_path / 'demo.db'
+    engine = create_engine(f'sqlite:///{db_path}')
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine)
+
+    session = Session()
+    session.add(Person(user_id='sbxmgr', name='Sandbox Manager', job_title='Manager'))
+    session.add(Person(user_id='sbx001', name='Sandbox Person', job_title='Engineer',
+                       manager_uid='sbxmgr'))
+    session.add(WorkdayFeedback(
+        about='Sandbox Person', from_name='Sandbox Giver',
+        feedback='Nice work', date=datetime(2025, 11, 15)
+    ))
+    session.commit()
+    session.close()
+
+    monkeypatch.setattr('app.get_demo_db', Session)

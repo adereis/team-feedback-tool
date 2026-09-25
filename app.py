@@ -188,6 +188,8 @@ def inject_mode_flags():
         # VIEWS_ROOT (from views_root) for URLs built in JavaScript
         views='demo' if demo else 'local',
         views_root=request.script_root + (DEMO_PREFIX if demo else ''),
+        # Home page for this mode: url_for(home_endpoint)
+        home_endpoint='demo_index' if demo else 'index',
     )
 
 
