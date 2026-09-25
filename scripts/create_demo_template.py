@@ -24,13 +24,12 @@ import shutil
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models import init_db, Base
+from models import init_db
 from create_sample_data import (
     get_small_team_data,
     write_orgchart_csv,
-    generate_workday_xlsx,
-    load_sample_tenet_ids,
-    pick_manager_selection,
+    generate_sample_feedback,
+    generate_manager_feedback,
 )
 from import_orgchart import import_orgchart
 
@@ -206,153 +205,5 @@ Improvements: {', '.join(fb['improvements'])}
 
 
 # Patch generate_sample_feedback to accept db_path parameter
-def generate_sample_feedback(people, db_path='feedback.db'):
-    """Modified version that accepts db_path parameter."""
-    import random
-    import json
-    from collections import defaultdict
-    from models import init_db, Feedback
-
-    tenets_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'samples', 'tenets-sample.json')
-    with open(tenets_path, 'r') as f:
-        tenets_data = json.load(f)
-    tenets = [t for t in tenets_data['tenets'] if t.get('active', True)]
-    tenet_ids = [t['id'] for t in tenets]
-
-    session = init_db(db_path)
-
-    # Clear existing feedback
-    session.query(Feedback).delete()
-
-    # Get employees (not managers)
-    employees = [p for p in people if p['manager_uid']]
-
-    feedback_list = []
-
-    # Feedback text templates
-    strength_texts = [
-        "{name} consistently demonstrates excellence in these areas.",
-        "I've observed {name} excel in these tenets throughout our collaboration.",
-        "{name} brings exceptional capability in these areas.",
-        "These are standout strengths for {name}.",
-        "Working with {name} has shown me their strong command of these principles.",
-    ]
-
-    improvement_texts = [
-        "I see opportunities for {name} to develop further in these areas.",
-        "These tenets could use more attention from {name}.",
-        "With dedicated effort in these areas, {name} could excel further.",
-        "I'd encourage {name} to prioritize growth in these tenets.",
-        "These are areas where {name} has room to grow.",
-    ]
-
-    # Generate feedback: each employee gives feedback to ~80% of peers
-    for employee in employees:
-        peers = [p for p in employees
-                 if p['user_id'] != employee['user_id']
-                 and p['manager_uid'] == employee['manager_uid']]
-
-        num_feedback = max(1, int(len(peers) * 0.8))
-        num_feedback = min(num_feedback, len(peers))
-
-        selected_peers = random.sample(peers, num_feedback) if peers else []
-
-        for peer in selected_peers:
-            strengths = random.sample(tenet_ids, 3)
-            num_improvements = random.choice([2, 3])
-            available = [tid for tid in tenet_ids if tid not in strengths]
-            improvements = random.sample(available, num_improvements)
-
-            strength_text = random.choice(strength_texts).format(name=peer['name'])
-            improvement_text = random.choice(improvement_texts).format(name=peer['name'])
-
-            feedback = Feedback(
-                from_user_id=employee['user_id'],
-                to_user_id=peer['user_id'],
-                strengths_text=strength_text,
-                improvements_text=improvement_text
-            )
-            feedback.set_strengths(strengths)
-            feedback.set_improvements(improvements)
-
-            session.add(feedback)
-
-            feedback_list.append({
-                'from_user_id': employee['user_id'],
-                'to_user_id': peer['user_id'],
-                'to_manager_uid': peer['manager_uid'],
-                'strengths': strengths,
-                'improvements': improvements,
-                'strengths_text': strength_text,
-                'improvements_text': improvement_text
-            })
-
-    session.commit()
-    session.close()
-
-    print(f"  Created {len(feedback_list)} peer feedback entries")
-    return feedback_list
-
-
-def generate_manager_feedback(people, db_path='feedback.db'):
-    """Modified version that accepts db_path parameter."""
-    import random
-    from collections import defaultdict
-    from models import init_db, Feedback, ManagerFeedback
-
-    session = init_db(db_path)
-    tenet_ids = load_sample_tenet_ids()
-    session.query(ManagerFeedback).delete()
-
-    managers = [p for p in people if not p['manager_uid']]
-    employees = [p for p in people if p['manager_uid']]
-
-    manager_texts = [
-        "Based on peer feedback, {name} shows strong performance in the highlighted areas.",
-        "{name} has received consistent positive feedback from peers.",
-        "Peer feedback confirms {name}'s strengths align with team expectations.",
-    ]
-
-    count = 0
-    for manager in managers:
-        team = [e for e in employees if e['manager_uid'] == manager['user_id']]
-
-        for member in team:
-            feedbacks = session.query(Feedback).filter_by(to_user_id=member['user_id']).all()
-
-            if not feedbacks:
-                continue
-
-            strength_counts = defaultdict(int)
-            improvement_counts = defaultdict(int)
-
-            for fb in feedbacks:
-                for s in fb.get_strengths():
-                    strength_counts[s] += 1
-                for i in fb.get_improvements():
-                    improvement_counts[i] += 1
-
-            top_strengths, top_improvements = pick_manager_selection(
-                strength_counts, improvement_counts, tenet_ids)
-
-            feedback_text = random.choice(manager_texts).format(name=member['name'])
-
-            mgr_feedback = ManagerFeedback(
-                manager_uid=manager['user_id'],
-                team_member_uid=member['user_id'],
-                feedback_text=feedback_text
-            )
-            mgr_feedback.set_selected_strengths(top_strengths)
-            mgr_feedback.set_selected_improvements(top_improvements)
-
-            session.add(mgr_feedback)
-            count += 1
-
-    session.commit()
-    session.close()
-
-    print(f"  Created {count} manager feedback entries")
-
-
 if __name__ == '__main__':
     create_demo_template()

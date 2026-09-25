@@ -209,18 +209,37 @@ def write_orgchart_csv(filename, people):
     print(f"✓ Created {filename} with {len(people)} people")
 
 
-def generate_sample_feedback(people):
+def load_sample_tenet_ids():
+    """IDs of the active tenets in samples/tenets-sample.json."""
+    with open(TENETS_SAMPLE, 'r') as f:
+        tenets_data = json.load(f)
+    return [t['id'] for t in tenets_data['tenets'] if t.get('active', True)]
+
+
+def pick_manager_selection(strength_counts, improvement_counts, tenet_ids):
+    """Choose manager picks that follow the tenet rule (app.tenet_selection_error).
+
+    The 3 tenets peers cited most as strengths, then the 2-3 cited most as
+    improvements among the rest, so no tenet is picked twice. Tenets nobody
+    cited fill in when peers named too few.
+    """
+    def most_cited(counts, candidates):
+        return sorted(candidates, key=lambda t: counts.get(t, 0), reverse=True)
+
+    strengths = most_cited(strength_counts, tenet_ids)[:3]
+    others = [t for t in tenet_ids if t not in strengths]
+    improvements = most_cited(improvement_counts, others)[:random.choice([2, 3])]
+    return strengths, improvements
+
+
+def generate_sample_feedback(people, db_path='feedback.db'):
     """
     Generate realistic sample feedback in database with ~80% coverage.
     Returns list of feedback dicts for CSV export.
     """
-    # Load tenets
-    with open('samples/tenets-sample.json', 'r') as f:
-        tenets_data = json.load(f)
-    tenets = [t for t in tenets_data['tenets'] if t.get('active', True)]
-    tenet_ids = [t['id'] for t in tenets]
+    tenet_ids = load_sample_tenet_ids()
 
-    session = init_db()
+    session = init_db(db_path)
 
     # Clear existing feedback
     session.query(Feedback).delete()
@@ -328,35 +347,12 @@ def generate_sample_feedback(people):
     return feedback_list
 
 
-def load_sample_tenet_ids():
-    """IDs of the active tenets in samples/tenets-sample.json."""
-    with open(TENETS_SAMPLE, 'r') as f:
-        tenets_data = json.load(f)
-    return [t['id'] for t in tenets_data['tenets'] if t.get('active', True)]
-
-
-def pick_manager_selection(strength_counts, improvement_counts, tenet_ids):
-    """Choose manager picks that follow the tenet rule (app.tenet_selection_error).
-
-    The 3 tenets peers cited most as strengths, then the 2-3 cited most as
-    improvements among the rest, so no tenet is picked twice. Tenets nobody
-    cited fill in when peers named too few.
-    """
-    def most_cited(counts, candidates):
-        return sorted(candidates, key=lambda t: counts.get(t, 0), reverse=True)
-
-    strengths = most_cited(strength_counts, tenet_ids)[:3]
-    others = [t for t in tenet_ids if t not in strengths]
-    improvements = most_cited(improvement_counts, others)[:random.choice([2, 3])]
-    return strengths, improvements
-
-
-def generate_manager_feedback(people):
+def generate_manager_feedback(people, db_path='feedback.db'):
     """
     Generate manager feedback records with highlighted tenets and commentary.
     Analyzes peer feedback to select top tenets for each team member.
     """
-    session = init_db()
+    session = init_db(db_path)
     tenet_ids = load_sample_tenet_ids()
 
     # Clear existing manager feedback
