@@ -15,7 +15,6 @@ import json
 import os
 import sys
 from datetime import datetime
-from sqlalchemy.exc import IntegrityError
 
 # Add parent directory to path for imports when running as standalone script
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -221,6 +220,22 @@ def validate_row(row, row_num, col_mapping, config):
     return True, None
 
 
+def is_duplicate(session, entry):
+    """Check whether an equal entry is already stored or pending in this import.
+
+    Mirrors the unique_wd_feedback constraint, except that NULLs compare equal
+    (SQLite treats them as distinct), so re-importing undated rows is idempotent
+    too. Checking up front instead of catching IntegrityError matters: rolling
+    back after a failed flush discards every row added earlier in the import.
+    """
+    return session.query(WorkdayFeedback.id).filter_by(
+        about=entry.about,
+        from_name=entry.from_name,
+        question=entry.question,
+        date=entry.date,
+    ).first() is not None
+
+
 def import_workday_xlsx(file_path, db_path='feedback.db', config=None):
     """Import feedback from a Workday XLSX export.
 
@@ -338,25 +353,22 @@ def import_workday_xlsx(file_path, db_path='feedback.db', config=None):
         # Parse for structured feedback
         wd_feedback.parse_structured_feedback()
 
-        # Try to add to database
-        try:
-            session.add(wd_feedback)
-            session.flush()  # Check for constraint violations
-            result.imported += 1
-
-            if wd_feedback.is_structured:
-                result.structured_count += 1
-            else:
-                result.generic_count += 1
-
-            # Track recipient and date for summary
-            if about:
-                result.recipients.add(about)
-            result.add_date(feedback_date)
-
-        except IntegrityError:
-            session.rollback()
+        if is_duplicate(session, wd_feedback):
             result.skipped_duplicates += 1
+            continue
+
+        session.add(wd_feedback)
+        result.imported += 1
+
+        if wd_feedback.is_structured:
+            result.structured_count += 1
+        else:
+            result.generic_count += 1
+
+        # Track recipient and date for summary
+        if about:
+            result.recipients.add(about)
+        result.add_date(feedback_date)
 
     # Commit all changes
     session.commit()

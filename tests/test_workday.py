@@ -531,6 +531,59 @@ Great team player!"""
         finally:
             os.unlink(xlsx_path)
 
+    @staticmethod
+    def _write_givers_xlsx(path, days, dated=True):
+        """Write one feedback row per day, each from a distinct giver."""
+        wb = openpyxl.Workbook()
+        ws = wb.active
+        ws.append(['Feedback on My Team'])
+        ws.append(['About', 'From', 'Question', 'Feedback', 'Date'])
+        for day in days:
+            ws.append(['John Doe', f'Giver {day}', 'Q', f'Text {day}',
+                       datetime(2025, 11, day) if dated else None])
+        wb.save(path)
+
+    def test_import_overlapping_file_keeps_rows_before_duplicate(self, workday_db, workday_session):
+        """Test that new rows listed before a duplicate survive a re-import.
+
+        Regression: a duplicate used to trigger session.rollback(), silently
+        discarding every earlier row of the same import while still counting it.
+        """
+        fd, xlsx_path = tempfile.mkstemp(suffix='.xlsx')
+        os.close(fd)
+
+        try:
+            self._write_givers_xlsx(xlsx_path, [1])
+            assert import_workday_xlsx(xlsx_path, workday_db).imported == 1
+
+            # Newer export: two new rows, the already-imported one, one more new row
+            self._write_givers_xlsx(xlsx_path, [2, 3, 1, 4])
+            result = import_workday_xlsx(xlsx_path, workday_db)
+
+            assert result.imported == 3
+            assert result.skipped_duplicates == 1
+            givers = sorted(fb.from_name for fb in workday_session.query(WorkdayFeedback))
+            assert givers == ['Giver 1', 'Giver 2', 'Giver 3', 'Giver 4']
+        finally:
+            os.unlink(xlsx_path)
+
+    def test_import_undated_rows_twice_skips_duplicates(self, workday_db, workday_session):
+        """Test that rows without a date are deduplicated too (NULLs compare equal)."""
+        fd, xlsx_path = tempfile.mkstemp(suffix='.xlsx')
+        os.close(fd)
+
+        try:
+            self._write_givers_xlsx(xlsx_path, [1, 2], dated=False)
+            assert import_workday_xlsx(xlsx_path, workday_db).imported == 2
+
+            result = import_workday_xlsx(xlsx_path, workday_db)
+
+            assert result.imported == 0
+            assert result.skipped_duplicates == 2
+            assert workday_session.query(WorkdayFeedback).count() == 2
+        finally:
+            os.unlink(xlsx_path)
+
     def test_import_missing_required_column_fails(self, workday_db):
         """Test that missing 'From' column causes error."""
         wb = openpyxl.Workbook()
