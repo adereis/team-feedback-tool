@@ -40,75 +40,42 @@
 <div class="context-bar">
     <div>
         <strong>Managing team for:</strong> {{ manager.name }} ({{ manager.user_id }})
-        <span class="muted" style="margin-left: 12px;">{{ team_members|length }} direct reports</span>
+        <span class="muted" style="margin-left: 12px;">{{ team_members|length | plural('direct report') }}</span>
     </div>
     <a href="{{ url_for(views ~ '.manager_switch') }}">Switch Manager</a>
 </div>
 
-{% if demo_mode %}
-<div class="card">
-    <h2>Sample Workday Data</h2>
-    <p style="margin-bottom: 16px;">Load sample Workday feedback to explore the manager dashboard features.</p>
+{# Workday import and summary: first while the team is empty (it is how the
+   team gets there), after the team and its chart once it is loaded #}
+{% macro workday_card() %}
+<div class="card" id="workdayCard">
+    <h2>Workday Feedback</h2>
+    <p id="feedbackSummary" class="intro">Loading...</p>
+    <p id="availablePeriods" class="hint" style="margin-bottom: 16px;"></p>
 
-    <button onclick="loadSampleWorkdayData()" class="btn" id="loadSampleBtn">
-        Load Sample Workday Data
-    </button>
-    <div id="xlsxImportStatus" style="margin-top: 12px;"></div>
-</div>
-{% else %}
-<div class="card">
-    <h2>Import Feedback from Workday</h2>
-    <p style="margin-bottom: 16px;">Upload the "Feedback on My Team" XLSX export from Workday.</p>
-
+    {% if demo_mode %}
+    <p style="margin-bottom: 12px;">Load the sample "Feedback on My Team" export to see imported feedback on the dashboard and reports.</p>
+    <button onclick="loadSampleWorkdayData()" class="btn" id="loadSampleBtn">Load Sample Workday Data</button>
+    {% else %}
     <div class="drop-zone" id="dropZoneXlsx">
         <div class="drop-zone-icon">📊</div>
-        <div class="drop-zone-text">Drag & drop Workday XLSX file here</div>
-        <div class="drop-zone-subtext">or click to browse • "Feedback on My Team" export</div>
+        <div class="drop-zone-text">Drag & drop the Workday XLSX file here</div>
+        <div class="drop-zone-subtext">or click to browse • the "Feedback on My Team" export</div>
         <input type="file" id="xlsxFile" accept=".xlsx" />
     </div>
-    <div id="xlsxImportStatus" style="margin-top: 12px;"></div>
+    {% endif %}
+    <div id="xlsxImportStatus"></div>
 </div>
-{% endif %}
+{% endmacro %}
 
-<div class="card">
-    <h2>Workday Feedback Overview</h2>
-    <p style="margin-bottom: 16px; color: #666;">
-        Filter imported Workday feedback by date range.
-    </p>
-
-    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
-        <div>
-            <label style="font-size: 13px; font-weight: 600;">Time Period:</label>
-            <select id="dateRangeSelect" onchange="updateDateRange()" style="padding: 6px 12px; border-radius: 4px; border: 1px solid #ccc;">
-                <option value="3m">Last 3 months</option>
-                <option value="6m">Last 6 months</option>
-                <option value="12m">Last 12 months</option>
-                <option value="all">All time</option>
-                <option value="custom">Custom range...</option>
-            </select>
-        </div>
-
-        <div id="customDateRange" style="display: none;">
-            <input type="date" id="startDate" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
-            <span style="margin: 0 8px;">to</span>
-            <input type="date" id="endDate" style="padding: 6px; border-radius: 4px; border: 1px solid #ccc;">
-            <button onclick="applyCustomRange()" class="btn btn-secondary" style="padding: 6px 12px; margin-left: 8px;">Apply</button>
-        </div>
-    </div>
-
-    <div id="dateRangeSummary" style="background: #f8f9fa; padding: 12px 16px; border-radius: 4px; font-size: 13px;">
-        <span id="feedbackSummary">Loading...</span>
-    </div>
-
-    <div id="availablePeriods" style="margin-top: 12px; font-size: 12px; color: #666;"></div>
-</div>
+{% if team_members|length == 0 %}{{ workday_card() }}{% endif %}
 
 <div class="card">
     <h2>Your Team</h2>
 
     {% if team_members|length == 0 %}
-    <p style="color: #666;">
-        No team members found yet. Import a Workday XLSX file above to see your team.
+    <p class="muted">
+        No team members found yet. Import your Workday feedback above to see your team.
     </p>
     {% else %}
     <table>
@@ -128,7 +95,7 @@
                 <td>{{ member.job_title or '-' }}</td>
                 <td>{{ total_feedback }}</td>
                 <td>
-                    <a href="{{ url_for(views ~ '.view_report', user_id=member.user_id) }}" class="btn" style="padding: 6px 16px;">Edit Report</a>
+                    <a href="{{ url_for(views ~ '.view_report', user_id=member.user_id) }}" class="btn btn-small">Edit Report</a>
                 </td>
             </tr>
             {% endfor %}
@@ -146,6 +113,8 @@
     </p>
     <div id="teamButterflyChart"></div>
 </div>
+
+{{ workday_card() }}
 {% endif %}
 {% endblock %}
 
@@ -210,16 +179,16 @@ async function loadSampleWorkdayData() {
 
         if (data.success) {
             statusDiv.innerHTML = `<div class="success-message">
-                ✓ Loaded ${plural(data.imported, 'sample feedback entry', 'sample feedback entries')}
-                <br><a href="" style="color: #155724; font-size: 13px;">Reload page</a> to see updated data.
+                ✓ Loaded ${plural(data.imported, 'sample feedback entry', 'sample feedback entries')}. Reloading...
             </div>`;
+            setTimeout(() => window.location.reload(), 1200);
         } else {
-            statusDiv.innerHTML = `<div class="error-message">✗ ${data.error}</div>`;
+            statusDiv.innerHTML = `<div class="error-message">✗ ${escapeHtml(data.error)}</div>`;
             btn.disabled = false;
             btn.textContent = 'Load Sample Workday Data';
         }
     } catch (err) {
-        statusDiv.innerHTML = `<div class="error-message">✗ ${err.message}</div>`;
+        statusDiv.innerHTML = `<div class="error-message">✗ ${escapeHtml(err.message)}</div>`;
         btn.disabled = false;
         btn.textContent = 'Load Sample Workday Data';
     }
@@ -253,48 +222,53 @@ async function importXlsxFile(file) {
                 }
             }
 
+            const hasNotes = data.skipped_duplicates > 0 || (data.warnings && data.warnings.length > 0);
             let html = `<div class="success-message">
                 ✓ Imported ${plural(data.imported, 'feedback entry', 'feedback entries')} from ${escapeHtml(file.name)}<br>
-                <span style="font-size: 13px; color: #666;">
+                <span style="font-size: 13px;">
                     ${plural(data.recipient_count, 'team member')} •
-                    Structured: ${data.structured_count} •
-                    Generic: ${data.generic_count}
+                    ${data.structured_count} with tenets •
+                    ${data.generic_count} free text
                     ${dateRangeText ? `• ${dateRangeText}` : ''}
                 </span>
-                <br><a href="" style="color: #155724; font-size: 13px;">Reload page</a> to see updated team list.
+                <br>${hasNotes ? '<a href="">Reload the page</a> to see your updated team.' : 'Reloading...'}
             </div>`;
 
             if (data.skipped_duplicates > 0) {
-                html += `<div style="color: #666; font-size: 13px; margin-top: 8px;">
+                html += `<div class="hint">
                     Skipped ${plural(data.skipped_duplicates, 'duplicate entry', 'duplicate entries')} (already imported)
                 </div>`;
             }
 
             if (data.warnings && data.warnings.length > 0) {
-                html += `<div class="warning-message" style="background: #fff3cd; border: 1px solid #ffc107; color: #856404; padding: 12px; border-radius: 4px; margin-top: 8px;">
+                html += `<div class="warning-message">
                     ⚠️ Warnings:<br>
-                    ${data.warnings.map(w => '• ' + w).join('<br>')}
+                    ${data.warnings.map(w => '• ' + escapeHtml(w)).join('<br>')}
                 </div>`;
             }
 
             statusDiv.innerHTML = html;
+            if (!hasNotes) {
+                setTimeout(() => window.location.reload(), 1200);
+            }
         } else {
-            statusDiv.innerHTML = `<div class="error-message">✗ ${data.error}</div>`;
+            statusDiv.innerHTML = `<div class="error-message">✗ ${escapeHtml(data.error)}</div>`;
 
             if (data.errors && data.errors.length > 0) {
                 statusDiv.innerHTML += `<div style="color: #dc3545; font-size: 13px; margin-top: 8px;">
-                    ${data.errors.map(e => '• ' + e).join('<br>')}
+                    ${data.errors.map(e => '• ' + escapeHtml(e)).join('<br>')}
                 </div>`;
             }
         }
     } catch (err) {
-        statusDiv.innerHTML = `<div class="error-message">✗ ${err.message}</div>`;
+        statusDiv.innerHTML = `<div class="error-message">✗ ${escapeHtml(err.message)}</div>`;
     }
 }
 
 // Table sorting functionality
 document.addEventListener('DOMContentLoaded', function() {
     const headers = document.querySelectorAll('th.sortable');
+    if (headers.length === 0) return;  // no team yet, so no table
     let currentSort = { column: 'name', direction: 'asc' };
 
     headers.forEach(header => {
@@ -403,65 +377,26 @@ document.addEventListener('DOMContentLoaded', function() {
     loadAvailableDateRanges();
 });
 
-// Date range filtering for Workday feedback
-let currentPeriod = '3m';
-
-function updateDateRange() {
-    const select = document.getElementById('dateRangeSelect');
-    const customDiv = document.getElementById('customDateRange');
-
-    if (select.value === 'custom') {
-        customDiv.style.display = 'flex';
-    } else {
-        customDiv.style.display = 'none';
-        currentPeriod = select.value;
-        loadWorkdayFeedbackSummary();
-    }
-}
-
-function applyCustomRange() {
-    const startDate = document.getElementById('startDate').value;
-    const endDate = document.getElementById('endDate').value;
-
-    if (!startDate || !endDate) {
-        document.getElementById('feedbackSummary').textContent = 'Please select both start and end dates';
-        return;
-    }
-
-    loadWorkdayFeedbackSummary(startDate, endDate);
-}
-
-function loadWorkdayFeedbackSummary(startDate = null, endDate = null) {
+// Summary of the imported Workday feedback, all dates
+function loadWorkdayFeedbackSummary() {
     const summaryEl = document.getElementById('feedbackSummary');
-    summaryEl.textContent = 'Loading...';
 
-    let url = API_PREFIX + '/workday-feedback/recipients';
-    // Note: The recipients endpoint doesn't filter by date yet.
-    // For now, show the overall summary. Date filtering applies to individual reports.
-
-    fetch(url)
+    fetch(API_PREFIX + '/workday-feedback/recipients')
         .then(r => r.json())
         .then(data => {
             if (data.success && data.recipients.length > 0) {
                 const total = data.recipients.reduce((sum, r) => sum + r.total_count, 0);
                 const structured = data.recipients.reduce((sum, r) => sum + r.structured_count, 0);
-                const generic = total - structured;
-
-                summaryEl.innerHTML = `
-                    <strong>${plural(total, 'feedback entry', 'feedback entries')}</strong> from Workday
-                    <span style="margin-left: 16px; color: #666;">
-                        ${structured} structured (with tenets) • ${generic} generic
-                    </span>
-                    <span style="margin-left: 16px; color: #666;">
-                        ${plural(data.recipients.length, 'recipient')}
-                    </span>
-                `;
+                summaryEl.innerHTML =
+                    `<strong>${plural(total, 'entry', 'entries')} imported</strong> for ` +
+                    `${plural(data.recipients.length, 'person', 'people')}: ` +
+                    `${structured} with tenets (counted in the charts), ${total - structured} free text.`;
             } else {
-                summaryEl.innerHTML = 'No Workday feedback imported yet. <a href="#" onclick="document.getElementById(\'xlsxFile\').click(); return false;">Import XLSX</a>';
+                summaryEl.textContent = 'No Workday feedback imported yet.';
             }
         })
         .catch(err => {
-            summaryEl.textContent = 'Error loading feedback summary';
+            summaryEl.textContent = 'Could not load the Workday feedback summary.';
             console.error('Error:', err);
         });
 }
@@ -478,7 +413,7 @@ function loadAvailableDateRanges() {
                 ).join(' • ');
 
                 document.getElementById('availablePeriods').innerHTML =
-                    `<strong>Feedback available:</strong> ${rangeText}` +
+                    `<strong>By month:</strong> ${rangeText}` +
                     (data.ranges.length > 6 ? ` + ${data.ranges.length - 6} more months` : '');
             }
         })

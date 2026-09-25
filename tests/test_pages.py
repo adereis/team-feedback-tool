@@ -161,6 +161,32 @@ class TestReportLayout:
             assert f'href="{anchor}"' in html
 
 
+class TestDashboardLayout:
+    """Tests for the manager dashboard's card order."""
+
+    def test_dashboard_with_team_lists_team_before_import(self, client):
+        """Test a loaded team comes first and the Workday import card last"""
+        html = render(client, 'manager_uid', 'mgr001', '/manager')
+
+        assert html.index('<h2>Your Team</h2>') < html.index('id="workdayCard"')
+
+    def test_dashboard_without_team_offers_import_first(self, client):
+        """Test an empty dashboard leads with the import that fills it"""
+        with client.session_transaction() as sess:
+            sess['manager_name'] = 'Nobody Yet'
+        html = client.get('/manager').get_data(as_text=True)
+
+        assert html.index('id="workdayCard"') < html.index('<h2>Your Team</h2>')
+        assert html.count('id="workdayCard"') == 1
+
+    def test_dashboard_has_no_date_filter(self, client):
+        """Test the dashboard offers no period control: nothing on it filters by date"""
+        html = render(client, 'manager_uid', 'mgr001', '/manager')
+
+        assert 'dateRangeSelect' not in html
+        assert 'Time Period' not in html
+
+
 class TestTypedText:
     """Tests for how text people typed is shown on pages."""
 
