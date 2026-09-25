@@ -135,58 +135,6 @@
         margin-bottom: 16px;
     }
 
-    .workflow-card.disabled {
-        background: #f0f0f0 !important;
-        opacity: 0.6;
-        pointer-events: none;
-    }
-
-    .workflow-card.disabled .btn {
-        background: #999 !important;
-        cursor: not-allowed;
-    }
-
-    .workflow-card.disabled h3,
-    .workflow-card.disabled p {
-        color: #888;
-    }
-
-    .drop-zone {
-        border: 2px dashed #ccc;
-        border-radius: 8px;
-        padding: 30px 20px;
-        text-align: center;
-        background: #fafafa;
-        transition: all 0.2s ease;
-        cursor: pointer;
-    }
-
-    .drop-zone:hover {
-        border-color: #667eea;
-        background: #f0f4ff;
-    }
-
-    .drop-zone.drag-over {
-        border-color: #667eea;
-        background: #e8efff;
-        border-style: solid;
-    }
-
-    .drop-zone-icon {
-        font-size: 36px;
-        color: #999;
-        margin-bottom: 8px;
-    }
-
-    .drop-zone-text {
-        color: #666;
-        font-size: 14px;
-    }
-
-    .drop-zone input[type="file"] {
-        display: none;
-    }
-
     .reset-option {
         margin-top: 16px;
         padding: 12px;
@@ -217,29 +165,6 @@
 
     .reset-option input:checked ~ .reset-warning {
         display: block;
-    }
-
-    .csv-format {
-        margin-top: 16px;
-    }
-
-    .csv-format summary {
-        cursor: pointer;
-        color: #667eea;
-        font-size: 14px;
-    }
-
-    .csv-format summary:hover {
-        text-decoration: underline;
-    }
-
-    .csv-format pre {
-        background: #f5f5f5;
-        padding: 12px;
-        border-radius: 6px;
-        font-size: 12px;
-        overflow-x: auto;
-        margin-top: 12px;
     }
 
     .db-status {
@@ -333,9 +258,9 @@
             <input type="file" id="orgchartFile" accept=".csv" />
         </div>
         <div id="importStatus"></div>
-        <details class="csv-format" style="font-size: 13px;">
+        <details class="format-reference">
             <summary>CSV Format Reference</summary>
-            <pre style="text-align: left;">Name,User ID,Job Title,Location,Email,Manager UID
+            <pre>Name,User ID,Job Title,Location,Email,Manager UID
 Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
 Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
         </details>
@@ -419,7 +344,7 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
 
     <div id="importStatus"></div>
 
-    <details class="csv-format">
+    <details class="format-reference">
         <summary>CSV Format Reference</summary>
         <p style="margin-top: 12px; font-size: 14px;">Required columns for orgchart import:</p>
         <pre>Name,User ID,Job Title,Location,Email,Manager UID

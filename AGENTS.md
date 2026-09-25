@@ -11,6 +11,7 @@
 | `app.py` | Flask routes, API endpoints, session management |
 | `models.py` | SQLAlchemy models (Person, Feedback, ManagerFeedback, WorkdayFeedback) |
 | `reports.py` | Tenet tallies for charts: manager view, employee view (PDF), team charts |
+| `static/style.css` | Shared styles and color variables for every page, loaded by `base.html` |
 | `static/workday_format.js` | Copy-for-Workday text (`WorkdayFormat.peer` / `.manager`), loaded by `base.html` |
 | `demo_mode.py` | Demo mode session isolation (per-visitor SQLite databases) |
 | `scripts/import_orgchart.py` | Orgchart CSV import (CLI) |
@@ -159,11 +160,16 @@ def endpoint():
 - Filename: `{Type}_{Name}_{YYYYMMDD}.pdf`
 
 ### Page Styles
-- A page adds CSS in `{% block extra_styles %}` wrapped in its own `<style>`
-  tag; `base.html` renders that block after its own `</style>`. Never move it
-  back inside: a nested `<style>` tag silently drops the page's first rule
-  (`tests/test_pages.py` guards this).
-- The two-column tenet grid is plain CSS on `.tenet-selector` in `base.html`.
+- Shared styles live in `static/style.css`: color variables (`--accent`,
+  `--strength`, `--improvement`, ...) and every component used by more than
+  one page (`.context-bar`, `.drop-zone`, `.feedback-checklist`,
+  `.copy-section`, `.save-indicator`, messages, the tenet grid). Use the
+  variables, not literal colors.
+- A page adds only its own CSS, in `{% block extra_styles %}` wrapped in its
+  own `<style>` tag; `base.html` renders that block as a sibling of the
+  stylesheet link. Never render it inside another `<style>`: a nested tag
+  silently drops the page's first rule (`tests/test_pages.py` guards this).
+- Text people typed goes alone in a `.user-text` element (keeps line breaks).
 
 ---
 
@@ -207,7 +213,7 @@ Test naming: `test_[feature]_[scenario]_[expected]`
 | Auto-save not working | Check browser console; verify 2s debounce |
 | XLSX import error | Must be "Feedback on My Team" Workday export |
 | Wrong template edited | Check route-to-template mapping above |
-| Tenet grid broken | Ensure template extends `base.html` (grid CSS lives there) |
+| Tenet grid broken | Ensure template extends `base.html` (loads `static/style.css`) |
 
 ---
 

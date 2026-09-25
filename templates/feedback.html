@@ -5,163 +5,35 @@
 
 {% block extra_styles %}
 <style>
-    .recipient-header {
-        background: #e7f3ff;
-        border-left: 4px solid #2196F3;
-        padding: 16px 20px;
-        margin-bottom: 20px;
-        border-radius: 4px;
-    }
-
-    .recipient-header h3 {
-        margin: 0 0 4px 0;
-        color: #1976D2;
-        font-size: 18px;
-    }
-
-    .recipient-header p {
-        margin: 0;
-        color: #666;
-        font-size: 14px;
-    }
-
-    .feedback-checklist {
-        background: #f8f9fa;
-        padding: 12px 16px;
-        border-radius: 6px;
-        margin-bottom: 16px;
-        font-size: 14px;
-    }
-
-    .feedback-checklist ul {
-        margin: 8px 0 0 0;
-        padding-left: 20px;
-    }
-
-    .feedback-checklist li {
-        margin: 4px 0;
-    }
-
-    .feedback-checklist li.complete {
-        color: #28a745;
-        text-decoration: line-through;
-    }
-
-    .feedback-checklist li.in-progress {
-        color: #ffc107;
-        font-weight: 600;
-    }
-
-    .save-indicator {
-        display: none;
-        color: #28a745;
-        font-weight: 600;
-        margin-left: 12px;
-        font-size: 13px;
-    }
-
-    .save-indicator.visible {
-        display: inline;
-    }
-
-    .copy-section {
-        background: #f0f9ff;
-        border: 1px solid #b3d9ff;
-        border-radius: 8px;
-        padding: 20px;
-        margin-top: 24px;
-    }
-
-    .copy-section h3 {
-        margin: 0 0 12px 0;
-        color: #0066cc;
-        font-size: 16px;
-    }
-
-    .copy-preview {
-        background: white;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-        padding: 12px;
-        font-family: monospace;
-        font-size: 12px;
-        white-space: pre-wrap;
-        max-height: 200px;
-        overflow-y: auto;
-        margin-bottom: 12px;
-    }
-
-    .copy-btn {
-        background: #0066cc;
-        color: white;
-        border: none;
-        padding: 10px 24px;
-        border-radius: 4px;
-        font-size: 14px;
-        font-weight: 600;
-        cursor: pointer;
-        transition: background 0.2s;
-    }
-
-    .copy-btn:hover {
-        background: #0052a3;
-    }
-
-    .copy-btn:disabled {
-        background: #ccc;
-        cursor: not-allowed;
-    }
-
-    .copy-success {
-        color: #28a745;
-        font-weight: 600;
-        margin-left: 12px;
-        display: none;
-    }
-
-    .copy-success.visible {
-        display: inline;
-    }
-
     .recipient-input-card {
-        background: #fff;
-        border: 2px solid #667eea;
-        border-radius: 8px;
-        padding: 24px;
+        border: 2px solid var(--accent);
         text-align: center;
     }
 
     .recipient-input-card input {
         font-size: 18px;
         padding: 12px 16px;
-        width: 100%;
         max-width: 400px;
         text-align: center;
-        border: 2px solid #ddd;
+        border: 2px solid var(--border);
         border-radius: 4px;
         margin: 16px 0;
-    }
-
-    .recipient-input-card input:focus {
-        border-color: #667eea;
-        outline: none;
     }
 
     .section-title {
         font-size: 14px;
         font-weight: 600;
-        color: #495057;
         margin-bottom: 12px;
         text-transform: uppercase;
         letter-spacing: 0.5px;
     }
 
     .strengths-section .section-title {
-        color: #28a745;
+        color: var(--strength);
     }
 
     .improvements-section .section-title {
-        color: #dc3545;
+        color: var(--improvement);
     }
 </style>
 {% endblock %}
@@ -184,14 +56,16 @@
 {% else %}
 <!-- Recipient specified - show feedback form -->
 <div class="content-centered">
-<div class="recipient-header">
-    <h3>Feedback for: {{ recipient_name }}</h3>
-    <p>Select tenets and provide comments, then copy the formatted output back to Workday.</p>
+<div class="context-bar">
+    <div>
+        <h3>Feedback for: {{ recipient_name }}</h3>
+        <p>Select tenets and provide comments, then copy the formatted output back to Workday.</p>
+    </div>
 </div>
 
 <div class="card">
     <div id="feedbackChecklist" class="feedback-checklist">
-        <strong>Feedback Progress:</strong>
+        <strong id="checklistTitle">Feedback Progress:</strong>
         <ul>
             <li id="checkStrengths">Select 3 strengths (0/3)</li>
             <li id="checkImprovements">Select 2-3 improvements (0/3)</li>
@@ -212,7 +86,7 @@
         </div>
         <div class="form-group">
             <label for="strengthsText">Strengths Comments</label>
-            <textarea id="strengthsText" rows="3" placeholder="Provide context or examples for the strengths you selected..." oninput="updatePreview()"></textarea>
+            <textarea id="strengthsText" rows="3" placeholder="Provide context or examples for the strengths you selected..." oninput="updateChecklist(); updatePreview()"></textarea>
         </div>
     </div>
 
@@ -229,7 +103,7 @@
         </div>
         <div class="form-group">
             <label for="improvementsText">Improvement Comments</label>
-            <textarea id="improvementsText" rows="3" placeholder="Suggest specific ways this person could grow in these areas..." oninput="updatePreview()"></textarea>
+            <textarea id="improvementsText" rows="3" placeholder="Suggest specific ways this person could grow in these areas..." oninput="updateChecklist(); updatePreview()"></textarea>
         </div>
     </div>
 </div>
@@ -244,8 +118,8 @@
         <!-- Preview will be populated by JavaScript -->
         <em style="color: #999;">Complete the feedback above to see preview...</em>
     </div>
-    <button class="copy-btn" id="copyBtn" onclick="copyToClipboard()" disabled>Copy to Clipboard</button>
-    <span class="copy-success" id="copySuccess">✓ Copied!</span>
+    <button class="btn" id="copyBtn" onclick="copyToClipboard()" disabled>Copy to Clipboard</button>
+    <span class="inline-status ok" id="copySuccess" hidden>✓ Copied!</span>
 </div>
 
 <div style="margin-top: 24px; text-align: center;">
@@ -323,42 +197,21 @@ function updateDisabledState() {
 }
 
 function updateChecklist() {
-    const strengthsCheck = document.getElementById('checkStrengths');
-    const improvementsCheck = document.getElementById('checkImprovements');
-    const commentsCheck = document.getElementById('checkComments');
-
-    // Strengths
-    strengthsCheck.textContent = `Select 3 strengths (${selectedStrengths.length}/3)`;
-    if (selectedStrengths.length === 3) {
-        strengthsCheck.classList.add('complete');
-        strengthsCheck.classList.remove('in-progress');
-    } else if (selectedStrengths.length > 0) {
-        strengthsCheck.classList.remove('complete');
-        strengthsCheck.classList.add('in-progress');
-    } else {
-        strengthsCheck.classList.remove('complete', 'in-progress');
-    }
-
-    // Improvements
-    improvementsCheck.textContent = `Select 2-3 improvements (${selectedImprovements.length}/3)`;
-    if (selectedImprovements.length >= 2) {
-        improvementsCheck.classList.add('complete');
-        improvementsCheck.classList.remove('in-progress');
-    } else if (selectedImprovements.length > 0) {
-        improvementsCheck.classList.remove('complete');
-        improvementsCheck.classList.add('in-progress');
-    } else {
-        improvementsCheck.classList.remove('complete', 'in-progress');
-    }
-
-    // Comments
+    const strengthsDone = selectedStrengths.length === 3;
+    const improvementsDone = selectedImprovements.length >= 2;
     const hasComments = document.getElementById('strengthsText').value.trim() ||
                         document.getElementById('improvementsText').value.trim();
-    if (hasComments) {
-        commentsCheck.classList.add('complete');
-    } else {
-        commentsCheck.classList.remove('complete');
-    }
+
+    document.getElementById('checkStrengths').textContent = `Select 3 strengths (${selectedStrengths.length}/3)`;
+    document.getElementById('checkStrengths').classList.toggle('done', strengthsDone);
+    document.getElementById('checkImprovements').textContent = `Select 2-3 improvements (${selectedImprovements.length}/3)`;
+    document.getElementById('checkImprovements').classList.toggle('done', improvementsDone);
+    document.getElementById('checkComments').classList.toggle('done', Boolean(hasComments));
+
+    const complete = strengthsDone && improvementsDone;
+    document.getElementById('feedbackChecklist').classList.toggle('complete', complete);
+    document.getElementById('checklistTitle').textContent =
+        complete ? '✓ Ready to copy' : 'Feedback Progress:';
 }
 
 function updatePreview() {
@@ -392,9 +245,9 @@ function copyToClipboard() {
 
     navigator.clipboard.writeText(text).then(() => {
         const successEl = document.getElementById('copySuccess');
-        successEl.classList.add('visible');
+        successEl.hidden = false;
         setTimeout(() => {
-            successEl.classList.remove('visible');
+            successEl.hidden = true;
         }, 2000);
     }).catch(err => {
         console.error('Failed to copy:', err);

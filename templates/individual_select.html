@@ -3,55 +3,6 @@
 {% block title %}Individual Feedback - Team Feedback{% endblock %}
 {% block header %}Individual Feedback{% endblock %}
 
-{% block extra_styles %}
-<style>
-    .drop-zone {
-        border: 2px dashed #ccc;
-        border-radius: 8px;
-        padding: 30px 20px;
-        text-align: center;
-        background: #fafafa;
-        transition: all 0.2s ease;
-        cursor: pointer;
-    }
-    .drop-zone:hover {
-        border-color: #667eea;
-        background: #f0f4ff;
-    }
-    .drop-zone.drag-over {
-        border-color: #667eea;
-        background: #e8efff;
-        border-style: solid;
-    }
-    .drop-zone-icon {
-        font-size: 36px;
-        color: #999;
-        margin-bottom: 8px;
-    }
-    .drop-zone-text {
-        color: #666;
-        font-size: 14px;
-    }
-    .drop-zone input[type="file"] {
-        display: none;
-    }
-    .success-message {
-        background: #d4edda;
-        color: #155724;
-        padding: 12px;
-        border-radius: 6px;
-        margin-top: 12px;
-    }
-    .error-message {
-        background: #f8d7da;
-        color: #721c24;
-        padding: 12px;
-        border-radius: 6px;
-        margin-top: 12px;
-    }
-</style>
-{% endblock %}
-
 {% block content %}
 {% if all_people|length == 0 %}
 <!-- No people in database - show import option -->
@@ -70,9 +21,9 @@
 
     <div id="importStatus"></div>
 
-    <details style="margin-top: 16px; font-size: 13px;">
-        <summary style="cursor: pointer; color: #667eea;">CSV Format Reference</summary>
-        <pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; margin-top: 12px; font-size: 12px; overflow-x: auto;">Name,User ID,Job Title,Location,Email,Manager UID
+    <details class="format-reference">
+        <summary>CSV Format Reference</summary>
+        <pre>Name,User ID,Job Title,Location,Email,Manager UID
 Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
 Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
     </details>

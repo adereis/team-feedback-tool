@@ -131,118 +131,20 @@
         font-weight: bold;
     }
 
-    .manager-group {
-        margin-bottom: 8px;
-    }
-
-    .manager-header {
-        background: #e7f3ff;
-        padding: 8px 12px;
-        font-weight: 600;
-        border-left: 4px solid #667eea;
-        margin-top: 12px;
-        margin-bottom: 4px;
-    }
-
-    .person-option {
-        padding: 6px 12px;
-        padding-left: 24px;
-    }
-
-    .save-indicator {
-        display: inline-block;
-        margin-left: 12px;
-        color: #28a745;
-        font-size: 14px;
-        opacity: 0;
-        transition: opacity 0.3s;
-    }
-
-    .save-indicator.show {
-        opacity: 1;
-    }
-
-    .feedback-checklist {
-        background: #fff3cd;
-        border-left: 4px solid #ffc107;
-        padding: 12px 16px;
-        margin-bottom: 16px;
-        border-radius: 4px;
-        color: #856404;
-        font-size: 13px;
-        transition: all 0.3s;
-    }
-
-    .feedback-checklist.complete {
-        background: #d4edda;
-        border-left-color: #28a745;
-        color: #155724;
-    }
-
-    .feedback-checklist strong {
-        display: block;
-        margin-bottom: 8px;
-        font-size: 14px;
-    }
-
-    .feedback-checklist ul {
-        margin: 0;
-        padding: 0;
-        list-style: none;
-    }
-
-    .feedback-checklist li {
-        margin: 4px 0;
-        padding-left: 20px;
-        position: relative;
-    }
-
-    .feedback-checklist li::before {
-        content: '○';
-        position: absolute;
-        left: 0;
-        color: #ffc107;
-        font-weight: bold;
-    }
-
-    .feedback-checklist li.done::before {
-        content: '✓';
-        color: #28a745;
-    }
-
-    .feedback-checklist.complete li::before {
-        content: '✓';
-        color: #28a745;
-    }
-
-    .user-context {
-        background: #e7f3ff;
-        border-left: 4px solid #2196F3;
-        padding: 12px 16px;
-        margin-bottom: 20px;
-        border-radius: 4px;
-        font-size: 14px;
-    }
-
-    .user-context strong {
-        color: #1976D2;
-    }
 </style>
 {% endblock %}
 
 {% block content %}
-<div class="user-context">
-    <div style="display: flex; justify-content: space-between; align-items: center;">
-        <div>
-            <strong>Providing feedback as:</strong>
-            {% if current_user.name %}
-                {{ current_user.name }} ({{ current_user.user_id }})
-            {% else %}
-                {{ current_user.user_id }}
-            {% endif %}
-        </div>
-        <a href="{{ url_for(views ~ '.individual_switch') }}" style="color: #667eea; text-decoration: none; font-size: 13px;">Switch User</a>
+<div class="context-bar">
+    <div>
+        <strong>Providing feedback as:</strong>
+        {% if current_user.name %}
+            {{ current_user.name }} ({{ current_user.user_id }})
+        {% else %}
+            {{ current_user.user_id }}
+        {% endif %}
     </div>
+    <a href="{{ url_for(views ~ '.individual_switch') }}">Switch User</a>
 </div>
 
 {% if all_people|length <= 1 %}
@@ -253,17 +155,17 @@
         There are no colleagues in the database to provide feedback for. Import your team's orgchart to continue.
     </p>
 
-    <div class="drop-zone" id="dropZone" style="border: 2px dashed #ccc; border-radius: 8px; padding: 30px 20px; text-align: center; background: #fafafa; cursor: pointer;">
-        <div style="font-size: 36px; color: #999; margin-bottom: 8px;">+</div>
-        <div style="color: #666; font-size: 14px;">Drag & drop orgchart CSV here, or click to browse</div>
-        <input type="file" id="orgchartFile" accept=".csv" style="display: none;" />
+    <div class="drop-zone" id="dropZone">
+        <div class="drop-zone-icon">+</div>
+        <div class="drop-zone-text">Drag & drop orgchart CSV here, or click to browse</div>
+        <input type="file" id="orgchartFile" accept=".csv" />
     </div>
 
     <div id="importStatus"></div>
 
-    <details style="margin-top: 16px; font-size: 13px;">
-        <summary style="cursor: pointer; color: #667eea;">CSV Format Reference</summary>
-        <pre style="background: #f5f5f5; padding: 12px; border-radius: 6px; margin-top: 12px; font-size: 12px; overflow-x: auto;">Name,User ID,Job Title,Location,Email,Manager UID
+    <details class="format-reference">
+        <summary>CSV Format Reference</summary>
+        <pre>Name,User ID,Job Title,Location,Email,Manager UID
 Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
 Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
     </details>
@@ -378,20 +280,17 @@ if (dropZone) {
 
     dropZone.addEventListener('dragover', (e) => {
         e.preventDefault();
-        dropZone.style.borderColor = '#667eea';
-        dropZone.style.background = '#e8efff';
+        dropZone.classList.add('drag-over');
     });
 
     dropZone.addEventListener('dragleave', (e) => {
         e.preventDefault();
-        dropZone.style.borderColor = '#ccc';
-        dropZone.style.background = '#fafafa';
+        dropZone.classList.remove('drag-over');
     });
 
     dropZone.addEventListener('drop', (e) => {
         e.preventDefault();
-        dropZone.style.borderColor = '#ccc';
-        dropZone.style.background = '#fafafa';
+        dropZone.classList.remove('drag-over');
         const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
         if (files.length > 0) {
             handleImportFile(files[0]);
@@ -412,14 +311,14 @@ if (dropZone) {
         .then(r => r.json())
         .then(data => {
             if (data.success) {
-                statusDiv.innerHTML = `<div style="background: #d4edda; color: #155724; padding: 12px; border-radius: 6px; margin-top: 12px;">Imported ${data.new_count} people. Reloading...</div>`;
+                statusDiv.innerHTML = `<div class="success-message">Imported ${data.new_count} people. Reloading...</div>`;
                 setTimeout(() => window.location.reload(), 1000);
             } else {
-                statusDiv.innerHTML = `<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; margin-top: 12px;">Error: ${data.error}</div>`;
+                statusDiv.innerHTML = `<div class="error-message">Error: ${data.error}</div>`;
             }
         })
         .catch(err => {
-            statusDiv.innerHTML = `<div style="background: #f8d7da; color: #721c24; padding: 12px; border-radius: 6px; margin-top: 12px;">Error: ${err.message}</div>`;
+            statusDiv.innerHTML = `<div class="error-message">Error: ${err.message}</div>`;
         });
     }
 }
