@@ -130,6 +130,10 @@ def endpoint():
 - Manager highlights = darker bars, +1 to counts
 
 ### PDF Export
+- The PDF is the **employee's view**; the report page is the manager's view.
+  The PDF deliberately excludes Workday feedback (some may not be visible to
+  the employee), so its chart counts only in-tool peer feedback plus the
+  manager's picks. Do not "fix" this to match the report page.
 - WeasyPrint for HTML-to-PDF, separate `*_pdf.html` templates (no JS)
 - Charts via matplotlib as base64 PNG images
 - Filename: `{Type}_{Name}_{YYYYMMDD}.pdf`

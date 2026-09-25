@@ -88,7 +88,8 @@ oc patch route demo -p '{"spec":{"tls":{"termination":"edge","insecureEdgeTermin
 - Highlight specific tenets for emphasis in reports
 - Add manager's own feedback and comments
 - **Copy for Workday**: Export manager feedback for pasting back to Workday
-- Export PDF reports for team members
+- Export PDF reports for team members (their view: peer feedback given in this tool plus
+  your own; Workday feedback is left out, since some of it may not be visible to them)
 
 ## Quick Start
 

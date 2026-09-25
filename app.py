@@ -1196,6 +1196,11 @@ def generate_butterfly_chart_image(butterfly_data, manager_selected_strengths, m
 def export_pdf_report(user_id):
     """Export feedback report as PDF.
 
+    The PDF is the employee's view, unlike the report page (the manager's
+    view): it covers peer feedback given in this tool plus the manager's picks
+    and text, and deliberately leaves out Workday feedback, some of which the
+    employee may not be allowed to see.
+
     Works for both manager workflows: orgchart (manager_uid) and Workday
     (manager_name, via its derived ID), like view_report.
     """
