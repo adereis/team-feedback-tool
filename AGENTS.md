@@ -42,7 +42,9 @@
 1. **Privacy-first**: SQLite only, no cloud/telemetry, all data local
 2. **Auto-save**: 2-second debounce on all editable fields, no save buttons
 3. **Vanilla JS**: No frameworks, use fetch API, Chart.js for charts
-4. **No popups**: Use inline indicators ("Saved") never `alert()`
+4. **No popups**: Use inline indicators ("Saved"), never `alert()`, `confirm()` or
+   `prompt()`; destructive actions confirm inline (two-click button or inline panel).
+   `tests/test_pages.py` rejects dialog calls in templates
 5. **Tenet validation**: 3 strengths, 2-3 improvements, no tenet twice or in both lists;
    same rule for peers and managers (API-enforced)
 6. **Workday is source of truth**: Export via copy/paste, import from XLSX only

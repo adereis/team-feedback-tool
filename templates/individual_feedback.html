@@ -232,28 +232,7 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
 
     <div class="feedback-list">
         <h3>Your Submitted Feedback</h3>
-        <div id="feedbackList">
-            {% if existing_feedback|length == 0 %}
-            <p style="color: #999;">No feedback submitted yet.</p>
-            {% else %}
-            {% for fb in existing_feedback %}
-            <div class="feedback-item">
-                <div>
-                    <strong>
-                        {% for person in all_people %}
-                        {% if person.user_id == fb.to_user_id %}{{ person.name }}{% endif %}
-                        {% endfor %}
-                    </strong>
-                    - {{ fb.strengths|length }} strengths, {{ fb.improvements|length }} improvements
-                </div>
-                <div>
-                    <button onclick="editFeedback('{{ fb.to_user_id }}')" class="btn btn-secondary" style="padding: 6px 12px; margin-right: 8px;">Edit</button>
-                    <button onclick="deleteFeedback('{{ fb.to_user_id }}')" class="btn btn-danger" style="padding: 6px 12px;">Delete</button>
-                </div>
-            </div>
-            {% endfor %}
-            {% endif %}
-        </div>
+        <div id="feedbackList"><!-- rendered by renderFeedbackList() --></div>
     </div>
 
 </div>
@@ -323,6 +302,8 @@ if (dropZone) {
     }
 }
 
+{% if all_people|length > 1 %}
+// Feedback form and list (the empty state above has neither)
 const tenets = {{ tenets | tojson | safe }};
 const allPeople = {{ all_people | tojson | safe }};
 const existingFeedback = {{ existing_feedback | tojson | safe }};
@@ -551,9 +532,10 @@ function renderFeedbackList() {
                     <div class="feedback-item-actions" onclick="event.stopPropagation()">
                         <button onclick="copyFeedbackForWorkday(${index})" class="btn" style="padding: 6px 12px;" title="Copy formatted feedback to clipboard">📋 Copy</button>
                         <button onclick="editFeedback(${idArg})" class="btn btn-secondary" style="padding: 6px 12px;">Edit</button>
-                        <button onclick="deleteFeedback(${idArg})" class="btn btn-danger" style="padding: 6px 12px;">Delete</button>
+                        <button onclick="deleteFeedback(${idArg}, this)" class="btn btn-danger" style="padding: 6px 12px;">Delete</button>
                     </div>
                 </div>
+                <p class="error-message item-error" hidden></p>
                 <div class="feedback-item-body">
                     <div class="feedback-tenets" style="margin-top: 12px;">
                         <div class="tenet-group strengths">
@@ -601,7 +583,8 @@ function copyFeedbackForWorkday(index) {
         }, 2000);
     }).catch(err => {
         console.error('Failed to copy:', err);
-        alert('Failed to copy to clipboard. Please try again.');
+        const item = document.getElementById(`feedback-item-${index}`);
+        showItemError(item, 'Could not copy to the clipboard. Expand the entry and copy the text by hand.');
     });
 }
 
@@ -684,8 +667,23 @@ function editFeedback(userId) {
     selectColleague();
 }
 
-function deleteFeedback(userId) {
-    if (!confirm('Are you sure you want to delete this feedback?')) {
+// Show a problem inside one entry of the list (inline, never a popup)
+function showItemError(item, message) {
+    const error = item.querySelector('.item-error');
+    error.textContent = message;
+    error.hidden = false;
+}
+
+// Delete takes two clicks: the first arms the button, the second (within
+// a few seconds) deletes. Inline, so no browser dialog is needed.
+function deleteFeedback(userId, button) {
+    if (!button.dataset.armed) {
+        button.dataset.armed = 'true';
+        button.textContent = 'Confirm delete?';
+        setTimeout(() => {
+            delete button.dataset.armed;
+            button.textContent = 'Delete';
+        }, 4000);
         return;
     }
 
@@ -709,16 +707,15 @@ function deleteFeedback(userId) {
         updateColleagueDropdownIndicators();
     })
     .catch(err => {
-        // The entry stays in the list, so the failure is visible there
         console.error('Delete failed:', err);
+        showItemError(button.closest('.feedback-item'), 'Could not delete: ' + err.message);
     });
 }
 
 // Initialize feedback list rendering on page load
-if (existingFeedback.length > 0) {
-    renderFeedbackList();
-    updateColleagueDropdownIndicators();
-}
+renderFeedbackList();
+updateColleagueDropdownIndicators();
+{% endif %}
 
 </script>
 {% endblock %}

@@ -65,6 +65,7 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
     </div>
 
     <button onclick="continueAsUser()" class="btn" style="width: 100%;">Continue</button>
+    <p id="identityError" class="error-message" hidden></p>
 
     <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; text-align: center;">
         <p style="color: #999; font-size: 13px; margin-bottom: 8px;">
@@ -178,8 +179,14 @@ function continueAsUser() {
     const select = document.getElementById('userSelect');
     let userId = select.value;
 
+    const error = document.getElementById('identityError');
+    function showError(message) {
+        error.textContent = message;
+        error.hidden = false;
+    }
+
     if (!userId) {
-        alert('Please select your name or enter a custom ID');
+        showError('Select your name, or choose "Not in list" to enter an ID.');
         return;
     }
 
@@ -187,7 +194,8 @@ function continueAsUser() {
     if (userId === '__CUSTOM__') {
         userId = document.getElementById('customUserId').value.trim();
         if (!userId) {
-            alert('Please enter your User ID');
+            showError('Enter your user ID.');
+            document.getElementById('customUserId').focus();
             return;
         }
     }

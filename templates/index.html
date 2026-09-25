@@ -163,7 +163,8 @@
         padding-left: 24px;
     }
 
-    .reset-option input:checked ~ .reset-warning {
+    /* The warning sits in the span next to the checkbox, not beside it */
+    .reset-option input:checked ~ span .reset-warning {
         display: block;
     }
 
@@ -415,14 +416,28 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function handleFile(file, statusDiv) {
         const reset = resetCheckbox ? resetCheckbox.checked : false;
-
-        // Confirm if reset is checked
         if (reset) {
-            if (!confirm('Are you sure you want to reset the database? This will permanently delete ALL existing data including feedback and manager reviews.')) {
-                return;
-            }
+            confirmReset(file, statusDiv);
+        } else {
+            importFile(file, false, statusDiv);
         }
+    }
 
+    // Resetting deletes everything: ask inline, next to the drop zone
+    function confirmReset(file, statusDiv) {
+        statusDiv.innerHTML = `<div class="warning-message">
+            <strong>Delete all data and import ${escapeHtml(file.name)}?</strong><br>
+            This permanently deletes every person, peer feedback entry and manager review.
+            <div style="margin-top: 10px;">
+                <button type="button" class="btn btn-danger" id="confirmResetBtn">Delete everything and import</button>
+                <button type="button" class="btn btn-secondary" id="cancelResetBtn">Cancel</button>
+            </div>
+        </div>`;
+        document.getElementById('confirmResetBtn').onclick = () => importFile(file, true, statusDiv);
+        document.getElementById('cancelResetBtn').onclick = () => { statusDiv.innerHTML = ''; };
+    }
+
+    function importFile(file, reset, statusDiv) {
         statusDiv.innerHTML = '<p>Importing...</p>';
 
         const formData = new FormData();

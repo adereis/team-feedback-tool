@@ -6,6 +6,7 @@ Tests cover:
 - Typed text sits alone in an element that keeps its line breaks
 - Links and fetches follow the mode that served the page
 - Errors render as styled pages with a way back, never bare text
+- Markup stays balanced, and pages never open browser dialogs
 """
 
 import glob
@@ -18,7 +19,7 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from models import Feedback
+from models import Feedback, ManagerFeedback, Person
 
 
 class StyleCollector(HTMLParser):
@@ -43,11 +44,32 @@ class StyleCollector(HTMLParser):
             self.styles[-1] += data
 
 
+class DivCounter(HTMLParser):
+    """Track <div> nesting; ends at zero depth when every div is closed."""
+
+    def __init__(self):
+        super().__init__()
+        self.depth = 0
+        self.lowest = 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag == 'div':
+            self.depth += 1
+
+    def handle_endtag(self, tag):
+        if tag == 'div':
+            self.depth -= 1
+            self.lowest = min(self.lowest, self.depth)
+
+
 def styles_of(html):
     collector = StyleCollector()
     collector.feed(html)
     return collector.styles
 
+
+TEMPLATES = sorted(glob.glob(os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'templates', '*.html')))
 
 # (session key, value, path): one entry per page template in local mode
 PAGES = [
@@ -87,6 +109,42 @@ class TestPageStyles:
             assert '<style' not in css
 
 
+class TestMarkup:
+    """Tests for the markup every page produces."""
+
+    @pytest.mark.parametrize('key,value,path', PAGES)
+    def test_page_divs_balanced(self, client, key, value, path):
+        """Test every <div> a page opens is closed, and none closes early"""
+        counter = DivCounter()
+        counter.feed(render(client, key, value, path))
+
+        assert (counter.depth, counter.lowest) == (0, 0)
+
+    def test_individual_empty_state_skips_form_script(self, client, db_session):
+        """Test the import-only page ships no script for the absent form and list.
+
+        That script looks up the feedback list at load; on this page the list
+        does not exist, and the lookup would throw.
+        """
+        db_session.query(Feedback).delete()
+        db_session.query(ManagerFeedback).delete()
+        db_session.query(Person).filter(Person.user_id != 'emp001').delete()
+        db_session.commit()
+
+        html = render(client, 'user_id', 'emp001', '/individual')
+
+        assert 'Import Orgchart to Get Started' in html
+        assert 'renderFeedbackList' not in html
+
+    @pytest.mark.parametrize('path', TEMPLATES, ids=os.path.basename)
+    def test_template_opens_no_browser_dialogs(self, path):
+        """Test pages report and confirm inline, never with alert/confirm/prompt"""
+        with open(path) as f:
+            source = f.read()
+
+        assert re.findall(r'\b(?:alert|confirm|prompt)\(', source) == []
+
+
 class TestTypedText:
     """Tests for how text people typed is shown on pages."""
 
@@ -104,9 +162,6 @@ class TestTypedText:
 
         assert '<div class="user-text">Owns incidents.\n\nWrites the follow-up.</div>' in html
 
-
-TEMPLATES = sorted(glob.glob(os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'templates', '*.html')))
 
 # A root-relative URL written into markup or JS: href="/...", fetch('/...'), ...
 HARD_CODED_URL = re.compile(
