@@ -2,7 +2,7 @@
 
 A privacy-focused local web application for collecting and aggregating peer feedback based on team tenets. Integrates with Workday for feedback requests and collection.
 
-**[Live Demo](https://demo-team-feedback.apps.uoaar8p0.eastus.aroapp.io/demo)** - Explore with fictitious sample data
+**Try it:** demo mode runs locally with fictitious sample data, see [Operating Modes](#operating-modes).
 
 ## Overview
 
@@ -43,6 +43,14 @@ The tool supports three modes for different use cases:
 | **Local** (default) | Default | Prepare feedback for multiple team members | Persistent SQLite |
 | **Hosted** | `HOSTED_MODE=true` | Online service for Workday integration | Ephemeral (per-session) |
 | **Demo** | `/demo` routes | Explore tool with fictitious sample data | Session-isolated SQLite |
+
+**Demo mode** runs next to local mode. Build its sample database once, then open `/demo`:
+```bash
+python3 scripts/create_demo_template.py
+python3 app.py
+# Open http://localhost:5001/demo
+```
+Each browser works on its own copy of the sample data, separate from your real data.
 
 **Hosted mode** (includes demo) needs a `SECRET_KEY`, shared by all workers, to sign
 session cookies (local mode creates one in `instance/secret_key` automatically):
