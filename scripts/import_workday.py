@@ -349,8 +349,10 @@ def import_workday_xlsx(file_path, db_path='feedback.db', config=None):
             date=feedback_date
         )
 
-        # TODO: Add about_id and from_id columns to WorkdayFeedback model when IDs become available
-        # For now, IDs are detected but not stored
+        # TODO: Store about_id/from_id when an export includes them. It is unknown
+        # whether Workday can export employee IDs; matching people by ID instead
+        # of display name would resolve the FIXME on models.name_to_user_id.
+        # For now, IDs are detected but not stored.
 
         # Parse for structured feedback
         wd_feedback.parse_structured_feedback()

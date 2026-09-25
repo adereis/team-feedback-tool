@@ -21,6 +21,12 @@ def name_to_user_id(name):
     Used for Workday-only users who don't have an orgchart user_id.
     Returns a predictable ID based on name hash (e.g., 'wd_a1b2c3d4').
 
+    FIXME: Workday rows identify people by display name only, so identity is
+    name-based: a renamed person splits into two people, two people with the
+    same name merge into one, and ManagerFeedback keyed by a derived ID is
+    orphaned when the name changes. Whether Workday exports can carry employee
+    IDs is unknown; see the TODO in scripts/import_workday.py.
+
     Args:
         name: Person's display name
 
@@ -159,7 +165,7 @@ class WorkdayFeedback(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True)
 
-    # From XLSX columns (names only, no IDs available in WD export)
+    # From XLSX columns (names only; see FIXME on name_to_user_id)
     about = Column(String, nullable=False)        # Column B: recipient name
     from_name = Column(String, nullable=False)    # Column E: provider name
     question = Column(Text)                        # Column F: feedback question

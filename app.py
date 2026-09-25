@@ -919,6 +919,8 @@ def view_report(user_id=None):
     elif user_id and is_derived_id:
         # Derived ID from Workday - find the name from Workday feedback
         # Look for a recipient whose derived ID matches
+        # FIXME: reverse lookup by re-hashing every recipient name; part of the
+        # name-based identity issue (see models.name_to_user_id)
         wd_recipient = session.query(WorkdayFeedback.about).distinct().all()
         for (name,) in wd_recipient:
             if name_to_user_id(name) == user_id:
