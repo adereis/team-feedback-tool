@@ -159,9 +159,9 @@ def load_tenets():
 def tenet_selection_error(strengths, improvements):
     """Return why a tenet selection breaks the feedback rule, or None if valid.
 
-    One rule for peer and manager feedback alike: exactly 3 strengths and
-    2-3 improvements. The pages also keep a tenet out of both lists, but the
-    API does not check that (test data relies on overlaps).
+    One rule for peer and manager feedback alike: exactly 3 strengths,
+    2-3 improvements, and each tenet at most once (never as both a strength
+    and an improvement). The pages enforce the same rule before saving.
     """
     if not (isinstance(strengths, list) and isinstance(improvements, list)
             and all(isinstance(t, str) for t in strengths + improvements)):
@@ -170,6 +170,8 @@ def tenet_selection_error(strengths, improvements):
         return "Must select exactly 3 strengths"
     if not 2 <= len(improvements) <= 3:
         return "Must select 2-3 improvements"
+    if len(set(strengths + improvements)) != len(strengths) + len(improvements):
+        return "A tenet can be selected only once"
     return None
 
 

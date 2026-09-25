@@ -27,7 +27,7 @@ class TestIndividualFeedbackWorkflow:
         feedback_data = {
             'to_user_id': 'emp001',
             'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': 'Excellent technical skills and collaboration',
             'improvements_text': 'Could improve documentation practices'
         }
@@ -60,7 +60,7 @@ class TestIndividualFeedbackWorkflow:
         feedback1 = {
             'to_user_id': 'emp002',
             'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': 'User 1 feedback',
             'improvements_text': 'User 1 improvements'
         }
@@ -77,7 +77,7 @@ class TestIndividualFeedbackWorkflow:
         feedback2 = {
             'to_user_id': 'emp002',
             'strengths': ['tenet2', 'tenet3', 'tenet4'],
-            'improvements': ['tenet1', 'tenet2'],
+            'improvements': ['tenet1', 'tenet5'],
             'strengths_text': 'User 2 feedback',
             'improvements_text': 'User 2 improvements'
         }
@@ -105,7 +105,7 @@ class TestIndividualFeedbackWorkflow:
         feedback_data = {
             'to_user_id': 'emp003',
             'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': 'Initial text',
             'improvements_text': 'Initial improvements'
         }
@@ -118,7 +118,7 @@ class TestIndividualFeedbackWorkflow:
         updated_data = {
             'to_user_id': 'emp003',
             'strengths': ['tenet4', 'tenet3', 'tenet2'],
-            'improvements': ['tenet1', 'tenet2'],
+            'improvements': ['tenet1', 'tenet5'],
             'strengths_text': 'Updated text',
             'improvements_text': 'Updated improvements'
         }
@@ -146,7 +146,7 @@ class TestIndividualFeedbackWorkflow:
         feedback_data = {
             'to_user_id': 'emp003',
             'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': 'Test',
             'improvements_text': 'Test'
         }
@@ -232,7 +232,7 @@ class TestManagerWorkflow:
         feedback1 = {
             'to_user_id': 'emp002',
             'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': 'Feedback 1',
             'improvements_text': 'Improvements 1'
         }
@@ -246,7 +246,7 @@ class TestManagerWorkflow:
         feedback2 = {
             'to_user_id': 'emp002',
             'strengths': ['tenet1', 'tenet3', 'tenet4'],
-            'improvements': ['tenet2', 'tenet1'],
+            'improvements': ['tenet2', 'tenet5'],
             'strengths_text': 'Feedback 2',
             'improvements_text': 'Improvements 2'
         }
@@ -283,7 +283,7 @@ class TestCrossWorkflowIntegration:
         feedback = {
             'to_user_id': 'emp001',
             'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': 'Test',
             'improvements_text': 'Test'
         }
@@ -299,7 +299,7 @@ class TestCrossWorkflowIntegration:
         mgr_feedback = {
             'team_member_uid': 'emp001',
             'selected_strengths': ['tenet1', 'tenet2', 'tenet3'],  # tenet1 same as peer
-            'selected_improvements': ['tenet4', 'tenet2'],  # tenet4 same as peer
+            'selected_improvements': ['tenet4', 'tenet5'],  # tenet4 same as peer
             'feedback_text': 'Manager input'
         }
         response = client.post('/api/manager-feedback',
@@ -328,7 +328,7 @@ class TestDataConsistency:
         feedback1 = {
             'to_user_id': 'emp003',
             'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': 'Test 1',
             'improvements_text': 'Test 1'
         }
@@ -343,7 +343,7 @@ class TestDataConsistency:
         feedback2 = {
             'to_user_id': 'emp003',
             'strengths': ['tenet2', 'tenet3', 'tenet4'],
-            'improvements': ['tenet1', 'tenet2'],
+            'improvements': ['tenet1', 'tenet5'],
             'strengths_text': 'Test 2',
             'improvements_text': 'Test 2'
         }
@@ -396,7 +396,7 @@ class TestDataConsistency:
         invalid_feedback = {
             'to_user_id': 'emp002',
             'strengths': ['tenet1'],  # Only 1, need 3
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': 'Invalid',
             'improvements_text': 'Invalid'
         }
@@ -424,7 +424,7 @@ class TestEdgeCases:
         feedback = {
             'to_user_id': 'emp001',
             'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': 'External feedback',
             'improvements_text': 'External improvements'
         }
@@ -451,7 +451,7 @@ class TestEdgeCases:
         feedback = {
             'to_user_id': 'nonexistent_person',
             'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': 'Test',
             'improvements_text': 'Test'
         }
@@ -471,7 +471,7 @@ class TestEdgeCases:
         feedback = {
             'to_user_id': 'emp002',
             'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': '',
             'improvements_text': ''
         }

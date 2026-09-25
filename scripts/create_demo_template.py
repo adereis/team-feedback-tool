@@ -28,9 +28,9 @@ from models import init_db, Base
 from create_sample_data import (
     get_small_team_data,
     write_orgchart_csv,
-    generate_sample_feedback,
-    generate_manager_feedback,
-    generate_workday_xlsx
+    generate_workday_xlsx,
+    load_sample_tenet_ids,
+    pick_manager_selection,
 )
 from import_orgchart import import_orgchart
 
@@ -301,6 +301,7 @@ def generate_manager_feedback(people, db_path='feedback.db'):
     from models import init_db, Feedback, ManagerFeedback
 
     session = init_db(db_path)
+    tenet_ids = load_sample_tenet_ids()
     session.query(ManagerFeedback).delete()
 
     managers = [p for p in people if not p['manager_uid']]
@@ -331,12 +332,8 @@ def generate_manager_feedback(people, db_path='feedback.db'):
                 for i in fb.get_improvements():
                     improvement_counts[i] += 1
 
-            top_strengths = sorted(strength_counts.keys(),
-                                   key=lambda x: strength_counts[x],
-                                   reverse=True)[:random.choice([2, 3])]
-            top_improvements = sorted(improvement_counts.keys(),
-                                      key=lambda x: improvement_counts[x],
-                                      reverse=True)[:random.choice([1, 2])]
+            top_strengths, top_improvements = pick_manager_selection(
+                strength_counts, improvement_counts, tenet_ids)
 
             feedback_text = random.choice(manager_texts).format(name=member['name'])
 

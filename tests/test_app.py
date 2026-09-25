@@ -239,7 +239,7 @@ class TestFeedbackAPI:
         feedback_data = {
             'to_user_id': 'emp001',
             'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': 'Great collaboration',
             'improvements_text': 'Could improve testing'
         }
@@ -260,7 +260,7 @@ class TestFeedbackAPI:
 
         assert feedback is not None
         assert feedback.get_strengths() == ['tenet1', 'tenet2', 'tenet3']
-        assert feedback.get_improvements() == ['tenet4', 'tenet1']
+        assert feedback.get_improvements() == ['tenet4', 'tenet5']
 
     def test_save_feedback_updates_existing(self, client, db_session):
         """Test updating existing feedback via API"""
@@ -270,7 +270,7 @@ class TestFeedbackAPI:
         updated_data = {
             'to_user_id': 'emp002',
             'strengths': ['tenet4', 'tenet3', 'tenet2'],
-            'improvements': ['tenet1', 'tenet4'],
+            'improvements': ['tenet1', 'tenet5'],
             'strengths_text': 'Updated strengths',
             'improvements_text': 'Updated improvements'
         }
@@ -295,7 +295,7 @@ class TestFeedbackAPI:
         feedback_data = {
             'to_user_id': 'emp001',
             'strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'improvements': ['tenet4', 'tenet1'],
+            'improvements': ['tenet4', 'tenet5'],
             'strengths_text': 'Test',
             'improvements_text': 'Test'
         }
@@ -561,7 +561,7 @@ class TestManagerFeedbackAPI:
         feedback_data = {
             'team_member_uid': 'emp002',
             'selected_strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'selected_improvements': ['tenet4', 'tenet1'],
+            'selected_improvements': ['tenet4', 'tenet5'],
             'feedback_text': 'Strong performer this quarter'
         }
 
@@ -590,7 +590,7 @@ class TestManagerFeedbackAPI:
         updated_data = {
             'team_member_uid': 'emp001',
             'selected_strengths': ['tenet3', 'tenet4', 'tenet2'],
-            'selected_improvements': ['tenet1', 'tenet2'],
+            'selected_improvements': ['tenet1', 'tenet5'],
             'feedback_text': 'Updated feedback text'
         }
 
@@ -816,12 +816,36 @@ class TestTenetSelectionRule:
         (['t1', 't2', 't3'], ['t4', 't5', 't6', 't7'], False),
         ('abc', ['t4', 't5'], False),            # a 3-char string is not 3 tenets
         (['t1', 't2', 3], ['t4', 't5'], False),  # IDs are strings
+        (['t1', 't2', 't3'], ['t4', 't1'], False),  # strength and improvement at once
+        (['t1', 't1', 't1'], ['t4', 't5'], False),  # repeated within one list
+        (['t1', 't2', 't3'], ['t4', 't4'], False),
     ])
     def test_tenet_selection_error(self, strengths, improvements, valid):
         """Test which selections the rule accepts"""
         from app import tenet_selection_error
 
         assert (tenet_selection_error(strengths, improvements) is None) == valid
+
+    @pytest.mark.parametrize('path,payload', [
+        ('/api/feedback', {'to_user_id': 'emp003', 'strengths': ['tenet1', 'tenet2', 'tenet3'],
+                           'improvements': ['tenet4', 'tenet1']}),
+        ('/api/manager-feedback', {'team_member_uid': 'emp003',
+                                   'selected_strengths': ['tenet1', 'tenet2', 'tenet3'],
+                                   'selected_improvements': ['tenet4', 'tenet1']}),
+    ])
+    def test_overlapping_selection_rejected_and_not_saved(self, client, db_session, path, payload):
+        """Test a tenet picked as both strength and improvement is refused, not stored"""
+        # emp003 has no feedback from emp001 or mgr001 in the fixture
+        with client.session_transaction() as sess:
+            sess['user_id'] = 'emp001'
+            sess['manager_uid'] = 'mgr001'
+
+        response = client.post(path, json=payload)
+
+        assert response.status_code == 400
+        assert response.get_json()['error'] == 'A tenet can be selected only once'
+        assert db_session.query(Feedback).filter_by(to_user_id='emp003', from_user_id='emp001').count() == 0
+        assert db_session.query(ManagerFeedback).filter_by(team_member_uid='emp003').count() == 0
 
     def test_peer_and_manager_apis_reject_the_same_selection(self, client):
         """Test both APIs answer an incomplete selection the same way"""

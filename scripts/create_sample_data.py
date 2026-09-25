@@ -37,6 +37,8 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from models import init_db, Feedback, ManagerFeedback
 
 SAMPLES_DIR = 'samples'
+TENETS_SAMPLE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                             'samples', 'tenets-sample.json')
 
 try:
     import openpyxl
@@ -326,12 +328,36 @@ def generate_sample_feedback(people):
     return feedback_list
 
 
+def load_sample_tenet_ids():
+    """IDs of the active tenets in samples/tenets-sample.json."""
+    with open(TENETS_SAMPLE, 'r') as f:
+        tenets_data = json.load(f)
+    return [t['id'] for t in tenets_data['tenets'] if t.get('active', True)]
+
+
+def pick_manager_selection(strength_counts, improvement_counts, tenet_ids):
+    """Choose manager picks that follow the tenet rule (app.tenet_selection_error).
+
+    The 3 tenets peers cited most as strengths, then the 2-3 cited most as
+    improvements among the rest, so no tenet is picked twice. Tenets nobody
+    cited fill in when peers named too few.
+    """
+    def most_cited(counts, candidates):
+        return sorted(candidates, key=lambda t: counts.get(t, 0), reverse=True)
+
+    strengths = most_cited(strength_counts, tenet_ids)[:3]
+    others = [t for t in tenet_ids if t not in strengths]
+    improvements = most_cited(improvement_counts, others)[:random.choice([2, 3])]
+    return strengths, improvements
+
+
 def generate_manager_feedback(people):
     """
     Generate manager feedback records with highlighted tenets and commentary.
     Analyzes peer feedback to select top tenets for each team member.
     """
     session = init_db()
+    tenet_ids = load_sample_tenet_ids()
 
     # Clear existing manager feedback
     session.query(ManagerFeedback).delete()
@@ -376,13 +402,8 @@ def generate_manager_feedback(people):
                 for i in fb.get_improvements():
                     improvement_counts[i] += 1
 
-            # Select top 2-3 strengths and 1-2 improvements
-            top_strengths = sorted(strength_counts.keys(),
-                                   key=lambda x: strength_counts[x],
-                                   reverse=True)[:random.choice([2, 3])]
-            top_improvements = sorted(improvement_counts.keys(),
-                                      key=lambda x: improvement_counts[x],
-                                      reverse=True)[:random.choice([1, 2])]
+            top_strengths, top_improvements = pick_manager_selection(
+                strength_counts, improvement_counts, tenet_ids)
 
             # Generate manager commentary
             feedback_text = random.choice(manager_texts).format(name=member['name'])

@@ -57,6 +57,13 @@ def test_tenets_file():
                 "active": True
             },
             {
+                "id": "tenet5",
+                "name": "Test Tenet 5",
+                "category": "Testing",
+                "description": "Fifth test tenet (3 strengths + 2 improvements need 5)",
+                "active": True
+            },
+            {
                 "id": "inactive_tenet",
                 "name": "Inactive Tenet",
                 "category": "Testing",
