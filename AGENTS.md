@@ -9,12 +9,13 @@
 | File | Purpose |
 |------|---------|
 | `app.py` | Flask routes, API endpoints, session management |
-| `models.py` | SQLAlchemy models (Person, Feedback, ManagerFeedback) |
+| `models.py` | SQLAlchemy models (Person, Feedback, ManagerFeedback, WorkdayFeedback) |
 | `demo_mode.py` | Demo mode session isolation (per-visitor SQLite databases) |
-| `import_orgchart.py` | Excel orgchart import |
-| `create_sample_data.py` | Generate fictitious test data (`--demo` for full setup) |
-| `create_demo_template.py` | Generate demo template database |
-| `conftest.py` | Pytest fixtures |
+| `scripts/import_orgchart.py` | Orgchart CSV import (CLI) |
+| `scripts/import_workday.py` | Workday XLSX import; column mapping from root `workday_config.json` |
+| `scripts/create_sample_data.py` | Generate fictitious test data (`--demo` for full setup) |
+| `scripts/create_demo_template.py` | Generate demo template database |
+| `tests/conftest.py` | Pytest fixtures |
 | `Dockerfile` | Container build for OpenShift/Kubernetes |
 | `gunicorn.conf.py` | Production WSGI server config (port 8080) |
 
@@ -68,6 +69,7 @@ calls must use `API_PREFIX`, never a hard-coded `/api/...`.
 
 ### Never Change Without Full Audit
 - Tenet validation (3 strengths, 2-3 improvements) - update all validation points
+  (peer feedback API enforces it; manager feedback API only drops overlaps)
 - Session keys (`user_id`, `manager_uid`) - update all references
 - Auto-save debounce timing (`DELAY_MS` in `base.html`)
 
@@ -176,12 +178,12 @@ Test naming: `test_[feature]_[scenario]_[expected]`
 ### New API Endpoint
 1. Add route to `app.py` with try/except, JSON responses
 2. Return `{"success": bool}` or `{"success": false, "error": "msg"}`
-3. Add tests to `test_app.py`
+3. Add tests to `tests/test_app.py` (hosted/demo behavior: `tests/test_modes.py`)
 
 ### New Database Field
 1. Update model in `models.py`
 2. Migration: dev = delete DB & reimport; prod = ALTER TABLE
-3. Update `import_orgchart.py` if from orgchart
+3. Update `scripts/import_orgchart.py` if from orgchart
 4. Add tests, update UI if user-facing
 
 ### New Template

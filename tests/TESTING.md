@@ -4,10 +4,11 @@ Comprehensive testing documentation for the Team Feedback Tool project.
 
 ## Overview
 
-This project uses **pytest** for testing with three main test suites:
+This project uses **pytest** for testing with these test suites:
 - **test_models.py**: Unit tests for database models (Person, Feedback, ManagerFeedback)
 - **test_app.py**: Integration tests for Flask routes and API endpoints
 - **test_integration.py**: End-to-end workflow tests
+- **test_workday.py**: Workday XLSX import, column detection and `[TENETS]` parsing
 - **test_modes.py**: Hosted-mode route guards, demo sandbox endpoints and session cookies
 
 ## Quick Start
