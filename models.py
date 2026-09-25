@@ -198,6 +198,14 @@ class WorkdayFeedback(Base):
     def parse_structured_feedback(self):
         """Parse feedback text for [TENETS] marker and extract structured data.
 
+        Reads the text that static/workday_format.js produces. A manager's copy
+        (WorkdayFormat.manager) has one overall comment under a "Manager's
+        Feedback:" heading instead of a comment per section; there is no column
+        for it, so it is kept, heading included, as the improvements comment.
+        Deliberately left as is: it is unverified whether Workday's export even
+        returns a manager's own feedback, and if it does, the manager's picks
+        would count twice (here and in ManagerFeedback).
+
         Returns True if structured feedback was found and parsed.
         """
         if not self.feedback:

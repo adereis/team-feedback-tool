@@ -97,3 +97,14 @@ class TestManagerCopyFormat:
 
         assert entry.get_strengths() == ['own', 'craft', 'clarity']
         assert entry.get_improvements() == ['delegate', 'plan']
+
+    def test_manager_copy_comment_kept_as_improvements_text(self):
+        """Test the overall comment survives import, labeled (no column of its own)"""
+        entry = parse(render('manager', {
+            'strengths': ['own', 'craft', 'clarity'],
+            'improvements': ['delegate', 'plan'],
+            'feedback_text': 'Great quarter overall.',
+        }))
+
+        assert entry.strengths_text is None
+        assert entry.improvements_text == "Manager's Feedback:\nGreat quarter overall."
