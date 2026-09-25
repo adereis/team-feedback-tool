@@ -47,10 +47,11 @@
 - **Hosted mode** (`HOSTED_MODE=true`): Ephemeral DB, use `/feedback?for=Name`
 - **Demo mode** (route-based): Access via `/demo/*` routes, session-isolated fictitious data
 
-A route that serves both the local DB and the demo sandbox registers both URLs,
-opens its DB with `get_db()` and wraps the response in `respond()` (sets the
-demo session cookie under `/demo`). Front-end calls must use `API_PREFIX`,
-never a hard-coded `/api/...`.
+`@local_only` returns 403 in hosted mode for every non-demo page and `/api/*`
+route (JSON body for API routes). A route that serves both the local DB and the
+demo sandbox registers both URLs, opens its DB with `get_db()` and wraps the
+response in `respond()` (sets the demo session cookie under `/demo`). Front-end
+calls must use `API_PREFIX`, never a hard-coded `/api/...`.
 
 ### Naming Conventions
 - `user_id` = individual contributor
@@ -97,6 +98,7 @@ the confirmation callback.
 ### API Endpoints
 ```python
 @app.route('/api/endpoint', methods=['POST'])
+@local_only  # 403 in hosted mode
 def endpoint():
     data = request.get_json()
     if not data.get('required_field'):

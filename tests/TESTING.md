@@ -8,7 +8,7 @@ This project uses **pytest** for testing with three main test suites:
 - **test_models.py**: Unit tests for database models (Person, Feedback, ManagerFeedback)
 - **test_app.py**: Integration tests for Flask routes and API endpoints
 - **test_integration.py**: End-to-end workflow tests
-- **test_modes.py**: Demo sandbox endpoints
+- **test_modes.py**: Hosted-mode route guards and demo sandbox endpoints
 
 ## Quick Start
 

@@ -1,8 +1,9 @@
 """
-Tests for demo mode request handling.
+Tests for hosted mode and demo mode request handling.
 
 Tests cover:
-- Demo requests are served from the visitor's sandbox
+- Hosted mode blocks the local-only JSON API but keeps the stateless form
+- Demo requests are served from the visitor's sandbox, even in hosted mode
 """
 
 import json
@@ -18,6 +19,12 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import demo_mode
 from models import WorkdayFeedback
+
+
+@pytest.fixture
+def hosted(monkeypatch):
+    """Run the app as the public hosted deployment."""
+    monkeypatch.setattr('app.HOSTED_MODE', True)
 
 
 @pytest.fixture
@@ -38,6 +45,37 @@ def demo_db(tmp_path, monkeypatch):
     session.close()
 
     monkeypatch.setattr('app.get_demo_db', Session)
+
+
+class TestHostedMode:
+    """Tests for HOSTED_MODE route guards."""
+
+    @pytest.mark.parametrize('method,path', [
+        ('get', '/api/db-stats'),
+        ('post', '/api/feedback'),
+        ('post', '/api/manager-feedback'),
+        ('post', '/api/import-orgchart'),
+        ('get', '/api/workday-feedback/recipients'),
+    ])
+    def test_hosted_api_request_returns_json_403(self, client, hosted, method, path):
+        """Test that the local DB API is unreachable on the public deployment."""
+        response = getattr(client, method)(path, json={})
+
+        assert response.status_code == 403
+        data = json.loads(response.data)
+        assert data['success'] is False
+
+    def test_hosted_feedback_form_still_served(self, client, hosted):
+        """Test that the stateless feedback form keeps working when hosted."""
+        response = client.get('/feedback?for=Robin%20Rollback')
+
+        assert response.status_code == 200
+
+    def test_hosted_demo_api_request_allowed(self, client, hosted, demo_db):
+        """Test that demo endpoints stay available when hosted."""
+        response = client.get('/demo/api/workday-feedback/recipients')
+
+        assert response.status_code == 200
 
 
 class TestDemoWorkdayApi:

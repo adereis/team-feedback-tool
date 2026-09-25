@@ -60,13 +60,20 @@ def respond(response):
 
 
 def local_only(f):
-    """Decorator to block routes in hosted mode (only accessible locally)."""
+    """Decorator to block routes in hosted mode (only accessible locally).
+
+    Demo requests pass through: they only touch the visitor's own sandbox.
+    API routes get a JSON error so fetch() callers can parse it.
+    """
     @wraps(f)
     def decorated_function(*args, **kwargs):
-        if HOSTED_MODE:
+        if HOSTED_MODE and not is_demo_request():
+            message = "This feature is only available when running locally."
+            if request.path.startswith('/api/'):
+                return jsonify({"success": False, "error": message}), 403
             return render_template('error.html',
                 error_title="Not Available",
-                error_message="This feature is only available when running locally.",
+                error_message=message,
                 show_demo_link=True
             ), 403
         return f(*args, **kwargs)
@@ -119,6 +126,7 @@ def feedback_for_workday():
 
 
 @app.route('/api/db-stats')
+@local_only
 def get_db_stats():
     """Get database statistics for home page"""
     session = init_db()
@@ -142,6 +150,7 @@ def get_db_stats():
 
 
 @app.route('/api/import-orgchart', methods=['POST'])
+@local_only
 def import_orgchart_web():
     """Import orgchart CSV via web interface"""
     if 'file' not in request.files:
@@ -321,6 +330,7 @@ def individual_switch():
 
 
 @app.route('/api/set-user', methods=['POST'])
+@local_only
 def set_user():
     """Set current user in session - allows custom user IDs not in database"""
     data = request.get_json()
@@ -336,6 +346,7 @@ def set_user():
 
 
 @app.route('/api/feedback', methods=['POST'])
+@local_only
 def save_feedback():
     """Save individual feedback"""
     data = request.get_json()
@@ -393,6 +404,7 @@ def save_feedback():
 
 
 @app.route('/api/feedback/<to_user_id>', methods=['DELETE'])
+@local_only
 def delete_feedback(to_user_id):
     """Delete feedback for a specific person"""
     from_user_id = flask_session.get('user_id')
@@ -524,6 +536,7 @@ def manager_dashboard():
 
 
 @app.route('/api/team-butterfly-data')
+@local_only
 def get_team_butterfly_data():
     """Get aggregated butterfly chart data for entire team.
 
@@ -646,6 +659,7 @@ def manager_switch():
 
 
 @app.route('/api/set-manager', methods=['POST'])
+@local_only
 def set_manager():
     """Set current manager in session"""
     data = request.get_json()
@@ -694,6 +708,7 @@ def import_workday_xlsx_route():
 
 @app.route('/api/workday-feedback')
 @app.route('/demo/api/workday-feedback')
+@local_only
 def get_workday_feedback():
     """Get Workday feedback with optional date filtering.
 
@@ -763,6 +778,7 @@ def get_workday_feedback():
 
 @app.route('/api/workday-feedback/recipients')
 @app.route('/demo/api/workday-feedback/recipients')
+@local_only
 def get_workday_recipients():
     """Get list of unique recipients with feedback counts"""
     session = get_db()
@@ -793,6 +809,7 @@ def get_workday_recipients():
 
 @app.route('/api/workday-feedback/date-ranges')
 @app.route('/demo/api/workday-feedback/date-ranges')
+@local_only
 def get_date_ranges():
     """Get available date ranges for filtering"""
     session = get_db()
@@ -991,6 +1008,7 @@ def view_report(user_id=None):
 
 
 @app.route('/api/manager-feedback', methods=['POST'])
+@local_only
 def save_manager_feedback():
     """Save manager's own feedback.
 
