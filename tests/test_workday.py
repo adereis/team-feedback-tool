@@ -167,6 +167,53 @@ Some text here."""
         assert feedback.is_structured == 1
         assert json.loads(feedback.strengths) == ['a', 'b', 'c']
 
+    def test_parse_marker_at_bottom_extracts_comments(self):
+        """Test the current copy format: readable sections first, marker last."""
+        feedback_text = """Strengths:
+• Test Tenet 1
+• Test Tenet 2
+• Test Tenet 3
+
+Drives incidents to closure.
+
+Areas for Improvement:
+• Test Tenet 4
+• Test Tenet 5
+
+Could delegate more.
+
+[TENETS]
+Strengths: tenet1, tenet2, tenet3
+Improvements: tenet4, tenet5
+[/TENETS]"""
+
+        feedback = WorkdayFeedback(about='John Doe', from_name='Jane Smith', feedback=feedback_text)
+
+        assert feedback.parse_structured_feedback() is True
+        assert feedback.get_strengths() == ['tenet1', 'tenet2', 'tenet3']
+        assert feedback.get_improvements() == ['tenet4', 'tenet5']
+        assert feedback.strengths_text == 'Drives incidents to closure.'
+        assert feedback.improvements_text == 'Could delegate more.'
+
+    def test_parse_sections_without_comments_leaves_text_empty(self):
+        """Test that the tenet bullet list alone is not taken as a comment."""
+        feedback_text = """Strengths:
+• Test Tenet 1
+
+Areas for Improvement:
+• Test Tenet 4
+
+[TENETS]
+Strengths: tenet1
+Improvements: tenet4
+[/TENETS]"""
+
+        feedback = WorkdayFeedback(about='John Doe', from_name='Jane Smith', feedback=feedback_text)
+        feedback.parse_structured_feedback()
+
+        assert feedback.strengths_text is None
+        assert feedback.improvements_text is None
+
     def test_unique_constraint_prevents_duplicates(self, workday_session):
         """Test that unique constraint prevents duplicate entries."""
         from sqlalchemy.exc import IntegrityError

@@ -214,27 +214,41 @@ class WorkdayFeedback(Base):
         self.strengths = json.dumps(strength_ids)
         self.improvements = json.dumps(improvement_ids)
 
-        # Extract text sections after the marker
-        after_marker = self.feedback[match.end():].strip()
+        # The human-readable sections sit before the marker in the current copy
+        # format and after it in older exports, so search the text without it.
+        body = self.feedback[:match.start()] + self.feedback[match.end():]
 
         # Look for "Strengths:" and "Areas for Improvement:" sections
         strengths_match = re.search(
             r'Strengths?:\s*(.*?)(?=Areas?\s+for\s+Improvement|$)',
-            after_marker,
+            body,
             re.IGNORECASE | re.DOTALL
         )
         improvements_match = re.search(
             r'Areas?\s+for\s+Improvement:\s*(.*?)$',
-            after_marker,
+            body,
             re.IGNORECASE | re.DOTALL
         )
 
         if strengths_match:
-            self.strengths_text = strengths_match.group(1).strip()
+            self.strengths_text = self._section_comment(strengths_match.group(1))
         if improvements_match:
-            self.improvements_text = improvements_match.group(1).strip()
+            self.improvements_text = self._section_comment(improvements_match.group(1))
 
         return True
+
+    @staticmethod
+    def _section_comment(section):
+        """Return a section's free-text comment, without the tenet bullet list.
+
+        The copy format lists the selected tenet names as "• Name" lines right
+        under each heading; those duplicate the tenet IDs, so only the text
+        that follows them is the giver's comment.
+        """
+        lines = section.strip().splitlines()
+        while lines and lines[0].lstrip().startswith('•'):
+            lines.pop(0)
+        return '\n'.join(lines).strip() or None
 
     def get_strengths(self):
         """Parse strengths JSON array"""
