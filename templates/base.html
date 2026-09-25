@@ -387,9 +387,11 @@
         .save-indicator.error {
             color: #dc3545;
         }
-
-        {% block extra_styles %}{% endblock %}
     </style>
+    {# Page styles: each page brings its own <style> element. This block must
+       stay outside the one above; nested there, the stray "<style>" text
+       invalidates the page's first CSS rule. #}
+    {% block extra_styles %}{% endblock %}
 
     <!-- Copy-for-Workday text format (WorkdayFormat.peer / .manager) -->
     <script src="{{ url_for('static', filename='workday_format.js') }}"></script>
