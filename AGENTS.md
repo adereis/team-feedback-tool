@@ -192,6 +192,11 @@ def endpoint():
   manager's picks (`MemberFeedback.employee_view()`). Do not "fix" this to
   match the report page.
 - WeasyPrint for HTML-to-PDF, separate `*_pdf.html` templates (no JS)
+- Order: title block, the manager's picks named in words plus their text,
+  the chart, then anonymous peer comments. Every page's margin boxes carry
+  the person's name (CSS `string-set` from the `h1`, so no user text is pasted
+  into CSS), "Confidential" and "Page N of M"
+- `tests/test_pdf.py` reads the PDF back with `pdftotext -layout` (poppler)
 - Chart via matplotlib as a base64 SVG (`generate_butterfly_chart_image()` in
   `app.py`), laid out like the web chart; glyphs are paths, so it needs no fonts
 - Filename: `{Type}_{Name}_{YYYYMMDD}.pdf`

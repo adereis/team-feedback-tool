@@ -1215,7 +1215,9 @@ def export_pdf_report(user_id):
     manager_selected_improvements = manager_feedback.get_selected_improvements() if manager_feedback else []
 
     # Employee view: no Workday feedback (see docstring)
-    butterfly_data = member.employee_view().butterfly(load_tenets())
+    tenets = load_tenets()
+    butterfly_data = member.employee_view().butterfly(tenets)
+    tenet_names = {t['id']: t['name'] for t in tenets}
 
     # Generate butterfly chart image
     chart_image = generate_butterfly_chart_image(
@@ -1237,8 +1239,12 @@ def export_pdf_report(user_id):
         chart_image=chart_image,
         strengths_comments=strengths_comments,
         improvements_comments=improvements_comments,
+        # The manager's picks by name, in the order picked: the PDF states them
+        # in words, not only as highlighted bars
+        manager_strengths=[tenet_names.get(t, t) for t in manager_selected_strengths],
+        manager_improvements=[tenet_names.get(t, t) for t in manager_selected_improvements],
         manager_feedback_text=(manager_feedback.feedback_text if manager_feedback else ''),
-        generation_date=datetime.now().strftime('%B %d, %Y at %I:%M %p')
+        generation_date=datetime.now().strftime('%B %d, %Y')
     )
 
     # Convert to PDF (lazy import - requires system libraries)
