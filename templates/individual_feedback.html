@@ -202,6 +202,15 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
         </select>
     </div>
 
+    <div id="discardPanel" class="warning-message" hidden>
+        <strong id="discardText"></strong><br>
+        Picks and comments save only once there are 3 strengths and 2 or 3 improvements.
+        <div style="margin-top: 10px;">
+            <button type="button" class="btn btn-danger btn-small" id="discardBtn">Discard changes</button>
+            <button type="button" class="btn btn-secondary btn-small" id="keepEditingBtn">Keep editing</button>
+        </div>
+    </div>
+
     <div id="feedbackForm" style="display: none;">
         <div id="feedbackChecklist" class="feedback-checklist">
             <strong data-check="title"></strong>
@@ -210,6 +219,9 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
                 <li data-check="improvements"></li>
             </ul>
         </div>
+        <p id="unsavedNote" class="warning-message" hidden>
+            Not saved yet: your picks and comments save once you have 3 strengths and 2 or 3 improvements.
+        </p>
 
         <h3>Strengths (Select exactly 3)</h3>
         <div id="strengthsSelector" class="tenet-selector"></div>
@@ -316,13 +328,75 @@ const picker = TenetPicker.create({
     improvementsEl: document.getElementById('improvementsSelector'),
     checklistEl: document.getElementById('feedbackChecklist'),
     completeTitle: '✓ Ready: saves automatically',
-    onChange: scheduleAutoSave
+    onChange: onFormEdit
+});
+
+document.getElementById('strengthsText').addEventListener('input', onFormEdit);
+document.getElementById('improvementsText').addEventListener('input', onFormEdit);
+
+function onFormEdit() {
+    scheduleAutoSave();
+    updateUnsavedNote();
+}
+
+// Drafts: the API accepts only a complete selection, so picks and comments
+// made before that exist only on this page. Say so while it lasts, and never
+// let a colleague switch, "Done" or leaving the page drop them silently.
+function savedFeedbackFor(userId) {
+    return existingFeedback.find(f => f.to_user_id === userId) ||
+        { strengths: [], improvements: [], strengths_text: '', improvements_text: '' };
+}
+
+function sameFeedback(a, b) {
+    const ids = list => [...list].sort().join(',');
+    return ids(a.strengths) === ids(b.strengths) && ids(a.improvements) === ids(b.improvements) &&
+        (a.strengths_text || '') === (b.strengths_text || '') &&
+        (a.improvements_text || '') === (b.improvements_text || '');
+}
+
+function hasUnsavedDraft() {
+    if (!selectedColleague || isValidForSave()) return false;  // valid edits auto-save
+    return !sameFeedback(collectFeedbackData(), savedFeedbackFor(selectedColleague));
+}
+
+function updateUnsavedNote() {
+    document.getElementById('unsavedNote').hidden = !hasUnsavedDraft();
+}
+
+// Ask inline before throwing a draft away; proceed() runs only on "Discard"
+function confirmDiscard(proceed) {
+    const panel = document.getElementById('discardPanel');
+    const person = allPeople.find(p => p.user_id === selectedColleague);
+    document.getElementById('discardText').textContent =
+        `Your changes for ${person ? person.name : selectedColleague} are not saved.`;
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    document.getElementById('discardBtn').onclick = () => { panel.hidden = true; proceed(); };
+    document.getElementById('keepEditingBtn').onclick = () => { panel.hidden = true; };
+}
+
+window.addEventListener('beforeunload', function(event) {
+    if (hasUnsavedDraft()) {
+        event.preventDefault();  // the browser asks before leaving the page
+        event.returnValue = '';
+    }
 });
 
 function selectColleague() {
-    const userId = document.getElementById('colleagueSelect').value;
+    const select = document.getElementById('colleagueSelect');
+    const target = select.value;
+    if (hasUnsavedDraft()) {
+        select.value = selectedColleague;  // stay put until the person decides
+        confirmDiscard(() => { select.value = target; openColleague(target); });
+        return;
+    }
+    openColleague(target);
+}
+
+function openColleague(userId) {
+    document.getElementById('discardPanel').hidden = true;
     if (!userId) {
-        document.getElementById('feedbackForm').style.display = 'none';
+        closeForm();
         return;
     }
 
@@ -335,10 +409,7 @@ function selectColleague() {
     document.getElementById('strengthsText').value = existing ? existing.strengths_text || '' : '';
     document.getElementById('improvementsText').value = existing ? existing.improvements_text || '' : '';
     document.getElementById('feedbackForm').style.display = 'block';
-
-    // Add auto-save listeners to textareas
-    document.getElementById('strengthsText').addEventListener('input', scheduleAutoSave);
-    document.getElementById('improvementsText').addEventListener('input', scheduleAutoSave);
+    updateUnsavedNote();
 }
 
 // Collect feedback data for saving (a snapshot, detached from later edits)
@@ -495,26 +566,19 @@ function copyFeedbackForWorkday(index) {
 }
 
 function cancelFeedback() {
-    // Check if there's any data entered
-    const selection = picker.get();
-    const hasAnyData = selection.strengths.length > 0 ||
-                       selection.improvements.length > 0 ||
-                       document.getElementById('strengthsText').value.trim() !== '' ||
-                       document.getElementById('improvementsText').value.trim() !== '';
-
-    // If there's data, validate it
-    if (hasAnyData) {
-        if (!TenetPicker.status(selection).complete) {
-            // Keep form open, checklist shows what's missing
-            return;
-        }
+    if (hasUnsavedDraft()) {
+        confirmDiscard(closeForm);
+        return;
     }
+    closeForm();
+}
 
-    // Either no data or valid - close the form
+function closeForm() {
     document.getElementById('colleagueSelect').value = '';
     document.getElementById('feedbackForm').style.display = 'none';
     selectedColleague = null;
     picker.set({ strengths: [], improvements: [] });
+    updateUnsavedNote();
 
     // Scroll to top of feedback list
     document.querySelector('.feedback-list').scrollIntoView({ behavior: 'smooth' });
