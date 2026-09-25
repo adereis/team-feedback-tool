@@ -524,8 +524,7 @@
                 <a href="{{ url_for('index') }}" {% if request.endpoint == 'index' %}class="active"{% endif %}>Home</a>
                 <a href="{{ url_for('feedback_for_workday') }}" {% if request.endpoint == 'feedback_for_workday' %}class="active"{% endif %}>Give Feedback</a>
                 {% else %}
-                {# Shared routes are registered as 'local' at / and 'demo' at /demo #}
-                {% set views = 'demo' if demo_mode else 'local' %}
+                {# views: the shared routes' blueprint for this mode, 'local' or 'demo' #}
                 <a href="{{ url_for('demo_index' if demo_mode else 'index') }}" {% if request.endpoint in ['index', 'demo_index'] %}class="active"{% endif %}>Home</a>
                 <a href="{{ url_for(views ~ '.individual_feedback') }}" {% if request.endpoint == views ~ '.individual_feedback' %}class="active"{% endif %}>Individual Feedback</a>
                 <a href="{{ url_for(views ~ '.manager_dashboard') }}" {% if request.endpoint in [views ~ '.manager_dashboard', views ~ '.view_report'] %}class="active"{% endif %}>Manager Dashboard</a>
@@ -539,9 +538,10 @@
     </div>
 
     <script>
-    // Demo mode API prefix - use /demo/api for demo mode, /api for normal mode
-    const API_PREFIX = {{ 'true' if demo_mode else 'false' }} ? '/demo/api' : '/api';
-    const IS_DEMO_MODE = {{ 'true' if demo_mode else 'false' }};
+    // Root of the shared routes: '' locally, '/demo' in demo mode. Build URLs from
+    // it (never hard-code '/demo'); in Jinja use url_for(views ~ '.endpoint').
+    const VIEWS_ROOT = {{ views_root | tojson }};
+    const API_PREFIX = VIEWS_ROOT + '/api';
 
     // Force two-column grid for tenet selectors (CSS specificity workaround)
     (function() {

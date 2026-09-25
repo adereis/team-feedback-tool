@@ -362,7 +362,7 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
             </svg>
             Quick Feedback (no orgchart)
         </a>
-        <a href="/manager" class="btn-large btn-secondary">
+        <a href="{{ url_for('local.manager_dashboard') }}" class="btn-large btn-secondary">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
             </svg>
@@ -380,13 +380,13 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
         <div class="card workflow-card" style="background: #e7f3ff; margin-bottom: 0;">
             <h3>Provide Feedback</h3>
             <p class="workflow-steps">Select tenets and provide feedback for colleagues, then copy to Workday.</p>
-            <a href="/individual" class="btn">Give Feedback</a>
+            <a href="{{ url_for('local.individual_feedback') }}" class="btn">Give Feedback</a>
         </div>
 
         <div class="card workflow-card" style="background: #fff3e0; margin-bottom: 0;">
             <h3>Manager Dashboard</h3>
             <p class="workflow-steps">Import Workday feedback, review reports, add highlights, export PDFs.</p>
-            <a href="/manager" class="btn" style="background: #ff9800;">Access Manager Tools</a>
+            <a href="{{ url_for('local.manager_dashboard') }}" class="btn" style="background: #ff9800;">Access Manager Tools</a>
         </div>
     </div>
 

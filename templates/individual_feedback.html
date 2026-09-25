@@ -241,7 +241,7 @@
                 {{ current_user.user_id }}
             {% endif %}
         </div>
-        <a href="{% if demo_mode %}/demo{% endif %}/individual/switch" style="color: #667eea; text-decoration: none; font-size: 13px;">Switch User</a>
+        <a href="{{ url_for(views ~ '.individual_switch') }}" style="color: #667eea; text-decoration: none; font-size: 13px;">Switch User</a>
     </div>
 </div>
 

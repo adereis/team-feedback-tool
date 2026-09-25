@@ -110,7 +110,7 @@
         <strong>Managing team for:</strong> {{ manager.name }} ({{ manager.user_id }})
         <span style="color: #666; margin-left: 12px;">{{ team_members|length }} direct reports</span>
     </div>
-    <a href="{% if demo_mode %}/demo{% endif %}/manager/switch">Switch Manager</a>
+    <a href="{{ url_for(views ~ '.manager_switch') }}">Switch Manager</a>
 </div>
 
 {% if demo_mode %}
@@ -196,7 +196,7 @@
                 <td>{{ member.job_title or '-' }}</td>
                 <td>{{ total_feedback }} feedback(s)</td>
                 <td>
-                    <a href="{% if demo_mode %}/demo{% endif %}/manager/report/{{ member.user_id }}" class="btn" style="padding: 6px 16px;">Edit Report</a>
+                    <a href="{{ url_for(views ~ '.view_report', user_id=member.user_id) }}" class="btn" style="padding: 6px 16px;">Edit Report</a>
                 </td>
             </tr>
             {% endfor %}

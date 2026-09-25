@@ -12,14 +12,14 @@
 
     {% if show_demo_link %}
     <p style="margin-bottom: 20px;">
-        <a href="/demo" class="btn">Try the Demo</a>
+        <a href="{{ url_for('demo_index') }}" class="btn">Try the Demo</a>
     </p>
     <p style="color: #888; font-size: 14px;">
         Or <a href="https://github.com/adereis/team-feedback-tool" style="color: #667eea;">get the code</a> to run locally.
     </p>
     {% else %}
     <p>
-        <a href="/" class="btn">Back to Home</a>
+        <a href="{{ url_for('index') }}" class="btn">Back to Home</a>
     </p>
     {% endif %}
 </div>

@@ -40,7 +40,9 @@ def demo_db(tmp_path, monkeypatch):
     Session = sessionmaker(bind=engine)
 
     session = Session()
-    session.add(Person(user_id='sbx001', name='Sandbox Person', job_title='Engineer'))
+    session.add(Person(user_id='sbxmgr', name='Sandbox Manager', job_title='Manager'))
+    session.add(Person(user_id='sbx001', name='Sandbox Person', job_title='Engineer',
+                       manager_uid='sbxmgr'))
     session.add(WorkdayFeedback(
         about='Sandbox Person', from_name='Sandbox Giver',
         feedback='Nice work', date=datetime(2025, 11, 15)
@@ -167,6 +169,34 @@ class TestSharedRoutes:
 
         assert b'href="/demo/manager"' in response.data
         assert b'href="/manager"' not in response.data
+
+
+    @pytest.mark.parametrize('prefix,session_key,manager,member', [
+        ('', 'manager_uid', 'mgr001', 'emp001'),
+        ('/demo', 'demo_manager_uid', 'sbxmgr', 'sbx001'),
+    ])
+    def test_rendered_links_use_current_mode(self, client, demo_db, prefix, session_key, manager, member):
+        """Test page links and the JS URL root follow the mode that served the page"""
+        with client.session_transaction() as sess:
+            sess[session_key] = manager
+
+        dashboard = client.get(f'{prefix}/manager').get_data(as_text=True)
+        report = client.get(f'{prefix}/manager/report/{member}').get_data(as_text=True)
+
+        assert f'href="{prefix}/manager/switch"' in dashboard
+        assert f'href="{prefix}/manager/report/{member}"' in dashboard
+        assert f'href="{prefix}/manager">' in report  # back to dashboard
+        assert f'const VIEWS_ROOT = "{prefix}";' in report
+
+    @pytest.mark.parametrize('path,is_demo', [
+        ('/demo', True), ('/demo/manager', True), ('/demonstration', False), ('/manager', False),
+    ])
+    def test_is_demo_request_matches_prefix_exactly(self, app, path, is_demo):
+        """Test only /demo and paths below it count as demo requests"""
+        from app import is_demo_request
+
+        with app.test_request_context(path):
+            assert is_demo_request() is is_demo
 
 
 class TestPdfExportByName:

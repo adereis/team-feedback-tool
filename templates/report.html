@@ -181,7 +181,7 @@
     <div>
         <strong>Feedback report for:</strong> {{ team_member.name }}
     </div>
-    <a href="{% if demo_mode %}/demo{% endif %}/manager">← Back to Dashboard</a>
+    <a href="{{ url_for(views ~ '.manager_dashboard') }}">← Back to Dashboard</a>
 </div>
 
 <div class="card">
@@ -637,8 +637,7 @@ function updateChecklist() {
 
 function exportPDF() {
     // Trigger download by navigating to PDF export endpoint
-    const baseUrl = IS_DEMO_MODE ? '/demo/manager/export-pdf/' : '/manager/export-pdf/';
-    window.location.href = baseUrl + teamMemberId;
+    window.location.href = VIEWS_ROOT + '/manager/export-pdf/' + encodeURIComponent(teamMemberId);
 }
 
 function updateManagerCopyPreview() {

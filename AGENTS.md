@@ -69,7 +69,12 @@ process (tests repoint it and call `dispose_db_engine()`). Scripts keep using
 
 Only routes that exist in one mode go on `app` directly (`/`, `/feedback`,
 imports, `/demo`, demo reset). The demo cookie is set by an `after_request`
-hook. Front-end calls must use `API_PREFIX`, never a hard-coded `/api/...`.
+hook.
+
+Never hard-code `/demo` or `/api` in templates. In Jinja, link with
+`url_for(views ~ '.endpoint')` (`views` is `local` or `demo`, from the context
+processor). In JavaScript, build URLs from `VIEWS_ROOT` (`''` or `/demo`) and
+call APIs via `API_PREFIX`. The prefix itself is `DEMO_PREFIX` in `app.py`.
 
 ### Naming Conventions
 - `user_id` = individual contributor

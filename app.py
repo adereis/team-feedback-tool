@@ -55,9 +55,13 @@ app.config['DATABASE'] = 'feedback.db'  # local mode DB; tests point this elsewh
 _engine_lock = threading.Lock()
 
 
+# Demo mode lives under this prefix; the shared routes are served again there
+DEMO_PREFIX = '/demo'
+
+
 def is_demo_request():
     """Check if current request is a demo mode request."""
-    return request.path.startswith('/demo')
+    return request.path == DEMO_PREFIX or request.path.startswith(DEMO_PREFIX + '/')
 
 
 def db_engine():
@@ -134,9 +138,14 @@ def local_only(f):
 @app.context_processor
 def inject_mode_flags():
     """Make mode flags available to all templates"""
+    demo = is_demo_request()
     return dict(
         hosted_mode=HOSTED_MODE,
-        demo_mode=is_demo_request()
+        demo_mode=demo,
+        # Shared routes for this mode: url_for(views ~ '.endpoint') in Jinja,
+        # VIEWS_ROOT (from views_root) for URLs built in JavaScript
+        views='demo' if demo else 'local',
+        views_root=request.script_root + (DEMO_PREFIX if demo else ''),
     )
 
 
@@ -1161,7 +1170,7 @@ def export_pdf_report(user_id):
 # Everything else under /demo comes from the `views` blueprint (see bottom).
 # =============================================================================
 
-@app.route('/demo')
+@app.route(DEMO_PREFIX)
 def demo_index():
     """Demo mode landing page"""
     db = get_db()
@@ -1174,7 +1183,7 @@ def demo_index():
     return render_template('demo_index.html', stats=stats)
 
 
-@app.route('/demo/api/load-sample-workday', methods=['POST'])
+@app.route(f'{DEMO_PREFIX}/api/load-sample-workday', methods=['POST'])
 def demo_load_sample_workday():
     """Demo mode: Load/reload sample Workday feedback data"""
     db = get_db()
@@ -1198,7 +1207,7 @@ def demo_load_sample_workday():
     })
 
 
-@app.route('/demo/api/reset', methods=['POST'])
+@app.route(f'{DEMO_PREFIX}/api/reset', methods=['POST'])
 def demo_reset():
     """Demo mode: Reset session data to fresh template"""
     session_id = get_session_id()
@@ -1227,7 +1236,7 @@ def ensure_demo_cleanup_started():
 # Register the shared routes once per mode. `name` gives each registration its
 # own endpoint namespace: url_for('local.view_report') vs url_for('demo.view_report').
 app.register_blueprint(views, name='local')
-app.register_blueprint(views, url_prefix='/demo', name='demo')
+app.register_blueprint(views, url_prefix=DEMO_PREFIX, name='demo')
 
 
 if __name__ == '__main__':
