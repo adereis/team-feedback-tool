@@ -1251,15 +1251,15 @@ def demo_load_sample_workday():
 
 @app.route(f'{DEMO_PREFIX}/api/reset', methods=['POST'])
 def demo_reset():
-    """Demo mode: Reset session data to fresh template"""
-    session_id = get_session_id()
-    success = reset_session_data(session_id)
+    """Demo mode: Reset session data to fresh template (the banner's reset button)"""
+    if not reset_session_data(get_session_id()):
+        return jsonify({"success": False, "error": "Could not restore the sample data"}), 500
 
-    # Clear demo-specific session keys
+    # The sample data replaced the sandbox, so forget who the visitor signed in as
     for key in ('user_id', 'manager_uid', 'manager_name'):
         flask_session.pop(session_key(key), None)
 
-    return jsonify({"success": success})
+    return jsonify({"success": True})
 
 
 # Start cleanup thread when running with gunicorn or similar

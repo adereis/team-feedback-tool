@@ -199,6 +199,45 @@ class TestSharedRoutes:
             assert is_demo_request() is is_demo
 
 
+class TestDemoReset:
+    """Tests for the demo banner's reset button and endpoint."""
+
+    @pytest.fixture
+    def signed_in(self, client):
+        with client.session_transaction() as sess:
+            sess.update(demo_user_id='sbx001', demo_manager_uid='sbxmgr', user_id='emp001')
+        return client
+
+    def test_demo_reset_restores_sandbox_and_signs_out_of_demo(self, signed_in, monkeypatch):
+        """Test reset replaces the sandbox and clears only the demo identity"""
+        calls = []
+        monkeypatch.setattr('app.reset_session_data', lambda sid: calls.append(sid) or True)
+
+        response = signed_in.post('/demo/api/reset')
+
+        assert response.status_code == 200 and response.get_json()['success'] is True
+        assert len(calls) == 1
+        with signed_in.session_transaction() as sess:
+            assert 'demo_user_id' not in sess and 'demo_manager_uid' not in sess
+            assert sess['user_id'] == 'emp001'  # local identity untouched
+
+    def test_demo_reset_failure_reports_error_and_keeps_session(self, signed_in, monkeypatch):
+        """Test a failed reset is an error the button can show, not a silent success"""
+        monkeypatch.setattr('app.reset_session_data', lambda sid: False)
+
+        response = signed_in.post('/demo/api/reset')
+
+        assert response.status_code == 500
+        assert response.get_json()['error']
+        with signed_in.session_transaction() as sess:
+            assert sess['demo_user_id'] == 'sbx001'
+
+    def test_reset_button_only_in_demo(self, client, demo_db):
+        """Test the banner offers reset on demo pages, never in local mode"""
+        assert b'id="demoResetBtn"' in client.get('/demo/individual').data
+        assert b'id="demoResetBtn"' not in client.get('/individual').data
+
+
 class TestSecretKey:
     """Tests for how the session signing key is chosen."""
 

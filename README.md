@@ -50,7 +50,8 @@ python3 scripts/create_demo_template.py
 python3 app.py
 # Open http://localhost:5001/demo
 ```
-Each browser works on its own copy of the sample data, separate from your real data.
+Each browser works on its own copy of the sample data, separate from your real data;
+**Reset demo data** in the demo banner restores it.
 
 **Hosted mode** (includes demo) needs a `SECRET_KEY`, shared by all workers, to sign
 session cookies (local mode creates one in `instance/secret_key` automatically):
