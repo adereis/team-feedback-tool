@@ -4,11 +4,13 @@ Tests for hosted mode and demo mode request handling.
 Tests cover:
 - Hosted mode blocks the local-only JSON API but keeps the stateless form
 - Demo requests are served from the visitor's sandbox, even in hosted mode
+- Demo session cookies are validated before being used in file paths
 """
 
 import json
 import os
 import sys
+import uuid
 from datetime import datetime
 
 import pytest
@@ -100,3 +102,27 @@ class TestDemoWorkdayApi:
         response = client.get('/demo/api/workday-feedback')
 
         assert demo_mode.SESSION_COOKIE_NAME in response.headers.get('Set-Cookie', '')
+
+
+class TestDemoSessionId:
+    """Tests for demo session cookie validation."""
+
+    def test_session_id_valid_uuid_cookie_kept(self, app):
+        """Test that a well-formed session cookie is reused."""
+        existing = str(uuid.uuid4())
+        with app.test_request_context(
+                '/demo', headers={'Cookie': f'{demo_mode.SESSION_COOKIE_NAME}={existing}'}):
+            assert demo_mode.get_session_id() == existing
+
+    @pytest.mark.parametrize('cookie', ['../../etc/passwd', 'abc', str(uuid.uuid4()).upper()])
+    def test_session_id_invalid_cookie_replaced(self, app, cookie):
+        """Test that a cookie which is not a canonical UUID never reaches the file system."""
+        with app.test_request_context(
+                '/demo', headers={'Cookie': f'{demo_mode.SESSION_COOKIE_NAME}={cookie}'}):
+            session_id = demo_mode.get_session_id()
+
+            assert session_id != cookie
+            assert str(uuid.UUID(session_id)) == session_id
+
+            response = demo_mode.demo_response_wrapper(app.response_class())
+            assert session_id in response.headers['Set-Cookie']

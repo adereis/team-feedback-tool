@@ -53,6 +53,20 @@ _session_db_mtime = {}  # Track DB file modification time to detect changes from
 _cleanup_lock = threading.Lock()
 
 
+def _is_valid_session_id(value):
+    """Accept only IDs this module issues (canonical UUID strings).
+
+    The ID becomes part of a filesystem path, so a client-supplied cookie
+    must never carry separators, '..' or anything else.
+    """
+    if not value:
+        return False
+    try:
+        return str(uuid.UUID(value)) == value
+    except ValueError:
+        return False
+
+
 def get_session_id():
     """Get or create a session ID from cookie.
 
@@ -64,7 +78,7 @@ def get_session_id():
         return g._demo_session_id
 
     session_id = request.cookies.get(SESSION_COOKIE_NAME)
-    if not session_id:
+    if not _is_valid_session_id(session_id):
         session_id = str(uuid.uuid4())
 
     # Cache for this request so all calls return the same ID
@@ -332,8 +346,9 @@ def demo_response_wrapper(response):
     """Add session cookie to response if needed."""
     session_id = get_session_id()
 
-    # Only set cookie if it wasn't already in the request
-    if SESSION_COOKIE_NAME not in request.cookies:
+    # Set the cookie unless the request already carried this (valid) ID;
+    # an invalid cookie is replaced by the freshly issued one.
+    if request.cookies.get(SESSION_COOKIE_NAME) != session_id:
         response.set_cookie(
             SESSION_COOKIE_NAME,
             session_id,
