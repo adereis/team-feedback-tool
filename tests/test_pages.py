@@ -170,6 +170,19 @@ class TestMarkup:
         assert 'Import Orgchart to Get Started' in html
         assert 'renderFeedbackList' not in html
 
+    @pytest.mark.parametrize('path', [t for t in TEMPLATES if not t.endswith('_pdf.html')],
+                             ids=os.path.basename)
+    def test_template_uses_palette_colors(self, path):
+        """Test web templates take colors from static/style.css variables.
+
+        Literal hex colors are how the pages drifted into six accent colors.
+        The PDF template is exempt: WeasyPrint renders it without style.css.
+        """
+        with open(path) as f:
+            source = f.read()
+
+        assert re.findall(r'#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\b', source) == []
+
     @pytest.mark.parametrize('path', TEMPLATES, ids=os.path.basename)
     def test_template_opens_no_browser_dialogs(self, path):
         """Test pages report and confirm inline, never with alert/confirm/prompt"""

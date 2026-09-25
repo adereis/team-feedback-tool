@@ -43,13 +43,13 @@
 <!-- No recipient specified - show input form -->
 <div class="card recipient-input-card content-centered">
     <h2>Who are you providing feedback for?</h2>
-    <p style="color: #666;">Enter the name of the person you're giving feedback to.</p>
+    <p class="muted">Enter the name of the person you're giving feedback to.</p>
     <form id="recipientForm" onsubmit="setRecipient(event)">
         <input type="text" id="recipientInput" aria-label="Name of the person you are giving feedback to" placeholder="Enter name (e.g., Robin Rollback)" autofocus required>
         <br>
         <button type="submit" class="btn" style="margin-top: 8px;">Continue</button>
     </form>
-    <p style="margin-top: 20px; font-size: 13px; color: #999;">
+    <p class="hint" style="margin-top: 20px;">
         Tip: You can bookmark a direct link like <code>{{ url_for('feedback_for_workday') }}?for=Robin%20Rollback</code>
     </p>
 </div>
@@ -97,7 +97,7 @@
 <!-- Copy for Workday Section -->
 <div class="copy-section">
     <h3>Copy for Workday</h3>
-    <p style="margin-bottom: 12px; color: #666; font-size: 14px;">
+    <p class="intro">
         When ready, copy this formatted feedback and paste it into Workday.
     </p>
     <div class="copy-preview" id="copyPreview">
@@ -108,8 +108,8 @@
     <span class="inline-status ok" id="copySuccess" role="status" hidden>✓ Copied!</span>
 </div>
 
-<div style="margin-top: 24px; text-align: center;">
-    <a href="{{ url_for('feedback_for_workday') }}" style="color: var(--muted); text-decoration: none; font-size: 13px;">
+<div class="center" style="margin-top: 24px;">
+    <a href="{{ url_for('feedback_for_workday') }}" class="back-link">
         ← Give feedback to someone else
     </a>
 </div>

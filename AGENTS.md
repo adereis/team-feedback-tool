@@ -205,8 +205,11 @@ def endpoint():
 - Shared styles live in `static/style.css`: color variables (`--accent`,
   `--strength`, `--improvement`, ...) and every component used by more than
   one page (`.context-bar`, `.drop-zone`, `.feedback-checklist`,
-  `.copy-section`, `.save-indicator`, messages, the tenet grid). Use the
-  variables, not literal colors.
+  `.copy-section`, `.save-indicator`, messages, the tenet grid) plus small
+  utilities (`.muted`, `.hint`, `.center`, `.section-divider`). Use the
+  variables, not literal colors: `tests/test_pages.py` rejects hex colors in
+  web templates (the PDF template, which WeasyPrint renders without
+  `style.css`, is exempt).
 - A page adds only its own CSS, in `{% block extra_styles %}` wrapped in its
   own `<style>` tag; `base.html` renders that block as a sibling of the
   stylesheet link. Never render it inside another `<style>`: a nested tag

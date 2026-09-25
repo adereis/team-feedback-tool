@@ -7,9 +7,9 @@
 {% if all_people|length == 0 %}
 <!-- No people in database - show import option -->
 <div class="card content-centered">
-    <h2 style="text-align: center; margin-bottom: 24px;">Import Orgchart to Get Started</h2>
+    <h2 class="center" style="margin-bottom: 24px;">Import Orgchart to Get Started</h2>
 
-    <p style="color: #666; margin-bottom: 24px; text-align: center;">
+    <p class="muted center" style="margin-bottom: 24px;">
         To provide feedback for colleagues, first import your team's orgchart.
     </p>
 
@@ -28,18 +28,18 @@ Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
 Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
     </details>
 
-    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; text-align: center;">
-        <p style="color: #666; margin-bottom: 12px;">Or use a different workflow:</p>
+    <div class="section-divider center">
+        <p class="muted" style="margin-bottom: 12px;">Or use a different workflow:</p>
         <a href="{{ url_for('feedback_for_workday') }}" class="btn btn-secondary" style="margin-right: 8px;">Quick Feedback (no orgchart)</a>
-        <a href="{{ url_for(home_endpoint) }}" style="text-decoration: none; font-size: 14px;">← Back to Home</a>
+        <a href="{{ url_for(home_endpoint) }}" class="back-link">← Back to Home</a>
     </div>
 </div>
 {% else %}
 <!-- Normal state - show user selection -->
 <div class="card content-centered">
-    <h2 style="text-align: center; margin-bottom: 24px;">Select Your Identity</h2>
+    <h2 class="center" style="margin-bottom: 24px;">Select Your Identity</h2>
 
-    <p style="color: #666; margin-bottom: 24px; text-align: center;">
+    <p class="muted center" style="margin-bottom: 24px;">
         Choose your name to start providing feedback to colleagues
     </p>
 
@@ -59,25 +59,25 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
             <label for="customUserId">Your User ID:</label>
             <input type="text" id="customUserId" placeholder="e.g., jdoe">
         </div>
-        <p style="color: #999; font-size: 13px; margin-bottom: 16px;">
+        <p class="hint" style="margin-bottom: 16px;">
             For external feedback providers not in the orgchart
         </p>
     </div>
 
-    <button onclick="continueAsUser()" class="btn" style="width: 100%;">Continue</button>
+    <button onclick="continueAsUser()" class="btn btn-block">Continue</button>
     <p id="identityError" class="error-message" role="alert" hidden></p>
 
-    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; text-align: center;">
-        <p style="color: #999; font-size: 13px; margin-bottom: 8px;">
+    <div class="section-divider center">
+        <p class="hint" style="margin-bottom: 8px;">
             Tip: Bookmark your direct URL for faster access
         </p>
-        <p style="color: #999; font-size: 12px; font-family: monospace;">
+        <p class="bookmark-hint">
             {{ request.host_url.rstrip('/') }}{{ url_for(views ~ '.individual_feedback') }}/[your-user-id]
         </p>
     </div>
 
-    <div style="margin-top: 20px; text-align: center;">
-        <a href="{{ url_for(home_endpoint) }}" style="text-decoration: none; font-size: 14px;">← Back to Home</a>
+    <div class="center" style="margin-top: 20px;">
+        <a href="{{ url_for(home_endpoint) }}" class="back-link">← Back to Home</a>
     </div>
 </div>
 {% endif %}

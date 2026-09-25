@@ -150,7 +150,7 @@ async function loadSampleWorkdayData() {
 
     btn.disabled = true;
     btn.textContent = 'Loading...';
-    statusDiv.innerHTML = '<div style="color: #666;">Loading sample data...</div>';
+    statusDiv.innerHTML = '<p class="muted">Loading sample data...</p>';
 
     try {
         const response = await fetch(API_PREFIX + '/load-sample-workday', {
@@ -178,7 +178,7 @@ async function loadSampleWorkdayData() {
 
 async function importXlsxFile(file) {
     const statusDiv = document.getElementById('xlsxImportStatus');
-    statusDiv.innerHTML = '<div style="color: #666;">Importing...</div>';
+    statusDiv.innerHTML = '<p class="muted">Importing...</p>';
 
     try {
         const formData = new FormData();
@@ -237,7 +237,7 @@ async function importXlsxFile(file) {
             statusDiv.innerHTML = `<div class="error-message">✗ ${escapeHtml(data.error)}</div>`;
 
             if (data.errors && data.errors.length > 0) {
-                statusDiv.innerHTML += `<div style="color: #dc3545; font-size: 13px; margin-top: 8px;">
+                statusDiv.innerHTML += `<div class="inline-status error" style="display: block; margin: 8px 0 0;">
                     ${data.errors.map(e => '• ' + escapeHtml(e)).join('<br>')}
                 </div>`;
             }
@@ -320,13 +320,13 @@ function fetchAndRenderTeamButterflyChart() {
                 renderTeamButterflyChart(data.butterfly_data);
             } else {
                 document.getElementById('teamButterflyChart').innerHTML =
-                    '<p style="color: #999; text-align: center; padding: 20px;">Error loading team feedback data.</p>';
+                    '<p class="empty-note center">Could not load the team chart.</p>';
             }
         })
         .catch(err => {
             console.error('Error fetching team butterfly data:', err);
             document.getElementById('teamButterflyChart').innerHTML =
-                '<p style="color: #999; text-align: center; padding: 20px;">Error loading team feedback data.</p>';
+                '<p class="empty-note center">Could not load the team chart.</p>';
         });
 }
 

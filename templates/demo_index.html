@@ -20,7 +20,7 @@
 
     .demo-badge {
         display: inline-block;
-        background: #ffd966;
+        background: var(--notice);
         color: var(--navy);
         padding: 8px 20px;
         border-radius: 20px;
@@ -33,20 +33,20 @@
 
     .demo-landing h1 {
         font-size: 32px;
-        color: #2c3e50;
+        color: var(--navy);
         margin-bottom: 15px;
     }
 
     .demo-landing .subtitle {
         font-size: 16px;
-        color: #666;
+        color: var(--muted);
         margin-bottom: 50px;
     }
 
     .demo-section-title {
         font-size: 18px;
         font-weight: 600;
-        color: #34495e;
+        color: var(--navy-light);
         margin-bottom: 25px;
     }
 
@@ -79,7 +79,7 @@
         width: 56px;
         height: 56px;
         margin: 0 auto 20px;
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, var(--accent) 0%, var(--accent-deep) 100%);
         border-radius: 12px;
         display: flex;
         align-items: center;
@@ -93,30 +93,30 @@
     }
 
     .feature-icon.orange {
-        background: linear-gradient(135deg, #ff9800 0%, #f57c00 100%);
+        background: linear-gradient(135deg, var(--manager) 0%, var(--manager-deep) 100%);
     }
 
     .feature-card h3 {
         font-size: 17px;
-        color: #2c3e50;
+        color: var(--navy);
         margin-bottom: 10px;
     }
 
     .feature-card p {
         font-size: 14px;
-        color: #666;
+        color: var(--muted);
         line-height: 1.5;
         margin: 0;
     }
 
     .session-note {
         font-size: 13px;
-        color: #888;
+        color: var(--subtle);
         margin-bottom: 50px;
     }
 
     .real-tool-section {
-        background: #f8f9fa;
+        background: var(--surface-alt);
         border-radius: 12px;
         padding: 35px;
         max-width: 700px;
@@ -126,7 +126,7 @@
 
     .real-tool-section h3 {
         font-size: 18px;
-        color: #2c3e50;
+        color: var(--navy);
         margin-bottom: 15px;
         display: flex;
         align-items: center;
@@ -134,9 +134,10 @@
     }
 
     .real-tool-section .icon-box {
+        color: var(--muted);
         width: 40px;
         height: 40px;
-        background: #e9ecef;
+        background: var(--border-light);
         border-radius: 8px;
         display: flex;
         align-items: center;
@@ -145,7 +146,7 @@
 
     .real-tool-section p {
         font-size: 14px;
-        color: #555;
+        color: var(--muted);
         margin-bottom: 20px;
         line-height: 1.6;
     }
@@ -162,7 +163,7 @@
         align-items: center;
         gap: 8px;
         font-size: 13px;
-        color: #27ae60;
+        color: var(--strength);
     }
 
     .privacy-feature svg {
@@ -176,9 +177,9 @@
         gap: 10px;
         padding: 12px 24px;
         background: white;
-        border: 1px solid #ddd;
+        border: 1px solid var(--border);
         border-radius: 8px;
-        color: #333;
+        color: var(--text);
         text-decoration: none;
         font-size: 14px;
         font-weight: 500;
@@ -186,7 +187,7 @@
     }
 
     .github-link:hover {
-        border-color: #667eea;
+        border-color: var(--accent);
         box-shadow: 0 2px 8px rgba(102, 126, 234, 0.2);
     }
 
@@ -198,10 +199,10 @@
     .db-stats {
         margin-top: 30px;
         padding: 15px 20px;
-        background: #e8f4fd;
+        background: var(--info-soft);
         border-radius: 8px;
         font-size: 13px;
-        color: #2980b9;
+        color: var(--info-ink);
         max-width: 500px;
         margin-left: auto;
         margin-right: auto;
@@ -248,7 +249,7 @@
     <div class="real-tool-section">
         <h3>
             <span class="icon-box">
-                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="#666">
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
                 </svg>
             </span>

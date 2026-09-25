@@ -10,7 +10,7 @@
     }
 
     .feedback-item {
-        background: #f8f9fa;
+        background: var(--surface-alt);
         border-radius: 6px;
         margin-bottom: 12px;
         overflow: hidden;
@@ -43,7 +43,7 @@
     .feedback-item-name {
         font-weight: 600;
         font-size: 15px;
-        color: #2c3e50;
+        color: var(--navy);
         display: flex;
         align-items: center;
         gap: 8px;
@@ -52,7 +52,7 @@
     .feedback-item-name::before {
         content: '▶';
         font-size: 10px;
-        color: #999;
+        color: var(--subtle);
         transition: transform 0.2s;
     }
 
@@ -62,7 +62,7 @@
 
     .feedback-item-summary {
         font-size: 13px;
-        color: #666;
+        color: var(--muted);
         margin-left: 8px;
         font-weight: normal;
     }
@@ -75,7 +75,7 @@
     .feedback-item-body {
         display: none;
         padding: 0 16px 16px 16px;
-        border-top: 1px solid #e9ecef;
+        border-top: 1px solid var(--border-light);
     }
 
     .feedback-item.expanded .feedback-item-body {
@@ -105,11 +105,18 @@
     }
 
     .tenet-group.strengths .tenet-group-title {
-        color: #28a745;
+        color: var(--strength);
     }
 
     .tenet-group.improvements .tenet-group-title {
-        color: #dc3545;
+        color: var(--improvement);
+    }
+
+    .tenet-group-comment {
+        margin-top: 8px;
+        font-size: 13px;
+        color: var(--muted);
+        font-style: italic;
     }
 
     .tenet-list {
@@ -121,7 +128,7 @@
     .tenet-list li {
         padding: 2px 0 2px 16px;
         position: relative;
-        color: #495057;
+        color: var(--muted);
         line-height: 1.4;
     }
 
@@ -129,7 +136,7 @@
         content: '✓';
         position: absolute;
         left: 0;
-        color: #28a745;
+        color: var(--strength);
         font-weight: bold;
     }
 
@@ -137,7 +144,7 @@
         content: '▸';
         position: absolute;
         left: 0;
-        color: #dc3545;
+        color: var(--improvement);
         font-weight: bold;
     }
 
@@ -161,7 +168,7 @@
 <!-- No colleagues to give feedback to - show import option -->
 <div class="card content-centered">
     <h2>Import Orgchart to Get Started</h2>
-    <p style="margin-bottom: 20px; color: #666;">
+    <p class="muted" style="margin-bottom: 20px;">
         There are no colleagues in the database to provide feedback for. Import your team's orgchart to continue.
     </p>
 
@@ -180,8 +187,8 @@ Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
 Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
     </details>
 
-    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee;">
-        <p style="color: #666; margin-bottom: 12px;">Or use a different workflow:</p>
+    <div class="section-divider">
+        <p class="muted" style="margin-bottom: 12px;">Or use a different workflow:</p>
         <a href="{{ url_for('feedback_for_workday') }}" class="btn btn-secondary" style="margin-right: 8px;">Quick Feedback (no orgchart)</a>
         <a href="{{ url_for(home_endpoint) }}" class="btn btn-secondary">Back to Home</a>
     </div>
@@ -439,7 +446,7 @@ function renderFeedbackList() {
     const listDiv = document.getElementById('feedbackList');
 
     if (existingFeedback.length === 0) {
-        listDiv.innerHTML = '<p style="color: #999;">No feedback submitted yet.</p>';
+        listDiv.innerHTML = '<p class="empty-note">No feedback submitted yet.</p>';
         return;
     }
 
@@ -484,14 +491,14 @@ function renderFeedbackList() {
                             <ul class="tenet-list strengths">
                                 ${strengthTenets.map(name => `<li>${escapeHtml(name)}</li>`).join('')}
                             </ul>
-                            ${fb.strengths_text ? `<div class="user-text" style="margin-top: 8px; font-size: 13px; color: #495057; font-style: italic;">${escapeHtml(fb.strengths_text)}</div>` : ''}
+                            ${fb.strengths_text ? `<div class="user-text tenet-group-comment">${escapeHtml(fb.strengths_text)}</div>` : ''}
                         </div>
                         <div class="tenet-group improvements">
                             <div class="tenet-group-title">Improvements (${fb.improvements.length})</div>
                             <ul class="tenet-list improvements">
                                 ${improvementTenets.map(name => `<li>${escapeHtml(name)}</li>`).join('')}
                             </ul>
-                            ${fb.improvements_text ? `<div class="user-text" style="margin-top: 8px; font-size: 13px; color: #495057; font-style: italic;">${escapeHtml(fb.improvements_text)}</div>` : ''}
+                            ${fb.improvements_text ? `<div class="user-text tenet-group-comment">${escapeHtml(fb.improvements_text)}</div>` : ''}
                         </div>
                     </div>
                 </div>
@@ -516,7 +523,7 @@ function copyFeedbackForWorkday(index) {
         const copyBtn = item.querySelector('.feedback-item-actions button:first-child');
         const originalText = copyBtn.innerHTML;
         copyBtn.innerHTML = '✓ Copied!';
-        copyBtn.style.background = '#28a745';
+        copyBtn.style.background = 'var(--strength)';
         copyBtn.style.color = 'white';
         setTimeout(() => {
             copyBtn.innerHTML = originalText;

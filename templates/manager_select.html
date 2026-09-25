@@ -5,9 +5,9 @@
 
 {% block content %}
 <div class="card content-centered">
-    <h2 style="text-align: center; margin-bottom: 24px;">Manager Dashboard</h2>
+    <h2 class="center" style="margin-bottom: 24px;">Manager Dashboard</h2>
 
-    <p style="color: #666; margin-bottom: 24px; text-align: center;">
+    <p class="muted center" style="margin-bottom: 24px;">
         Enter your name to access your team's feedback reports.
     </p>
 
@@ -17,12 +17,12 @@
             <input type="text" id="managerName" placeholder="Enter your name (e.g., Della Gate)" autofocus required>
         </div>
 
-        <button type="submit" class="btn" style="width: 100%;">Continue</button>
+        <button type="submit" class="btn btn-block">Continue</button>
     </form>
 
     {% if managers and managers|length > 0 %}
-    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee;">
-        <p style="color: #999; font-size: 13px; margin-bottom: 12px; text-align: center;">
+    <div class="section-divider">
+        <p class="hint center" style="margin-bottom: 12px;">
             Or select from imported orgchart:
         </p>
         <select id="managerSelect" aria-label="Your name, from the imported orgchart" onchange="selectFromList()">
@@ -34,17 +34,17 @@
     </div>
     {% endif %}
 
-    <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; text-align: center;">
-        <p style="color: #999; font-size: 13px; margin-bottom: 8px;">
+    <div class="section-divider center">
+        <p class="hint" style="margin-bottom: 8px;">
             Tip: Bookmark a direct URL for faster access
         </p>
-        <p style="color: #999; font-size: 12px; font-family: monospace;">
+        <p class="bookmark-hint">
             {{ request.host_url.rstrip('/') }}{{ url_for(views ~ '.manager_dashboard') }}?name=Your%20Name
         </p>
     </div>
 
-    <div style="margin-top: 20px; text-align: center;">
-        <a href="{{ url_for(home_endpoint) }}" style="text-decoration: none; font-size: 14px;">&larr; Back to Home</a>
+    <div class="center" style="margin-top: 20px;">
+        <a href="{{ url_for(home_endpoint) }}" class="back-link">&larr; Back to Home</a>
     </div>
 </div>
 {% endblock %}

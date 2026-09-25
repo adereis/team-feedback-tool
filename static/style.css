@@ -41,6 +41,11 @@
 
     /* Role color for the manager workflow (home and demo cards) */
     --manager: #ff9800;
+    --manager-deep: #f57c00;
+    --manager-soft: #fff3e0;
+    --neutral: #6c757d;         /* secondary large buttons */
+    --accent-deep: #764ba2;     /* second stop of the accent gradients */
+    --notice: #ffd966;          /* demo/hosted mode banner and badge */
 
     /* Where sticky panels stop: below the sticky mode banner when shown */
     --sticky-top: 16px;
@@ -91,7 +96,7 @@ a {
     position: sticky;
     top: 0;
     z-index: 9999;
-    background: #ffd966;
+    background: var(--notice);
     color: var(--navy);
     padding: 10px 20px;
     text-align: center;
@@ -235,6 +240,30 @@ h3 {
     color: var(--subtle);
 }
 
+.center {
+    text-align: center;
+}
+
+/* A quieter block at the bottom of a card: other workflows, tips */
+.section-divider {
+    margin-top: 24px;
+    padding-top: 24px;
+    border-top: 1px solid var(--border-light);
+}
+
+/* A URL to bookmark, shown as text */
+.bookmark-hint {
+    color: var(--subtle);
+    font-size: 12px;
+    font-family: monospace;
+    overflow-wrap: anywhere;
+}
+
+.back-link {
+    text-decoration: none;
+    font-size: 14px;
+}
+
 /* ----- Buttons ----- */
 
 .btn {
@@ -263,6 +292,10 @@ h3 {
 
 .btn-small {
     padding: 6px 12px;
+}
+
+.btn-block {
+    width: 100%;
 }
 
 .btn-secondary {
