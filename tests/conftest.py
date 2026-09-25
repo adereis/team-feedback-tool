@@ -16,7 +16,7 @@ import json
 # Add parent directory to path for imports
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from app import app as flask_app
+from app import app as flask_app, dispose_db_engine
 from models import init_db, Person, Feedback, ManagerFeedback, Base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
@@ -189,19 +189,18 @@ def app(test_db, test_tenets_file, monkeypatch):
     # Patch the TENETS_FILE to use test file
     monkeypatch.setattr('app.TENETS_FILE', test_tenets_file)
 
-    # Patch init_db to use test database
-    def mock_init_db(db_path=None):
-        engine = create_engine(f'sqlite:///{test_db}')
-        Session = sessionmaker(bind=engine)
-        return Session()
-
-    monkeypatch.setattr('app.init_db', mock_init_db)
+    # Point the app at the test database. The engine is cached per process, so
+    # drop it on both sides: a pooled connection must never outlive its file.
+    monkeypatch.setitem(flask_app.config, 'DATABASE', test_db)
+    dispose_db_engine()
 
     # Configure app for testing
     flask_app.config['TESTING'] = True
     flask_app.config['SECRET_KEY'] = 'test-secret-key'
 
     yield flask_app
+
+    dispose_db_engine()
 
 
 @pytest.fixture

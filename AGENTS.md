@@ -54,10 +54,15 @@ route (JSON body for API routes).
 Pages and APIs used by both local and demo mode are defined once, on the `views`
 blueprint in `app.py`. It is registered twice: as `local` at `/` and as `demo`
 at `/demo`, so each route exists under both prefixes. Inside a `views` route:
-- open the DB with `get_db()` (local DB, or the visitor's sandbox under `/demo`)
+- open the DB with `get_db()` (local DB, or the visitor's sandbox under `/demo`);
+  it is one session per request, closed at teardown, so never close it yourself
 - read/write identity via `flask_session[session_key('user_id')]` (demo keys get
   a `demo_` prefix, so the two modes never share an identity)
 - redirect with `url_for('.endpoint')`, which stays in the current mode
+
+The local DB path is `app.config['DATABASE']`; the engine is created once per
+process (tests repoint it and call `dispose_db_engine()`). Scripts keep using
+`init_db(path)`.
 
 Only routes that exist in one mode go on `app` directly (`/`, `/feedback`,
 imports, `/demo`, demo reset). The demo cookie is set by an `after_request`

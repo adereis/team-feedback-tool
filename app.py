@@ -17,10 +17,10 @@ through get_db() and session_key(), which resolve per request.
 """
 
 from flask import (
-    Blueprint, Flask, render_template, request, jsonify, send_file, redirect, url_for,
+    Blueprint, Flask, g, render_template, request, jsonify, send_file, redirect, url_for,
     session as flask_session
 )
-from models import init_db, Person, Feedback, ManagerFeedback, WorkdayFeedback, name_to_user_id
+from models import create_db_engine, Person, Feedback, ManagerFeedback, WorkdayFeedback, name_to_user_id
 from scripts.import_workday import import_workday_xlsx, get_available_date_ranges
 from demo_mode import (
     get_demo_db, get_session_id, reset_session_data, demo_response_wrapper,
@@ -32,9 +32,11 @@ import io
 import os
 import base64
 import tempfile
+import threading
 from collections import defaultdict
 from functools import wraps
 from sqlalchemy import func
+from sqlalchemy.orm import Session
 # WeasyPrint imported lazily in PDF export functions (requires system libraries)
 import matplotlib
 matplotlib.use('Agg')  # Non-interactive backend
@@ -47,6 +49,9 @@ HOSTED_MODE = os.environ.get('HOSTED_MODE', '').lower() == 'true'
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = 'feedback-tool-secret-key-change-in-production'
+app.config['DATABASE'] = 'feedback.db'  # local mode DB; tests point this elsewhere
+
+_engine_lock = threading.Lock()
 
 
 def is_demo_request():
@@ -54,9 +59,43 @@ def is_demo_request():
     return request.path.startswith('/demo')
 
 
+def db_engine():
+    """Engine for the local DB, created once per process on first use.
+
+    Creating it per request (as init_db() does for scripts) would rebuild the
+    connection pool and re-run schema creation on every call.
+    """
+    with _engine_lock:
+        if 'feedback_db' not in app.extensions:
+            app.extensions['feedback_db'] = create_db_engine(app.config['DATABASE'])
+        return app.extensions['feedback_db']
+
+
+def dispose_db_engine():
+    """Drop the local DB engine so the next request opens app.config['DATABASE'] afresh."""
+    with _engine_lock:
+        engine = app.extensions.pop('feedback_db', None)
+    if engine is not None:
+        engine.dispose()
+
+
 def get_db():
-    """Database session for this request: the visitor's sandbox under /demo, else the local DB."""
-    return get_demo_db() if is_demo_request() else init_db()
+    """Database session for this request: the visitor's sandbox under /demo, else the local DB.
+
+    One session per request, closed by close_db() even when the route raises,
+    so routes never close it themselves.
+    """
+    if 'db' not in g:
+        g.db = get_demo_db() if is_demo_request() else Session(db_engine())
+    return g.db
+
+
+@app.teardown_appcontext
+def close_db(exc):
+    """Close the request's DB session (rolling back anything uncommitted)."""
+    db = g.pop('db', None)
+    if db is not None:
+        db.close()
 
 
 def session_key(name):
@@ -122,7 +161,6 @@ def index():
     """Home page - select mode"""
     session = get_db()
     total_people = session.query(Person).count()
-    session.close()
     return render_template('index.html', has_data=total_people > 0)
 
 
@@ -153,7 +191,6 @@ def get_db_stats():
     peer_feedback = session.query(Feedback).count()
     manager_reviews = session.query(ManagerFeedback).count()
 
-    session.close()
 
     return jsonify({
         "success": True,
@@ -188,12 +225,10 @@ def import_orgchart_web():
         # Validate required columns
         required_cols = ['Name', 'User ID', 'Job Title', 'Email', 'Manager UID']
         if reader.fieldnames is None:
-            session.close()
             return jsonify({"success": False, "error": "Empty or invalid CSV file"}), 400
 
         missing_cols = [col for col in required_cols if col not in reader.fieldnames]
         if missing_cols:
-            session.close()
             return jsonify({
                 "success": False,
                 "error": f"Invalid CSV format. Missing columns: {', '.join(missing_cols)}"
@@ -237,7 +272,6 @@ def import_orgchart_web():
                 count += 1
 
         session.commit()
-        session.close()
 
         return jsonify({
             "success": True,
@@ -247,7 +281,6 @@ def import_orgchart_web():
         })
 
     except Exception as e:
-        session.close()
         return jsonify({"success": False, "error": str(e)}), 400
 
 
@@ -261,7 +294,6 @@ def individual_feedback():
     if not current_user_id:
         session = get_db()
         all_people = session.query(Person).order_by(Person.name).all()
-        session.close()
         return render_template('individual_select.html', all_people=[p.to_dict() for p in all_people])
 
     # User selected - show feedback page
@@ -316,7 +348,6 @@ def individual_feedback():
         ).all()
 
     tenets = load_tenets()
-    session.close()
 
     return render_template(
         'individual_feedback.html',
@@ -414,7 +445,6 @@ def save_feedback():
         session.add(feedback)
 
     session.commit()
-    session.close()
 
     return jsonify({"success": True})
 
@@ -437,7 +467,6 @@ def delete_feedback(to_user_id):
         session.delete(feedback)
         session.commit()
 
-    session.close()
     return jsonify({"success": True})
 
 
@@ -468,7 +497,6 @@ def manager_dashboard():
         session = get_db()
         # Get all managers from orgchart (if any)
         managers = session.query(Person).filter(Person.direct_reports.any()).order_by(Person.name).all()
-        session.close()
         return render_template('manager_select.html', managers=[m.to_dict() for m in managers])
 
     session = get_db()
@@ -481,7 +509,6 @@ def manager_dashboard():
         manager = session.query(Person).filter_by(user_id=manager_uid).first()
         if not manager:
             flask_session.pop(session_key('manager_uid'), None)
-            session.close()
             return redirect(url_for('.manager_dashboard'))
 
         manager_info = manager.to_dict()
@@ -541,7 +568,6 @@ def manager_dashboard():
             tm_dict['wd_feedback_count'] = count
             team_members.append(tm_dict)
 
-    session.close()
 
     return render_template(
         'manager_dashboard.html',
@@ -639,7 +665,6 @@ def get_team_butterfly_data():
     # Sort by net score
     butterfly_data.sort(key=lambda x: (x['strength_count'] - x['improvement_count']), reverse=True)
 
-    session.close()
 
     return jsonify({
         "success": True,
@@ -653,7 +678,6 @@ def manager_login(manager_uid):
     """Direct manager login via URL - sets session and redirects to dashboard"""
     session = get_db()
     manager = session.query(Person).filter_by(user_id=manager_uid).first()
-    session.close()
 
     if not manager:
         return "Manager not found", 404
@@ -686,7 +710,6 @@ def set_manager():
 
     session = get_db()
     manager = session.query(Person).filter_by(user_id=manager_uid).first()
-    session.close()
 
     if not manager:
         return jsonify({"success": False, "error": "Manager not found"}), 404
@@ -715,7 +738,7 @@ def import_workday_xlsx_route():
         tmp_path = tmp.name
 
     try:
-        result = import_workday_xlsx(tmp_path)
+        result = import_workday_xlsx(tmp_path, app.config['DATABASE'])
         return jsonify(result.to_dict())
     finally:
         # Clean up temp file
@@ -757,7 +780,6 @@ def get_workday_feedback():
                 WorkdayFeedback.date <= end_date
             )
         except ValueError:
-            session.close()
             return jsonify({"success": False, "error": "Invalid date format"}), 400
     elif period != 'all':
         # Period-based filtering (default: current month + 3 previous months)
@@ -782,7 +804,6 @@ def get_workday_feedback():
     query = query.order_by(WorkdayFeedback.date.desc())
 
     feedbacks = query.all()
-    session.close()
 
     return jsonify({
         "success": True,
@@ -813,7 +834,6 @@ def get_workday_recipients():
             'generic_count': row.total_count - (row.structured_count or 0)
         })
 
-    session.close()
 
     return jsonify({
         "success": True,
@@ -827,7 +847,6 @@ def get_date_ranges():
     """Get available date ranges for filtering"""
     session = get_db()
     ranges = get_available_date_ranges(session)
-    session.close()
 
     return jsonify({
         "success": True,
@@ -874,12 +893,10 @@ def view_report(user_id=None):
         # Real user_id from orgchart
         team_member = session.query(Person).filter_by(user_id=user_id).first()
         if not team_member:
-            session.close()
             return "Team member not found", 404
 
         # Verify team membership if using orgchart workflow
         if manager_uid and team_member.manager_uid != manager_uid:
-            session.close()
             return "Team member not in your team", 403
 
         team_member_info = team_member.to_dict()
@@ -895,7 +912,6 @@ def view_report(user_id=None):
                 break
 
         if not team_member_name:
-            session.close()
             return "Team member not found", 404
 
         # Try to find in orgchart for enrichment
@@ -1007,7 +1023,6 @@ def view_report(user_id=None):
         fb_dict['source'] = 'workday_structured'
         feedbacks_with_names.append(fb_dict)
 
-    session.close()
 
     return render_template(
         'report.html',
@@ -1079,7 +1094,6 @@ def save_manager_feedback():
         session.add(mgr_feedback)
 
     session.commit()
-    session.close()
 
     return jsonify({"success": True})
 
@@ -1186,12 +1200,10 @@ def export_pdf_report(user_id):
     # Get team member
     team_member = session.query(Person).filter_by(user_id=user_id).first()
     if not team_member:
-        session.close()
         return "Team member not found", 404
 
     # Verify team membership if using orgchart workflow
     if manager_uid and team_member.manager_uid != manager_uid:
-        session.close()
         return "Team member not in your team", 403
 
     # Get manager info
@@ -1255,7 +1267,6 @@ def export_pdf_report(user_id):
     strengths_comments = [fb.strengths_text for fb in feedbacks if fb.strengths_text]
     improvements_comments = [fb.improvements_text for fb in feedbacks if fb.improvements_text]
 
-    session.close()
 
     # Render PDF template
     html_content = render_template(
@@ -1301,7 +1312,6 @@ def demo_index():
         'peer_feedback': db.query(Feedback).count(),
         'manager_reviews': db.query(ManagerFeedback).count()
     }
-    db.close()
 
     return render_template('demo_index.html', stats=stats)
 
@@ -1313,7 +1323,6 @@ def demo_load_sample_workday():
 
     # Check if Workday feedback already exists
     existing_count = db.query(WorkdayFeedback).count()
-    db.close()
 
     if existing_count > 0:
         # Data already loaded

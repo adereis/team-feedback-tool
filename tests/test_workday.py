@@ -790,3 +790,21 @@ class TestImportResult:
         assert d['structured_count'] == 6
         assert d['generic_count'] == 4
         assert 'Warning 1' in d['warnings']
+
+
+@pytest.mark.skipif(not HAS_OPENPYXL, reason="openpyxl not installed")
+class TestImportXlsxRoute:
+    """Tests for the /manager/import-xlsx upload route."""
+
+    def test_import_route_writes_to_configured_db(self, client, db_session, tmp_path):
+        """Test that uploads land in app.config['DATABASE'], not ./feedback.db."""
+        xlsx_path = tmp_path / 'export.xlsx'
+        TestImportWorkdayXlsx._write_givers_xlsx(str(xlsx_path), [1, 2])
+
+        with open(xlsx_path, 'rb') as f:
+            response = client.post('/manager/import-xlsx',
+                                   data={'file': (f, 'export.xlsx')},
+                                   content_type='multipart/form-data')
+
+        assert json.loads(response.data)['imported'] == 2
+        assert db_session.query(WorkdayFeedback).count() == 2

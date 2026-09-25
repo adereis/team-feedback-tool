@@ -276,9 +276,14 @@ class WorkdayFeedback(Base):
         }
 
 
-def init_db(db_path='feedback.db'):
-    """Initialize database and return session"""
+def create_db_engine(db_path):
+    """Create an engine for the SQLite file at db_path, creating missing tables."""
     engine = create_engine(f'sqlite:///{db_path}')
     Base.metadata.create_all(engine)
-    Session = sessionmaker(bind=engine)
+    return engine
+
+
+def init_db(db_path='feedback.db'):
+    """Initialize database and return a session (for scripts; the app keeps one engine)"""
+    Session = sessionmaker(bind=create_db_engine(db_path))
     return Session()
