@@ -6,10 +6,20 @@
 {% block extra_styles %}
 <style>
     th.sortable {
-        cursor: pointer;
-        user-select: none;
         position: relative;
         padding-right: 25px;
+    }
+
+    /* The header text is the sort button, so the keyboard can reach it */
+    th.sortable button {
+        background: none;
+        border: 0;
+        padding: 0;
+        width: 100%;
+        text-align: left;
+        font-weight: 600;
+        color: inherit;
+        cursor: pointer;
     }
 
     th.sortable:hover {
@@ -81,9 +91,9 @@
     <table>
         <thead>
             <tr>
-                <th class="sortable" data-sort="name">Name</th>
-                <th class="sortable" data-sort="job">Job Title</th>
-                <th class="sortable" data-sort="feedback">Feedback Entries</th>
+                <th class="sortable" data-sort="name"><button type="button">Name</button></th>
+                <th class="sortable" data-sort="job"><button type="button">Job Title</button></th>
+                <th class="sortable" data-sort="feedback"><button type="button">Feedback Entries</button></th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -121,42 +131,14 @@
 {% block scripts %}
 <script src="{{ url_for('static', filename='butterfly.js') }}"></script>
 <script>
-// Initialize XLSX drop zone (Workday import) - only in non-demo mode
+// Workday XLSX drop zone (not in demo mode, which loads sample data instead)
 document.addEventListener('DOMContentLoaded', function() {
     const xlsxDropZone = document.getElementById('dropZoneXlsx');
-    const xlsxInput = document.getElementById('xlsxFile');
-
-    // Only initialize if elements exist (not in demo mode)
-    if (xlsxDropZone && xlsxInput) {
-        // Click to browse
-        xlsxDropZone.addEventListener('click', () => xlsxInput.click());
-
-        // File input change
-        xlsxInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                importXlsxFile(e.target.files[0]);
-            }
-            xlsxInput.value = ''; // Reset for re-selection
-        });
-
-        // Drag events
-        xlsxDropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            xlsxDropZone.classList.add('drag-over');
-        });
-
-        xlsxDropZone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            xlsxDropZone.classList.remove('drag-over');
-        });
-
-        xlsxDropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            xlsxDropZone.classList.remove('drag-over');
-            const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.xlsx'));
-            if (files.length > 0) {
-                importXlsxFile(files[0]);
-            }
+    if (xlsxDropZone) {
+        Uploads.dropZone(xlsxDropZone, document.getElementById('xlsxFile'), {
+            extension: '.xlsx',
+            statusEl: document.getElementById('xlsxImportStatus'),
+            onFile: importXlsxFile
         });
     }
 });
@@ -272,10 +254,7 @@ document.addEventListener('DOMContentLoaded', function() {
     let currentSort = { column: 'name', direction: 'asc' };
 
     headers.forEach(header => {
-        header.addEventListener('click', function() {
-            const sortKey = this.getAttribute('data-sort');
-            sortTable(sortKey);
-        });
+        header.querySelector('button').addEventListener('click', () => sortTable(header.dataset.sort));
     });
 
     function sortTable(column) {
@@ -293,8 +272,11 @@ document.addEventListener('DOMContentLoaded', function() {
         // Update header classes
         document.querySelectorAll('th.sortable').forEach(th => {
             th.classList.remove('asc', 'desc');
+            th.removeAttribute('aria-sort');
         });
-        document.querySelector(`th[data-sort="${column}"]`).classList.add(currentSort.direction);
+        const active = document.querySelector(`th[data-sort="${column}"]`);
+        active.classList.add(currentSort.direction);
+        active.setAttribute('aria-sort', currentSort.direction === 'asc' ? 'ascending' : 'descending');
 
         // Sort rows
         rows.sort((a, b) => {
@@ -326,6 +308,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
     // Set initial sort indicator
     document.querySelector('th[data-sort="name"]').classList.add('asc');
+    document.querySelector('th[data-sort="name"]').setAttribute('aria-sort', 'ascending');
 });
 
 // Fetch and render team butterfly chart

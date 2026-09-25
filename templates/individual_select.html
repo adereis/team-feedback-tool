@@ -44,7 +44,7 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
     </p>
 
     <div class="form-group">
-        <label>Your Name:</label>
+        <label for="userSelect">Your Name:</label>
         <select id="userSelect">
             <option value="">-- Select your name --</option>
             <option value="__CUSTOM__">[ Not in list - Enter custom ID ]</option>
@@ -56,7 +56,7 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
 
     <div id="customUserInput" style="display: none;">
         <div class="form-group">
-            <label>Your User ID:</label>
+            <label for="customUserId">Your User ID:</label>
             <input type="text" id="customUserId" placeholder="e.g., jdoe">
         </div>
         <p style="color: #999; font-size: 13px; margin-bottom: 16px;">
@@ -65,7 +65,7 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
     </div>
 
     <button onclick="continueAsUser()" class="btn" style="width: 100%;">Continue</button>
-    <p id="identityError" class="error-message" hidden></p>
+    <p id="identityError" class="error-message" role="alert" hidden></p>
 
     <div style="margin-top: 24px; padding-top: 24px; border-top: 1px solid #eee; text-align: center;">
         <p style="color: #999; font-size: 13px; margin-bottom: 8px;">
@@ -89,61 +89,12 @@ document.addEventListener('DOMContentLoaded', function() {
     // Orgchart import (empty state)
     const dropZone = document.getElementById('dropZone');
     if (dropZone) {
-        const fileInput = document.getElementById('orgchartFile');
         const statusDiv = document.getElementById('importStatus');
-
-        dropZone.addEventListener('click', () => fileInput.click());
-
-        fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
-            }
-            fileInput.value = '';
+        Uploads.dropZone(dropZone, document.getElementById('orgchartFile'), {
+            extension: '.csv',
+            statusEl: statusDiv,
+            onFile: file => Uploads.importOrgchart({{ url_for('import_orgchart_web') | tojson }}, file, false, statusDiv)
         });
-
-        dropZone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            dropZone.classList.add('drag-over');
-        });
-
-        dropZone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-        });
-
-        dropZone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            dropZone.classList.remove('drag-over');
-            const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
-            if (files.length > 0) {
-                handleFile(files[0]);
-            }
-        });
-
-        function handleFile(file) {
-            statusDiv.innerHTML = '<p>Importing...</p>';
-
-            const formData = new FormData();
-            formData.append('file', file);
-            formData.append('reset', 'false');
-
-            fetch({{ url_for('import_orgchart_web') | tojson }}, {
-                method: 'POST',
-                body: formData
-            })
-            .then(r => r.json())
-            .then(data => {
-                if (data.success) {
-                    statusDiv.innerHTML = `<div class="success-message">Imported ${data.new_count} people. Reloading...</div>`;
-                    setTimeout(() => window.location.reload(), 1000);
-                } else {
-                    statusDiv.innerHTML = `<div class="error-message">Error: ${data.error}</div>`;
-                }
-            })
-            .catch(err => {
-                statusDiv.innerHTML = `<div class="error-message">Error: ${err.message}</div>`;
-            });
-        }
     }
 
     // User selection (normal state)

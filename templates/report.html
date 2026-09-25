@@ -170,7 +170,7 @@
         <div class="form-group">
             <label for="managerFeedbackText">Your Feedback Text</label>
             <textarea id="managerFeedbackText" placeholder="Write your feedback for this team member...">{{ manager_feedback.feedback_text if manager_feedback else '' }}</textarea>
-            <span id="saveIndicator" class="save-indicator">✓ Saved</span>
+            <span id="saveIndicator" class="save-indicator" role="status">✓ Saved</span>
         </div>
 
         <div class="copy-section">
@@ -180,7 +180,7 @@
                 <em class="empty-note">Pick 3 strengths and 2 or 3 improvements to see the text to copy.</em>
             </div>
             <button class="btn" id="managerCopyBtn" onclick="copyManagerFeedback()" disabled>Copy to Clipboard</button>
-            <span class="inline-status ok" id="managerCopySuccess" hidden>✓ Copied!</span>
+            <span class="inline-status ok" id="managerCopySuccess" role="status" hidden>✓ Copied!</span>
         </div>
     </section>
 </div>

@@ -13,7 +13,7 @@
 
     <form id="managerForm" onsubmit="continueAsManager(event)">
         <div class="form-group">
-            <label>Your Name:</label>
+            <label for="managerName">Your Name:</label>
             <input type="text" id="managerName" placeholder="Enter your name (e.g., Della Gate)" autofocus required>
         </div>
 
@@ -25,7 +25,7 @@
         <p style="color: #999; font-size: 13px; margin-bottom: 12px; text-align: center;">
             Or select from imported orgchart:
         </p>
-        <select id="managerSelect" onchange="selectFromList()">
+        <select id="managerSelect" aria-label="Your name, from the imported orgchart" onchange="selectFromList()">
             <option value="">-- Select your name --</option>
             {% for manager in managers %}
             <option value="{{ manager.user_id }}" data-name="{{ manager.name }}">{{ manager.name }} ({{ manager.user_id }})</option>

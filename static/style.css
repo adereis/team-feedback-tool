@@ -293,6 +293,15 @@ select, input[type="text"], textarea {
 select:focus, input:focus, textarea:focus {
     outline: none;
     border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.25);
+}
+
+/* Keyboard focus: a visible ring on anything that can be activated */
+a:focus-visible,
+button:focus-visible,
+[role="button"]:focus-visible {
+    outline: 3px solid rgba(102, 126, 234, 0.5);
+    outline-offset: 2px;
 }
 
 textarea {
@@ -448,7 +457,6 @@ tr:hover {
 .drop-zone:focus-visible {
     border-color: var(--accent);
     background: var(--accent-soft);
-    outline: none;
 }
 
 .drop-zone.drag-over {

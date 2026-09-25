@@ -88,6 +88,9 @@
         function renderList(kind) {
             const el = containers[kind];
             el.setAttribute('role', 'group');
+            if (!el.hasAttribute('aria-label') && !el.hasAttribute('aria-labelledby')) {
+                el.setAttribute('aria-label', kind === 'strengths' ? 'Strengths' : 'Improvements');
+            }
             el.innerHTML = '';
             options.tenets.forEach(tenet => {
                 const state = availability(selection, kind, tenet.id);

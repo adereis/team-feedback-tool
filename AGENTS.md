@@ -14,6 +14,7 @@
 | `static/style.css` | Shared styles and color variables for every page, loaded by `base.html` |
 | `static/butterfly.js` | Butterfly chart (`Butterfly.render`), used by the report page and dashboard |
 | `static/tenet_picker.js` | Tenet selection grids and checklist (`TenetPicker.create`), loaded by `base.html` |
+| `static/uploads.js` | Drop zones and the orgchart import (`Uploads.dropZone` / `.importOrgchart`), loaded by `base.html` |
 | `static/workday_format.js` | Copy-for-Workday text (`WorkdayFormat.peer` / `.manager`), loaded by `base.html` |
 | `demo_mode.py` | Demo mode session isolation (per-visitor SQLite databases) |
 | `scripts/import_orgchart.py` | Orgchart CSV import (CLI) |
@@ -143,6 +144,17 @@ def endpoint():
     # ... logic ...
     return jsonify({"success": True})
 ```
+
+### Keyboard Access
+- Only `<button>` and `<a>` take clicks (`tests/test_pages.py` rejects
+  `onclick` on div/span/table cells); style a button to look like a card or
+  header when needed (tenet cards, feedback list toggles, sort headers).
+- Every `<label>` has `for=` pointing at its control (or wraps it); controls
+  with no visible label get `aria-label`.
+- Drop zones go through `Uploads.dropZone()`, which makes them focusable
+  and opens the file dialog on Enter/Space.
+- Status text that changes after load (`#saveIndicator`, "Copied!") has
+  `role="status"` so screen readers announce it.
 
 ### Tenet Picker
 - Every page that picks tenets uses `TenetPicker.create()` from

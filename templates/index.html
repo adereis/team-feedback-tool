@@ -378,41 +378,11 @@ document.addEventListener('DOMContentLoaded', function() {
         loadDbStats();
     }
 
-    // Setup drop zone handler
-    setupDropZone(dropZone, fileInput, statusDiv);
-
-    function setupDropZone(zone, input, status) {
-        // Click to browse
-        zone.addEventListener('click', () => input.click());
-
-        // File input change
-        input.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFile(e.target.files[0], status);
-            }
-            input.value = '';
-        });
-
-        // Drag events
-        zone.addEventListener('dragover', (e) => {
-            e.preventDefault();
-            zone.classList.add('drag-over');
-        });
-
-        zone.addEventListener('dragleave', (e) => {
-            e.preventDefault();
-            zone.classList.remove('drag-over');
-        });
-
-        zone.addEventListener('drop', (e) => {
-            e.preventDefault();
-            zone.classList.remove('drag-over');
-            const files = Array.from(e.dataTransfer.files).filter(f => f.name.endsWith('.csv'));
-            if (files.length > 0) {
-                handleFile(files[0], status);
-            }
-        });
-    }
+    Uploads.dropZone(dropZone, fileInput, {
+        extension: '.csv',
+        statusEl: statusDiv,
+        onFile: file => handleFile(file, statusDiv)
+    });
 
     function handleFile(file, statusDiv) {
         const reset = resetCheckbox ? resetCheckbox.checked : false;
@@ -438,38 +408,8 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     function importFile(file, reset, statusDiv) {
-        statusDiv.innerHTML = '<p>Importing...</p>';
-
-        const formData = new FormData();
-        formData.append('file', file);
-        formData.append('reset', reset.toString());
-
-        fetch({{ url_for('import_orgchart_web') | tojson }}, {
-            method: 'POST',
-            body: formData
-        })
-        .then(r => r.json())
-        .then(data => {
-            if (data.success) {
-                let message = '';
-                if (data.reset) {
-                    message = `Database reset. Imported ${data.new_count} people.`;
-                } else if (data.updated_count > 0) {
-                    message = `Imported ${data.new_count} new people, updated ${data.updated_count} existing.`;
-                } else {
-                    message = `Imported ${data.new_count} new people.`;
-                }
-                statusDiv.innerHTML = `<div class="success-message">${message} Reloading...</div>`;
-                if (resetCheckbox) resetCheckbox.checked = false;
-                // Reload page to show updated state
-                setTimeout(() => window.location.reload(), 1000);
-            } else {
-                statusDiv.innerHTML = `<div class="error-message">Error: ${data.error}</div>`;
-            }
-        })
-        .catch(err => {
-            statusDiv.innerHTML = `<div class="error-message">Error: ${err.message}</div>`;
-        });
+        Uploads.importOrgchart({{ url_for('import_orgchart_web') | tojson }}, file, reset, statusDiv)
+            .then(ok => { if (ok && resetCheckbox) resetCheckbox.checked = false; });
     }
 
     function loadDbStats() {

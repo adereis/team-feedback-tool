@@ -7,6 +7,8 @@ Tests cover:
 - Links and fetches follow the mode that served the page
 - Errors render as styled pages with a way back, never bare text
 - Markup stays balanced, and pages never open browser dialogs
+- Controls are reachable by keyboard: labels point at inputs, and only
+  buttons and links take clicks
 - Counts read as real plurals ("1 entry", "3 entries"), never "entry(s)"
 """
 
@@ -61,6 +63,37 @@ class DivCounter(HTMLParser):
         if tag == 'div':
             self.depth -= 1
             self.lowest = min(self.lowest, self.depth)
+
+
+class LabelChecker(HTMLParser):
+    """Find <label>s that neither name a control (for=) nor wrap one."""
+
+    CONTROLS = {'input', 'select', 'textarea'}
+
+    def __init__(self):
+        super().__init__()
+        self.ids = set()
+        self.label_targets = []
+        self.unlinked = []
+        self._open_label = None
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if 'id' in attrs:
+            self.ids.add(attrs['id'])
+        if tag == 'label':
+            self._open_label = {'for': attrs.get('for'), 'wraps': False}
+        elif tag in self.CONTROLS and self._open_label is not None:
+            self._open_label['wraps'] = True
+
+    def handle_endtag(self, tag):
+        if tag == 'label' and self._open_label is not None:
+            label = self._open_label
+            if label['for']:
+                self.label_targets.append(label['for'])
+            elif not label['wraps']:
+                self.unlinked.append(label)
+            self._open_label = None
 
 
 def styles_of(html):
@@ -144,6 +177,27 @@ class TestMarkup:
             source = f.read()
 
         assert re.findall(r'\b(?:alert|confirm|prompt)\(', source) == []
+
+
+class TestKeyboardAccess:
+    """Tests that every control can be reached and named without a mouse."""
+
+    @pytest.mark.parametrize('key,value,path', PAGES)
+    def test_page_labels_point_at_controls(self, client, key, value, path):
+        """Test each label names an existing control, so clicking or reading it works"""
+        checker = LabelChecker()
+        checker.feed(render(client, key, value, path))
+
+        assert checker.unlinked == []
+        assert [t for t in checker.label_targets if t not in checker.ids] == []
+
+    @pytest.mark.parametrize('path', TEMPLATES, ids=os.path.basename)
+    def test_template_clicks_only_on_buttons_and_links(self, path):
+        """Test no div, span or table cell takes clicks: those never get keyboard focus"""
+        with open(path) as f:
+            source = f.read()
+
+        assert re.findall(r'<(?:div|span|th|td|tr|li)\b[^>]*\sonclick=', source) == []
 
 
 class TestReportLayout:

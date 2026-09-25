@@ -45,7 +45,7 @@
     <h2>Who are you providing feedback for?</h2>
     <p style="color: #666;">Enter the name of the person you're giving feedback to.</p>
     <form id="recipientForm" onsubmit="setRecipient(event)">
-        <input type="text" id="recipientInput" placeholder="Enter name (e.g., Robin Rollback)" autofocus required>
+        <input type="text" id="recipientInput" aria-label="Name of the person you are giving feedback to" placeholder="Enter name (e.g., Robin Rollback)" autofocus required>
         <br>
         <button type="submit" class="btn" style="margin-top: 8px;">Continue</button>
     </form>
@@ -105,7 +105,7 @@
         <em class="empty-note">Pick 3 strengths and 2 or 3 improvements to see the text to copy.</em>
     </div>
     <button class="btn" id="copyBtn" onclick="copyToClipboard()" disabled>Copy to Clipboard</button>
-    <span class="inline-status ok" id="copySuccess" hidden>✓ Copied!</span>
+    <span class="inline-status ok" id="copySuccess" role="status" hidden>✓ Copied!</span>
 </div>
 
 <div style="margin-top: 24px; text-align: center;">
