@@ -224,6 +224,20 @@ def endpoint():
 - Config: `tenets.json` (not committed), template: `samples/tenets-sample.json`
 - Structure: `{version, tenets: [{id, name, category, description, active}]}`
 
+### Database Tables
+- **persons**: from the orgchart; `user_id` (PK), name, job_title, location,
+  email, `manager_uid`
+- **feedback**: peer feedback given in this tool; `from_user_id`,
+  `to_user_id`, strengths / improvements (JSON lists of tenet IDs),
+  strengths_text, improvements_text
+- **workday_feedback**: rows of the Workday XLSX; `about` (recipient name),
+  from_name, question, feedback (raw text), asked_by, request_type, date,
+  `is_structured` (has the `[TENETS]` marker) and, when structured, the
+  parsed strengths / improvements and their texts
+- **manager_feedback**: a manager's picks and text per team member;
+  `manager_uid`, `team_member_uid`, selected_strengths,
+  selected_improvements, feedback_text
+
 ### Feedback Flow
 - **Individual (local)**: Import orgchart → select person → choose tenets → add text → auto-saved → copy for Workday
 - **Feedback (hosted)**: Access `/feedback?for=Name` → choose tenets → add text → copy for Workday → paste to HR tool

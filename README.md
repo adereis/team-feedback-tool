@@ -1,77 +1,189 @@
 # Team Feedback Tool
 
-A privacy-focused local web application for collecting and aggregating peer feedback based on team tenets. Integrates with Workday for feedback requests and collection.
+Structured peer feedback, built around your team's values.
 
-**Try it:** demo mode runs locally with fictitious sample data, see [Operating Modes](#operating-modes).
+Colleagues pick the **tenets** (your team's values) where someone shines and
+where they could grow, add comments, and paste the result into Workday.
+Managers import that feedback and see, for each person and for the whole
+team, how often each tenet came up. They add their own picks and words, and
+hand each person a one-page PDF.
 
-## Overview
+It runs on your own computer. Nothing is sent anywhere.
 
-This tool enables teams to:
-- **Individuals**: Provide structured feedback to colleagues using team tenets
-- **Managers**: Aggregate feedback from Workday, add insights, and generate reports
+![A manager's report: the tenet chart beside the manager's own picks](docs/screenshots/report-workspace.png)
 
-All data stays local—no cloud sync, no external dependencies.
+## Try It in Two Minutes
 
-Example Report:
+Demo mode runs locally with fictitious sample data (the people are tech puns
+like Paige Duty and Robin Rollback):
 
-![Feedback Report Example](docs/screenshots/pdf-report.png)
-
-## Workday Integration Workflow
-
-The tool integrates with Workday (or similar HR systems) for feedback collection:
-
-1. **Request**: Manager or employee requests feedback via Workday, including a link to this tool
-2. **Notify**: Feedback providers receive notification with tool link
-3. **Provide**: Providers clone the repo, run locally, select tenets and provide feedback
-4. **Copy**: Click "Copy for Workday" to get formatted text, paste into Workday
-5. **Import**: Manager downloads "Feedback on My Team" XLSX from Workday, imports into tool
-6. **Report**: Tool aggregates feedback for butterfly charts and reports
-
-### Two Types of Feedback
-
-| Type | Source | In Butterfly Chart |
-|------|--------|-------------------|
-| **Structured** | Tool-assisted (contains `[TENETS]` marker) | Yes |
-| **Generic** | Other Workday workflows (free-text) | No (shown separately) |
-
-## Operating Modes
-
-The tool supports three modes for different use cases:
-
-| Mode | Set via | Use Case | Data Persistence |
-|------|---------|----------|-----------------|
-| **Local** (default) | Default | Prepare feedback for multiple team members | Persistent SQLite |
-| **Hosted** | `HOSTED_MODE=true` | Online service for Workday integration | Ephemeral (per-session) |
-| **Demo** | `/demo` routes | Explore tool with fictitious sample data | Session-isolated SQLite |
-
-**Demo mode** runs next to local mode. Build its sample database once, then open `/demo`:
 ```bash
+git clone https://github.com/adereis/team-feedback-tool.git
+cd team-feedback-tool
+python3 -m venv .venv && source .venv/bin/activate
+pip install -r requirements.txt
 python3 scripts/create_demo_template.py
 python3 app.py
-# Open http://localhost:5001/demo
 ```
-Each browser works on its own copy of the sample data, separate from your real data;
-**Reset demo data** in the demo banner restores it.
 
-**Hosted mode** (includes demo) needs a `SECRET_KEY`, shared by all workers, to sign
-session cookies (local mode creates one in `instance/secret_key` automatically):
+Open http://localhost:5001/demo, choose **Manager Dashboard**, pick Della
+Gate, and open anyone's report. Each browser gets its own copy of the sample
+data; **Reset demo data** in the banner restores it.
+
+## What It Does
+
+### Giving feedback
+
+Pick exactly 3 strengths and 2 or 3 areas for improvement from your team's
+tenets, and explain them in your own words. **Copy for Workday** turns it into
+text you paste into Workday; the tool reads it back when your manager imports
+the Workday export. In the local app your work saves automatically.
+
+![Giving feedback: three strengths picked, the rest greyed out, and a comment](docs/screenshots/give-feedback.png)
+
+### Writing a manager's report
+
+- Import the "Feedback on My Team" XLSX export from Workday.
+- For each person, see how often every tenet was picked as a strength or an
+  improvement, and read the comments behind the picks.
+- Highlight your own 3 strengths and 2 or 3 improvements, which count in the
+  chart like a peer's, and write your feedback.
+- Copy your feedback back to Workday, and export a PDF for the team member.
+
+The dashboard adds everyone's reports into one chart, so you can see what
+your whole team is strong at and where it could grow:
+
+![The team chart: strengths and improvements across the whole team](docs/screenshots/dashboard-team-chart.png)
+
+### The PDF for the team member
+
+The PDF opens with the manager's picks and words, then shows the tenet chart
+and the peer comments, **without the names of the peers who wrote them**.
+Feedback imported from Workday is left out, since some of it may not be
+visible to the team member.
+
+<img src="docs/screenshots/pdf-report.png" alt="Page 1 of the PDF: the manager's picks, their comment and the tenet chart" width="480">
+
+## Using It for Real
+
+### Install and run
+
+You need Python 3.9 or later. PDF export uses [WeasyPrint], which needs the
+Pango library (on Fedora: `sudo dnf install pango`).
+
+```bash
+./run.sh          # macOS/Linux
+run.bat           # Windows
+```
+
+The script creates a virtual environment on first run, installs the
+dependencies and opens http://localhost:5001. Your data is kept in
+`feedback.db` next to the code.
+
+To try the local workflow with sample data, including a real XLSX import,
+run `python3 scripts/create_sample_data.py --demo`. It fills `feedback.db`
+with fictitious people and writes a sample Workday export to `samples/`.
+
+[WeasyPrint]: https://doc.courtbouillon.org/weasyprint/stable/first_steps.html
+
+### Set your tenets
+
+The tool ships with example tenets (`samples/tenets-sample.json`). To use your
+team's own, copy the file to `tenets.json` and edit it. `tenets.json` is in
+`.gitignore`, so it stays private.
+
+```bash
+cp samples/tenets-sample.json tenets.json
+```
+
+```json
+{
+  "tenets": [
+    {
+      "id": "ownership",
+      "name": "Ownership & Accountability",
+      "category": "Delivery",
+      "description": "Takes responsibility for outcomes",
+      "active": true
+    }
+  ]
+}
+```
+
+Set `"active": false` to hide a tenet without deleting it.
+
+### Import your team (optional)
+
+With an orgchart, people pick their name from a list, and managers see their
+direct reports. Drop the CSV onto the home page, or run
+`python3 scripts/import_orgchart.py orgchart.csv`:
+
+```csv
+Name,User ID,Job Title,Location,Email,Manager UID
+Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
+Paige Duty,pduty,Staff SRE,Boston MA,pduty@example.com,dgate
+```
+
+Leave **Manager UID** empty for top-level managers. **Location** is optional.
+Without an orgchart, managers enter their name and their team comes from the
+Workday import.
+
+### The Workday workflow
+
+1. **Request**: a manager or employee requests feedback in Workday and
+   includes a link that names the recipient, such as
+   `http://localhost:5001/feedback?for=Robin%20Rollback`.
+2. **Give**: each provider runs the tool, opens the link, picks tenets, writes
+   comments, and pastes the **Copy for Workday** text into Workday.
+3. **Import**: the manager downloads the "Feedback on My Team" XLSX from
+   Workday and drops it on the Manager Dashboard.
+4. **Report**: the manager reviews each person, adds their own picks and
+   words, copies them back to Workday, and exports the PDF.
+
+Feedback written with this tool carries a `[TENETS]` marker, so its picks
+count in the charts. Free-text feedback from other Workday requests is shown
+on the report but not counted.
+
+## Privacy
+
+This is a helper next to your HR system, not a place to keep employee data.
+
+- **Workday stays the source of truth.** Feedback goes into Workday by copy
+  and paste, and managers import it from Workday's own export.
+- **Everything stays on your machine.** There is no cloud sync, no telemetry
+  and no external request, not even for scripts or fonts in the browser.
+- **Each person runs their own copy.** There are no accounts; the tool is
+  meant for one person on their own computer.
+- **The database is disposable.** Delete `feedback.db` after a review cycle.
+- **Peers stay anonymous to the team member.** The manager's report page
+  shows who wrote each comment; the PDF does not.
+- `.gitignore` covers `feedback.db`, `tenets.json` and `REAL-*` exports, so
+  real data is not committed by accident.
+
+## Deployment (Hosted Mode)
+
+Besides local use, the tool can run as a shared web service:
+
+| Mode | How | For | Data |
+|------|-----|-----|------|
+| **Local** (default) | `python3 app.py` | Preparing feedback and reports on your computer | `feedback.db`, kept |
+| **Demo** | open `/demo` | Exploring with fictitious data | One sandbox per browser |
+| **Hosted** | `HOSTED_MODE=true` | The `/feedback?for=Name` form, plus demo | None stored |
+
+In hosted mode the local pages (`/individual`, `/manager`) are blocked, and a
+`SECRET_KEY` shared by all workers is required to sign session cookies:
+
 ```bash
 export SECRET_KEY=$(python3 -c 'import secrets; print(secrets.token_hex(32))')
 HOSTED_MODE=true python3 app.py
-# Access demo at http://localhost:5001/demo
-# Access hosted feedback at http://localhost:5001/feedback?for=Name
 ```
 
-In hosted mode, `/manager` and `/individual` routes are blocked—users must use demo mode or the `/feedback` workflow.
-
-### Container Deployment (OpenShift/Kubernetes)
+In a container (Podman/Docker, OpenShift):
 
 ```bash
-# Build and run with Docker/Podman
 podman build -t team-feedback .
-podman run -p 8080:8080 -e HOSTED_MODE=true -e SECRET_KEY="$SECRET_KEY" team-feedback
+podman run -p 8080:8080 -e SECRET_KEY="$SECRET_KEY" team-feedback
 
-# OpenShift deployment
 oc new-app --strategy=docker --binary --name=team-feedback
 oc start-build team-feedback --from-dir=. --follow
 oc create secret generic team-feedback --from-literal=SECRET_KEY="$SECRET_KEY"
@@ -80,280 +192,31 @@ oc expose svc/team-feedback --name=demo
 oc patch route demo -p '{"spec":{"tls":{"termination":"edge","insecureEdgeTerminationPolicy":"Redirect"}}}'
 ```
 
-## Features
-
-### For Feedback Providers
-- Select 3 tenet strengths and 2-3 areas for improvement
-- Two-column compact tenet layout for faster selection
-- Auto-save with 2-second debounce (no manual save needed)
-- Visual progress checklist (yellow → green when complete)
-- **Copy for Workday** button generates formatted text with tenets
-- Preview of formatted output before copying
-- Support for external feedback providers (not in orgchart)
-
-### For Managers
-- **Import Workday XLSX**: Drag & drop "Feedback on My Team" export
-- Automatic detection of structured vs generic feedback
-- Date range filtering (default: last 3 months, or custom range)
-- Sortable team table (name, job title, feedback count)
-- Butterfly chart visualization of aggregated peer feedback
-- Separate "Additional Feedback" section for generic entries
-- Highlight specific tenets for emphasis in reports
-- Add manager's own feedback and comments
-- **Copy for Workday**: Export manager feedback for pasting back to Workday
-- Export PDF reports for team members (their view: peer feedback given in this tool plus
-  your own; Workday feedback is left out, since some of it may not be visible to them)
-
-## Quick Start
-
-### One-Command Startup
-
-Clone and run:
-
-```bash
-git clone <repo-url>
-cd team-feedback-tool
-./run.sh          # macOS/Linux
-run.bat           # Windows
-```
-
-The script automatically:
-- Creates a virtual environment (first run only)
-- Installs dependencies
-- Opens your browser to http://localhost:5001
-
-### Generate Sample Data (Optional)
-
-Try the tool with fictitious data:
-
-```bash
-# Full demo setup: orgchart, peer feedback, manager feedback, sample XLSX
-python3 scripts/create_sample_data.py --demo
-
-# Or for a larger organization (50 employees, 5 managers)
-python3 scripts/create_sample_data.py --large --demo
-```
-
-Sample managers include: Della Gate (dgate), Rhoda Map (rmap), Kay P. Eye (keye), Agie Enda (aenda), Mai Stone (mstone)
-
-### Manual Setup (Alternative)
-
-```bash
-pip install -r requirements.txt
-python3 app.py
-```
-
-**Import your orgchart via Web UI** (Recommended):
-1. Go to http://localhost:5001
-2. Drag & drop your orgchart CSV onto the upload zone (or click to browse)
-
-**Or via Command Line**:
-```bash
-python3 scripts/import_orgchart.py REAL-orgchart-export.csv
-```
-
-## Workflow
-
-### Workday-Integrated Workflow (Recommended)
-
-1. **Request Feedback**: Manager or employee requests feedback via Workday, including a direct link like:
-   ```
-   http://localhost:5001/feedback?for=Robin%20Rollback
-   ```
-   This pre-fills the recipient name, making it easy for providers to start immediately.
-
-2. **Providers Give Feedback**:
-   - Clone this repo and run locally: `python3 app.py`
-   - Click the link from Workday (or go to http://localhost:5001/feedback)
-   - Select tenets and write feedback for the colleague
-   - Click "Copy for Workday" and paste the formatted text into Workday
-
-3. **Manager Aggregates**:
-   - Download "Feedback on My Team" XLSX from Workday
-   - Import XLSX at http://localhost:5001/manager
-   - Tool parses structured feedback (with tenets) and generic feedback separately
-   - Review reports, add highlights, export PDFs
-
-## Requirements
-
-```bash
-pip install flask sqlalchemy
-```
-
-Or install from requirements.txt:
-```bash
-pip install -r requirements.txt
-```
-
-## Orgchart CSV Format (Optional)
-
-If you have an orgchart, the expected CSV format is:
-
-```csv
-Name,User ID,Job Title,Location,Email,Manager UID
-Paige Duty,pduty,Staff SRE,Boston MA,pduty@example.com,dgate
-Della Gate,dgate,Engineering Manager,Raleigh NC,dgate@example.com,
-```
-
-## Tenets Configuration
-
-The application looks for tenets in this order:
-1. `tenets.json` (your organization's customized tenets)
-2. `samples/tenets-sample.json` (fallback with tech-themed examples)
-
-To customize tenets for your organization:
-
-```bash
-# Copy the sample file
-cp samples/tenets-sample.json tenets.json
-
-# Edit tenets.json with your organization's values
-# (This file is in .gitignore, so it stays private)
-```
-
-Tenet format:
-
-```json
-{
-  "tenets": [
-    {
-      "id": "ownership",
-      "name": "Ownership & Accountability",
-      "description": "Takes responsibility for outcomes",
-      "active": true
-    }
-  ]
-}
-```
-
-Set `"active": false` to temporarily disable a tenet without deleting it.
-
-## Architecture
-
-- **Flask**: Web framework (port 5001)
-- **SQLAlchemy**: ORM for database operations
-- **SQLite**: Local database (feedback.db)
-- **Jinja2**: Template engine
-- **Butterfly charts**: Plain HTML/CSS bars in the browser, matplotlib in the PDF
-- **Vanilla JavaScript**: No frameworks, simple and maintainable
-
-### Database Schema
-
-**persons**: Imported from orgchart
-- user_id (PK), name, job_title, location, email, manager_uid (FK)
-
-**feedback**: Peer feedback entries
-- id (PK), from_user_id (FK), to_user_id (FK)
-- strengths (JSON array of tenet IDs)
-- improvements (JSON array of tenet IDs)
-- strengths_text, improvements_text
-
-**workday_feedback**: Feedback imported from Workday XLSX
-- id (PK), about (recipient name), from_name (provider name)
-- question, feedback (raw text), asked_by, request_type, date
-- is_structured (1 if contains [TENETS] marker)
-- strengths, improvements (JSON arrays, if structured)
-- strengths_text, improvements_text (if structured)
-
-**manager_feedback**: Manager's feedback
-- id (PK), manager_uid (FK), team_member_uid (FK)
-- selected_strengths, selected_improvements (JSON arrays)
-- feedback_text
-
-## Privacy & Security
-
-### Design Principle: No Data Leaves Official HR Tools
-
-This tool is designed as a **helper utility** that enhances the feedback experience without becoming a repository for sensitive employee data:
-
-- **Workday remains the source of truth**: All feedback ultimately lives in Workday (or your HR system)
-- **Copy-paste workflow**: Feedback providers paste formatted text *into* Workday, not out of it
-- **Managers import from Workday**: The XLSX is exported from Workday, imported here for visualization
-- **No data sharing between users**: Each user runs their own local instance
-- **Ephemeral local storage**: The local database can be deleted after each feedback cycle
-
-### Technical Safeguards
-
-- **Local-first**: All data stays on your machine—no cloud sync, no external servers
-- **No authentication**: Designed for single-user local execution (each person runs their own copy)
-- **No telemetry**: No external API calls, analytics, or phoning home
-- **Anonymous peer feedback**: Manager reports show feedback without identifying who gave it
-- **.gitignore**: Protects REAL-*.csv, REAL-*.xlsx, feedback.db, tenets.json from accidental commits
-
-## Development
-
-### Project Structure
-
-```
-.
-├── app.py                       # Flask application
-├── models.py                    # SQLAlchemy models
-├── demo_mode.py                 # Demo mode session isolation
-├── scripts/
-│   ├── import_workday.py        # Workday XLSX import utility
-│   ├── import_orgchart.py       # Optional orgchart CSV import
-│   ├── create_sample_data.py    # Sample data generator
-│   └── create_demo_template.py  # Generate demo template database
-├── demo-templates/              # Demo mode template DB (generated)
-├── templates/                   # Jinja2 templates
-├── tests/                       # Test suite
-├── samples/
-│   └── tenets-sample.json       # Sample tenets configuration
-├── docs/                        # Documentation assets
-└── README.md                    # This file
-```
-
-### Auto-Save Pattern
-
-Used consistently across the application:
-- 2-second debounce on all changes
-- Visual "✓ Saved" indicator
-- Silent error handling (logs to console)
-- No manual save buttons or popups
-
-### UI Patterns
-
-- **Two-column layout**: Compact tenet selectors
-- **Sortable tables**: Click headers to sort (↑↓)
-- **Context banners**: Show current user/manager identity
-- **Progress indicators**: Checklist with yellow → green states
-- **Inline editing**: No separate forms or modals
+The image sets `HOSTED_MODE=true` and builds the demo database.
 
 ## Troubleshooting
 
-**Port conflict**
-- Feedback tool uses port 5001
-- Change in app.py if needed: `app.run(port=5002)`
+**Port 5001 is in use**: another copy may be running. Stop it, or change the
+port in the last line of `app.py`.
 
-**No managers found (when using orgchart)**
-- Make sure orgchart CSV has people with direct reports
-- Managers are auto-detected (people referenced in Manager UID column)
-- If not using orgchart, just enter manager name manually
+**"Database is locked"**: run only one copy of the tool at a time, then
+restart it.
 
-**Auto-save not working**
-- Check browser console for errors
-- Verify JavaScript is enabled
-- Try hard refresh: Ctrl+Shift+R
+**The Workday import fails**: it needs the "Feedback on My Team" export.
+Column names are mapped in `workday_config.json`.
 
-**Butterfly chart not rendering**
-- Check browser console for JavaScript errors
-- Verify Chart.js CDN is accessible
-- Try clearing browser cache
+**No tenets appear**: check that `tenets.json` is valid JSON, or delete it to
+fall back to the sample tenets.
 
-**Database locked**
-- Close any other processes using feedback.db
-- Restart the Flask app
+**PDF export fails**: install WeasyPrint's system libraries (see above).
 
-## Contributing
+## Development
 
-This tool was developed with AI assistance (Claude Code by Anthropic) to accelerate development while maintaining code quality.
+Run the tests with `pytest`; see `tests/TESTING.md`. Architecture, patterns
+and conventions for contributors (human or AI) are in [AGENTS.md](AGENTS.md).
+The tool is built with Flask, SQLAlchemy, SQLite, vanilla JavaScript and
+WeasyPrint, and was developed with AI assistance (Claude Code by Anthropic).
 
 ## License
 
-MIT License - See LICENSE file for details
-
-## Acknowledgments
-
-- Sample employee names are tech-themed puns for demo purposes
-- Butterfly chart pattern adapted from performance analytics tools
-- Built with Flask, SQLAlchemy, and Chart.js
+MIT License. See [LICENSE](LICENSE).
