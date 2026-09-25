@@ -18,6 +18,11 @@
             line-height: 1.6;
         }
 
+        /* Browsers give form controls their own font; use the page's */
+        button, input, select, textarea {
+            font: inherit;
+        }
+
         .container {
             max-width: 1200px;
             margin: 0 auto;
@@ -154,15 +159,18 @@
             font-weight: 600;
         }
 
+        /* Flex, not inline links: wrapped rows of padded inline links overlap */
         nav {
             margin-top: 15px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 10px;
         }
 
         nav a {
             color: white;
             text-decoration: none;
             padding: 8px 16px;
-            margin-right: 10px;
             border-radius: 4px;
             background: rgba(255,255,255,0.1);
             transition: background 0.3s;
