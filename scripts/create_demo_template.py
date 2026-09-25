@@ -44,48 +44,42 @@ def create_demo_template():
     # Ensure template directory exists
     os.makedirs(template_dir, exist_ok=True)
 
-    # Use a temporary database path during generation
-    temp_db = os.path.join(tempfile.gettempdir(), 'demo_template_temp.db')
-
-    # Remove existing temp db if any
-    if os.path.exists(temp_db):
-        os.remove(temp_db)
-
     print("=" * 50)
     print("Creating Demo Template Database")
     print("=" * 50)
 
-    # Generate people data
-    people = get_small_team_data()
-    print(f"\n1. Generated {len(people)} fictitious employees")
+    # Build in a private, randomly named directory (never fixed names in the
+    # shared temp dir), then move the finished database into place.
+    with tempfile.TemporaryDirectory(prefix='demo-template-') as work_dir:
+        temp_db = os.path.join(work_dir, 'demo.db')
+        temp_csv = os.path.join(work_dir, 'orgchart.csv')
 
-    # Create temporary orgchart CSV
-    temp_csv = os.path.join(tempfile.gettempdir(), 'demo_orgchart.csv')
-    write_orgchart_csv(temp_csv, people)
+        # Generate people data
+        people = get_small_team_data()
+        print(f"\n1. Generated {len(people)} fictitious employees")
 
-    # Import orgchart to temporary database
-    print("\n2. Importing orgchart to database...")
-    import_orgchart(temp_csv, temp_db)
+        write_orgchart_csv(temp_csv, people)
 
-    # Clean up temp CSV
-    os.remove(temp_csv)
+        # Import orgchart to temporary database
+        print("\n2. Importing orgchart to database...")
+        import_orgchart(temp_csv, temp_db)
 
-    # Generate peer feedback
-    print("\n3. Generating peer feedback...")
-    feedback_list = generate_sample_feedback(people, temp_db)
+        # Generate peer feedback
+        print("\n3. Generating peer feedback...")
+        feedback_list = generate_sample_feedback(people, temp_db)
 
-    # Generate manager feedback
-    print("\n4. Generating manager feedback...")
-    generate_manager_feedback(people, temp_db)
+        # Generate manager feedback
+        print("\n4. Generating manager feedback...")
+        generate_manager_feedback(people, temp_db)
 
-    # Generate Workday feedback and import it directly to DB
-    print("\n5. Generating Workday feedback...")
-    generate_workday_feedback_to_db(people, feedback_list, temp_db)
+        # Generate Workday feedback and import it directly to DB
+        print("\n5. Generating Workday feedback...")
+        generate_workday_feedback_to_db(people, feedback_list, temp_db)
 
-    # Move to final location
-    if os.path.exists(template_db):
-        os.remove(template_db)
-    shutil.move(temp_db, template_db)
+        # Move to final location
+        if os.path.exists(template_db):
+            os.remove(template_db)
+        shutil.move(temp_db, template_db)
 
     # Verify
     file_size = os.path.getsize(template_db)
