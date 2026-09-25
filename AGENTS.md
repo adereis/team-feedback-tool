@@ -11,6 +11,7 @@
 | `app.py` | Flask routes, API endpoints, session management |
 | `models.py` | SQLAlchemy models (Person, Feedback, ManagerFeedback, WorkdayFeedback) |
 | `reports.py` | Tenet tallies for charts: manager view, employee view (PDF), team charts |
+| `static/workday_format.js` | Copy-for-Workday text (`WorkdayFormat.peer` / `.manager`), loaded by `base.html` |
 | `demo_mode.py` | Demo mode session isolation (per-visitor SQLite databases) |
 | `scripts/import_orgchart.py` | Orgchart CSV import (CLI) |
 | `scripts/import_workday.py` | Workday XLSX import; column mapping from root `workday_config.json` |
@@ -133,6 +134,13 @@ def endpoint():
 - Individual Chart.js instance per tenet row in CSS Grid
 - Strengths (green, right), Improvements (red, left)
 - Manager highlights = darker bars, +1 to counts
+
+### Copy-for-Workday Format
+- Produced only by `static/workday_format.js`; parsed on import by
+  `WorkdayFeedback.parse_structured_feedback()` in `models.py`. Never build the
+  `[TENETS]` text inline in a template.
+- `tests/test_workday_format.py` runs the JS under Node and parses its output,
+  so a format change that breaks import fails a test (skipped without Node).
 
 ### PDF Export
 - The PDF is the **employee's view**; the report page is the manager's view.

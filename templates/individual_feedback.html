@@ -685,7 +685,7 @@ function toggleFeedbackItem(index) {
 
 function copyFeedbackForWorkday(index) {
     const fb = existingFeedback[index];
-    const formatted = formatFeedbackForWorkday(fb);
+    const formatted = WorkdayFormat.peer(tenets, fb);
 
     navigator.clipboard.writeText(formatted).then(() => {
         // Show brief confirmation on the button
@@ -819,36 +819,6 @@ function deleteFeedback(userId) {
 if (existingFeedback.length > 0) {
     renderFeedbackList();
     updateColleagueDropdownIndicators();
-}
-
-// Workday copy functionality
-function formatFeedbackForWorkday(feedback) {
-    // Get tenet names
-    const strengthTenets = feedback.strengths.map(id => {
-        const tenet = tenets.find(t => t.id === id);
-        return tenet ? tenet.name : id;
-    });
-
-    const improvementTenets = feedback.improvements.map(id => {
-        const tenet = tenets.find(t => t.id === id);
-        return tenet ? tenet.name : id;
-    });
-
-    // Build the formatted text with human-readable content first, machine-parseable marker at bottom
-    let text = `Strengths:
-${strengthTenets.map(name => '• ' + name).join('\n')}
-${feedback.strengths_text ? '\n' + feedback.strengths_text : ''}
-
-Areas for Improvement:
-${improvementTenets.map(name => '• ' + name).join('\n')}
-${feedback.improvements_text ? '\n' + feedback.improvements_text : ''}
-
-[TENETS]
-Strengths: ${feedback.strengths.join(', ')}
-Improvements: ${feedback.improvements.join(', ')}
-[/TENETS]`;
-
-    return text;
 }
 
 </script>

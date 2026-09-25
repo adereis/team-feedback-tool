@@ -371,6 +371,9 @@
         {% block extra_styles %}{% endblock %}
     </style>
 
+    <!-- Copy-for-Workday text format (WorkdayFormat.peer / .manager) -->
+    <script src="{{ url_for('static', filename='workday_format.js') }}"></script>
+
     <!-- Global Auto-Save Manager: Handles debounced saves with keepalive on page unload -->
     <script>
     window.AutoSave = (function() {

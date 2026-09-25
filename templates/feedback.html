@@ -376,43 +376,12 @@ function updatePreview() {
 
     copyBtn.disabled = false;
 
-    // Get tenet names
-    const strengthNames = selectedStrengths.map(id => {
-        const t = tenets.find(t => t.id === id);
-        return t ? t.name : id;
+    const output = WorkdayFormat.peer(tenets, {
+        strengths: selectedStrengths,
+        improvements: selectedImprovements,
+        strengths_text: document.getElementById('strengthsText').value,
+        improvements_text: document.getElementById('improvementsText').value
     });
-    const improvementNames = selectedImprovements.map(id => {
-        const t = tenets.find(t => t.id === id);
-        return t ? t.name : id;
-    });
-
-    const strengthsText = document.getElementById('strengthsText').value.trim();
-    const improvementsText = document.getElementById('improvementsText').value.trim();
-
-    // Build formatted output - human-readable first, machine-parseable marker at bottom
-    let output = `Strengths:
-${strengthNames.map(n => '• ' + n).join('\n')}
-`;
-
-    if (strengthsText) {
-        output += `\n${strengthsText}\n`;
-    }
-
-    output += `
-Areas for Improvement:
-${improvementNames.map(n => '• ' + n).join('\n')}
-`;
-
-    if (improvementsText) {
-        output += `\n${improvementsText}\n`;
-    }
-
-    // Add machine-parseable marker at the end
-    output += `
-[TENETS]
-Strengths: ${selectedStrengths.join(', ')}
-Improvements: ${selectedImprovements.join(', ')}
-[/TENETS]`;
 
     previewEl.textContent = output;
 }

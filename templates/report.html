@@ -658,39 +658,11 @@ function updateManagerCopyPreview() {
 
     copyBtn.disabled = false;
 
-    // Get tenet names
-    const strengthNames = managerSelectedStrengths.map(id => {
-        const t = tenets.find(t => t.id === id);
-        return t ? t.name : id;
+    const output = WorkdayFormat.manager(tenets, {
+        strengths: managerSelectedStrengths,
+        improvements: managerSelectedImprovements,
+        feedback_text: document.getElementById('managerFeedbackText').value
     });
-    const improvementNames = managerSelectedImprovements.map(id => {
-        const t = tenets.find(t => t.id === id);
-        return t ? t.name : id;
-    });
-
-    const feedbackText = document.getElementById('managerFeedbackText').value.trim();
-
-    // Build formatted output - human-readable first, machine-parseable marker at bottom
-    let output = `Strengths:
-${strengthNames.map(n => '• ' + n).join('\n')}
-
-Areas for Improvement:
-${improvementNames.map(n => '• ' + n).join('\n')}
-`;
-
-    if (feedbackText) {
-        output += `
-Manager's Feedback:
-${feedbackText}
-`;
-    }
-
-    // Add machine-parseable marker at the end
-    output += `
-[TENETS]
-Strengths: ${managerSelectedStrengths.join(', ')}
-Improvements: ${managerSelectedImprovements.join(', ')}
-[/TENETS]`;
 
     previewEl.textContent = output;
 }
