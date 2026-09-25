@@ -192,7 +192,8 @@ def endpoint():
   manager's picks (`MemberFeedback.employee_view()`). Do not "fix" this to
   match the report page.
 - WeasyPrint for HTML-to-PDF, separate `*_pdf.html` templates (no JS)
-- Charts via matplotlib as base64 PNG images
+- Chart via matplotlib as a base64 SVG (`generate_butterfly_chart_image()` in
+  `app.py`), laid out like the web chart; glyphs are paths, so it needs no fonts
 - Filename: `{Type}_{Name}_{YYYYMMDD}.pdf`
 
 ### Page Styles

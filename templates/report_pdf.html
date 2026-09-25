@@ -71,8 +71,9 @@
             page-break-inside: avoid;
         }
 
+        /* Full content width: the SVG is drawn for it (7.2in), so text stays ~8.5pt */
         .chart-container img {
-            max-width: 100%;
+            width: 100%;
             height: auto;
         }
 
@@ -141,18 +142,14 @@
         <p><strong>Total Peer Feedback Received:</strong> {{ feedback_count | plural('entry', 'entries') }}</p>
     </div>
 
-    <h2>Team Tenets - Butterfly Chart</h2>
+    <h2>Tenet Overview</h2>
     <p style="margin-bottom: 10px; color: #666; font-size: 10pt;">
-        Aggregated feedback from all peers. Strengths shown in green (right), improvements in red (left).
+        How often each tenet was picked as a strength or an improvement in peer feedback and by your manager.
+        A darker bar with a ★ is one of your manager's picks, counted +1 like a peer's.
     </p>
 
-    <div class="legend">
-        <strong>Legend:</strong> Highlighted tenets (brighter color, thicker border) were selected by the manager.
-        Bar lengths include both peer feedback AND manager selection (each counts as +1).
-    </div>
-
     <div class="chart-container">
-        <img src="data:image/png;base64,{{ chart_image }}" alt="Butterfly Chart">
+        <img src="data:image/svg+xml;base64,{{ chart_image }}" alt="Tenet chart: strengths and improvements picked for each tenet">
     </div>
 
     <h2>Peer Feedback Comments</h2>

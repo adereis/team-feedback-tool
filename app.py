@@ -34,6 +34,7 @@ import os
 import base64
 import secrets
 import tempfile
+import textwrap
 import threading
 from collections import defaultdict
 from functools import wraps
@@ -1100,86 +1101,78 @@ def save_manager_feedback():
     return jsonify({"success": True})
 
 
+# PDF chart colors: the same as the web chart (.butterfly in static/style.css)
+PDF_CHART_COLORS = {
+    'strength': '#74c080', 'strength_picked': '#1e7e34',
+    'improvement': '#e8838d', 'improvement_picked': '#a71d2a',
+    'text': '#2c3e50', 'muted': '#6c757d', 'zero': '#adb5bd',
+}
+
+
 def generate_butterfly_chart_image(butterfly_data, manager_selected_strengths, manager_selected_improvements):
-    """
-    Generate butterfly chart as base64-encoded PNG image using matplotlib
+    """Draw the PDF's butterfly chart and return it as a base64-encoded SVG.
 
-    Args:
-        butterfly_data: List of dicts with tenet data
-        manager_selected_strengths: List of tenet IDs selected by manager
-        manager_selected_improvements: List of tenet IDs selected by manager
-
-    Returns:
-        Base64-encoded PNG image string
+    Laid out like the web chart (static/butterfly.js): tenet names in the
+    middle, improvements growing left and strengths right on one shared
+    scale, the count at each bar's tip, and the manager's picks as a darker
+    bar with a star. SVG keeps it sharp in the PDF; glyphs are drawn as
+    paths, so the output does not depend on fonts installed where
+    WeasyPrint runs. Picked bars carry an SVG id (picked-strength-<tenet>,
+    picked-improvement-<tenet>).
     """
+    colors = PDF_CHART_COLORS
     if not butterfly_data:
-        # Return empty/placeholder image
-        fig, ax = plt.subplots(figsize=(10, 1))
-        ax.text(0.5, 0.5, 'No feedback data available', ha='center', va='center')
-        ax.axis('off')
+        fig = plt.figure(figsize=(7, 0.6))
+        fig.text(0.5, 0.5, 'No feedback data available yet.', ha='center', va='center',
+                 color=colors['muted'], fontsize=10)
     else:
-        # Prepare data
-        tenet_names = [t['name'] for t in butterfly_data]
-        strength_counts = [t['strength_count'] for t in butterfly_data]
-        improvement_counts = [-t['improvement_count'] for t in butterfly_data]  # Negative for left side
+        rows = len(butterfly_data)
+        longest = max(1, max(max(t['strength_count'], t['improvement_count']) for t in butterfly_data))
+        fig = plt.figure(figsize=(7.2, 0.3 * rows + 0.55))
+        grid = fig.add_gridspec(1, 3, width_ratios=[1, 1.3, 1], wspace=0.04,
+                                left=0.01, right=0.99, top=1 - 0.4 / (0.3 * rows + 0.55), bottom=0.02)
+        ax_improve, ax_label, ax_strength = (fig.add_subplot(grid[0, i]) for i in range(3))
+        y_positions = range(rows)
 
-        # Determine which bars should be highlighted
-        strength_colors = []
-        improvement_colors = []
+        sides = [
+            (ax_improve, 'improvement', manager_selected_improvements, '← Improvements', 'right'),
+            (ax_strength, 'strength', manager_selected_strengths, 'Strengths →', 'left'),
+        ]
+        for ax, kind, picks, heading, align in sides:
+            counts = [t[f'{kind}_count'] for t in butterfly_data]
+            picked = [t['id'] in picks for t in butterfly_data]
+            bars = ax.barh(y_positions, counts, height=0.62,
+                           color=[colors[f'{kind}_picked'] if p else colors[kind] for p in picked])
+            for bar, tenet, is_picked, count in zip(bars, butterfly_data, picked, counts):
+                if is_picked:
+                    bar.set_gid(f"picked-{kind}-{tenet['id']}")
+                label = f'{count} ★' if is_picked and align == 'left' else (f'★ {count}' if is_picked else str(count))
+                ax.text(count + longest * 0.03, bar.get_y() + bar.get_height() / 2, label,
+                        ha='left' if align == 'left' else 'right', va='center', fontsize=8.5,
+                        fontweight='bold' if count else 'normal',
+                        color=colors[f'{kind}_picked'] if is_picked else (colors['text'] if count else colors['zero']))
+            ax.set_xlim(0, longest * 1.25)  # room for the count at the longest bar's tip
+            if align == 'right':
+                ax.invert_xaxis()  # improvements grow leftward from the names
+            ax.set_ylim(rows - 0.5, -0.5)  # first row at the top
+            ax.axvline(0, color='#ced4da', linewidth=0.8)
+            ax.set_title(heading, fontsize=8, color=colors['muted'], loc=align, pad=4, fontweight='bold')
+            ax.axis('off')
+            ax.title.set_visible(True)
 
-        for t in butterfly_data:
-            is_strength_selected = t['id'] in manager_selected_strengths
-            is_improvement_selected = t['id'] in manager_selected_improvements
+        for i, tenet in enumerate(butterfly_data):
+            # Long names wrap onto a second line rather than run into the bars
+            ax_label.text(0.5, i, textwrap.fill(tenet['name'], 36), ha='center', va='center', fontsize=8.5,
+                          linespacing=1.0, fontweight='bold', color=colors['text'])
+        ax_label.set_xlim(0, 1)
+        ax_label.set_ylim(rows - 0.5, -0.5)
+        ax_label.axis('off')
 
-            strength_colors.append('#51cf66' if is_strength_selected else '#28a745')
-            improvement_colors.append('#ff6b6b' if is_improvement_selected else '#dc3545')
-
-        # Create figure
-        fig_height = max(6, len(butterfly_data) * 0.4)
-        fig, ax = plt.subplots(figsize=(10, fig_height))
-
-        # Create horizontal bar chart
-        y_pos = range(len(tenet_names))
-
-        # Plot improvements (left, negative values)
-        bars_left = ax.barh(y_pos, improvement_counts, color=improvement_colors,
-                           edgecolor='black', linewidth=0.5)
-
-        # Plot strengths (right, positive values)
-        bars_right = ax.barh(y_pos, strength_counts, color=strength_colors,
-                            edgecolor='black', linewidth=0.5)
-
-        # Highlight manager-selected bars with thicker border
-        for i, t in enumerate(butterfly_data):
-            if t['id'] in manager_selected_improvements:
-                bars_left[i].set_linewidth(2.5)
-                bars_left[i].set_edgecolor('#ff0000')
-            if t['id'] in manager_selected_strengths:
-                bars_right[i].set_linewidth(2.5)
-                bars_right[i].set_edgecolor('#00ff00')
-
-        # Set labels
-        ax.set_yticks(y_pos)
-        ax.set_yticklabels(tenet_names)
-        ax.set_xlabel('Count')
-        ax.axvline(x=0, color='black', linewidth=1)
-
-        # Invert y-axis so highest scores (strengths) appear at top
-        ax.invert_yaxis()
-
-        ax.set_title('Team Tenets - Butterfly Chart\n(Strengths right, Improvements left)',
-                     fontsize=12, fontweight='bold')
-
-        plt.tight_layout()
-
-    # Convert to base64
     buffer = io.BytesIO()
-    plt.savefig(buffer, format='png', dpi=150, bbox_inches='tight')
-    buffer.seek(0)
-    image_base64 = base64.b64encode(buffer.read()).decode('utf-8')
+    with plt.rc_context({'svg.fonttype': 'path'}):
+        fig.savefig(buffer, format='svg')
     plt.close(fig)
-
-    return image_base64
+    return base64.b64encode(buffer.getvalue()).decode('ascii')
 
 
 @views.route('/manager/export-pdf/<user_id>')

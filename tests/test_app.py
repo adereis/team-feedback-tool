@@ -747,11 +747,15 @@ class TestPDFExport:
         assert isinstance(image_base64, str)
         assert len(image_base64) > 0
 
-        # Verify it can be decoded
+        # Verify it decodes to an SVG (vector, so it stays sharp in the PDF)
         import base64
         decoded = base64.b64decode(image_base64)
-        assert len(decoded) > 0
-        assert decoded.startswith(b'\x89PNG')  # PNG file signature
+        assert b'<svg' in decoded
+
+        # The manager's picks, and only those, are drawn as picked bars
+        assert b'id="picked-strength-tenet1"' in decoded
+        assert b'id="picked-improvement-tenet2"' in decoded
+        assert decoded.count(b'id="picked-') == 2
 
     def test_butterfly_chart_with_no_data(self):
         """Test butterfly chart handles empty data gracefully"""
