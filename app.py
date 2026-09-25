@@ -156,6 +156,23 @@ def load_tenets():
     return [t for t in data['tenets'] if t.get('active', True)]
 
 
+def tenet_selection_error(strengths, improvements):
+    """Return why a tenet selection breaks the feedback rule, or None if valid.
+
+    One rule for peer and manager feedback alike: exactly 3 strengths and
+    2-3 improvements. The pages also keep a tenet out of both lists, but the
+    API does not check that (test data relies on overlaps).
+    """
+    if not (isinstance(strengths, list) and isinstance(improvements, list)
+            and all(isinstance(t, str) for t in strengths + improvements)):
+        return "Tenet selections must be lists of tenet IDs"
+    if len(strengths) != 3:
+        return "Must select exactly 3 strengths"
+    if not 2 <= len(improvements) <= 3:
+        return "Must select 2-3 improvements"
+    return None
+
+
 @app.route('/')
 def index():
     """Home page - select mode"""
@@ -411,12 +428,9 @@ def save_feedback():
     if not to_user_id:
         return jsonify({"success": False, "error": "Missing to_user_id"}), 400
 
-    # Validate tenet counts
-    if len(strengths) != 3:
-        return jsonify({"success": False, "error": "Must select exactly 3 strengths"}), 400
-
-    if len(improvements) < 2 or len(improvements) > 3:
-        return jsonify({"success": False, "error": "Must select 2-3 improvements"}), 400
+    error = tenet_selection_error(strengths, improvements)
+    if error:
+        return jsonify({"success": False, "error": error}), 400
 
     session = get_db()
 
@@ -1062,12 +1076,9 @@ def save_manager_feedback():
     if not team_member_uid:
         return jsonify({"success": False, "error": "Missing team_member_uid"}), 400
 
-    # Enforce mutual exclusivity: remove any tenets that appear in both lists
-    overlap = set(selected_strengths) & set(selected_improvements)
-    if overlap:
-        # Remove overlapping tenets from both lists to enforce mutual exclusivity
-        selected_strengths = [t for t in selected_strengths if t not in overlap]
-        selected_improvements = [t for t in selected_improvements if t not in overlap]
+    error = tenet_selection_error(selected_strengths, selected_improvements)
+    if error:
+        return jsonify({"success": False, "error": error}), 400
 
     session = get_db()
 

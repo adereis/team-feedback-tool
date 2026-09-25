@@ -40,7 +40,7 @@
 2. **Auto-save**: 2-second debounce on all editable fields, no save buttons
 3. **Vanilla JS**: No frameworks, use fetch API, Chart.js for charts
 4. **No popups**: Use inline indicators ("Saved") never `alert()`
-5. **Tenet validation**: 3 strengths, 2-3 improvements (API-enforced)
+5. **Tenet validation**: 3 strengths, 2-3 improvements, for peers and managers (API-enforced)
 6. **Workday is source of truth**: Export via copy/paste, import from XLSX only
 
 ### Operating Modes
@@ -83,7 +83,8 @@ hook. Front-end calls must use `API_PREFIX`, never a hard-coded `/api/...`.
 
 ### Never Change Without Full Audit
 - Tenet validation (3 strengths, 2-3 improvements) - update all validation points
-  (peer feedback API enforces it; manager feedback API only drops overlaps)
+  (server: `tenet_selection_error()` in `app.py`, used by the peer and manager
+  APIs; pages: `feedback.html`, `individual_feedback.html`, `report.html`)
 - Session keys (`user_id`, `manager_uid`) - update all references
 - Auto-save debounce timing (`DELAY_MS` in `base.html`)
 

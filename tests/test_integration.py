@@ -298,13 +298,14 @@ class TestCrossWorkflowIntegration:
         # Manager already has feedback from fixture, update it
         mgr_feedback = {
             'team_member_uid': 'emp001',
-            'selected_strengths': ['tenet1'],  # Same as peer
-            'selected_improvements': ['tenet4'],  # Same as peer
+            'selected_strengths': ['tenet1', 'tenet2', 'tenet3'],  # tenet1 same as peer
+            'selected_improvements': ['tenet4', 'tenet2'],  # tenet4 same as peer
             'feedback_text': 'Manager input'
         }
-        client.post('/api/manager-feedback',
-                    data=json.dumps(mgr_feedback),
-                    content_type='application/json')
+        response = client.post('/api/manager-feedback',
+                               data=json.dumps(mgr_feedback),
+                               content_type='application/json')
+        assert response.status_code == 200
 
         # View report should show combined counts
         response = client.get('/manager/report/emp001')

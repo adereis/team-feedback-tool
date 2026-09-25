@@ -560,8 +560,8 @@ class TestManagerFeedbackAPI:
 
         feedback_data = {
             'team_member_uid': 'emp002',
-            'selected_strengths': ['tenet1', 'tenet2'],
-            'selected_improvements': ['tenet3'],
+            'selected_strengths': ['tenet1', 'tenet2', 'tenet3'],
+            'selected_improvements': ['tenet4', 'tenet1'],
             'feedback_text': 'Strong performer this quarter'
         }
 
@@ -589,7 +589,7 @@ class TestManagerFeedbackAPI:
 
         updated_data = {
             'team_member_uid': 'emp001',
-            'selected_strengths': ['tenet3', 'tenet4'],
+            'selected_strengths': ['tenet3', 'tenet4', 'tenet2'],
             'selected_improvements': ['tenet1', 'tenet2'],
             'feedback_text': 'Updated feedback text'
         }
@@ -607,7 +607,7 @@ class TestManagerFeedbackAPI:
         ).first()
 
         assert mgr_feedback.feedback_text == 'Updated feedback text'
-        assert mgr_feedback.get_selected_strengths() == ['tenet3', 'tenet4']
+        assert mgr_feedback.get_selected_strengths() == ['tenet3', 'tenet4', 'tenet2']
 
     def test_save_manager_feedback_requires_session(self, client):
         """Test manager feedback API requires session"""
@@ -624,44 +624,26 @@ class TestManagerFeedbackAPI:
 
         assert response.status_code == 400
 
-    def test_save_manager_feedback_prevents_duplicate_tenets(self, client, db_session):
-        """Test manager feedback API enforces mutual exclusivity (no tenet in both lists)"""
+    @pytest.mark.parametrize('strengths,improvements', [
+        (['tenet1', 'tenet2'], ['tenet3', 'tenet4']),            # too few strengths
+        (['tenet1', 'tenet2', 'tenet3'], ['tenet4']),            # too few improvements
+        (['tenet1', 'tenet2', 'tenet3'], ['tenet4', 'tenet1', 'tenet2', 'tenet3']),  # too many
+    ])
+    def test_save_manager_feedback_incomplete_selection_rejected(self, client, db_session,
+                                                                 strengths, improvements):
+        """Test manager picks follow the peer rule: 3 strengths, 2-3 improvements"""
         with client.session_transaction() as sess:
             sess['manager_uid'] = 'mgr001'
 
-        # Attempt to save with overlapping tenets
-        feedback_data = {
+        response = client.post('/api/manager-feedback', json={
             'team_member_uid': 'emp002',
-            'selected_strengths': ['tenet1', 'tenet2', 'tenet3'],
-            'selected_improvements': ['tenet2', 'tenet4'],  # tenet2 overlaps
+            'selected_strengths': strengths,
+            'selected_improvements': improvements,
             'feedback_text': 'Test feedback'
-        }
+        })
 
-        response = client.post('/api/manager-feedback',
-                               data=json.dumps(feedback_data),
-                               content_type='application/json')
-
-        assert response.status_code == 200
-        data = json.loads(response.data)
-        assert data['success'] is True
-
-        # Verify in database that overlapping tenet was removed from both
-        mgr_feedback = db_session.query(ManagerFeedback).filter_by(
-            manager_uid='mgr001',
-            team_member_uid='emp002'
-        ).first()
-
-        strengths = mgr_feedback.get_selected_strengths()
-        improvements = mgr_feedback.get_selected_improvements()
-
-        # tenet2 should not appear in either list (removed due to overlap)
-        assert 'tenet2' not in strengths
-        assert 'tenet2' not in improvements
-
-        # Other tenets should be preserved
-        assert 'tenet1' in strengths
-        assert 'tenet3' in strengths
-        assert 'tenet4' in improvements
+        assert response.status_code == 400
+        assert db_session.query(ManagerFeedback).filter_by(team_member_uid='emp002').count() == 0
 
 
 class TestTenetsLoading:
@@ -820,3 +802,38 @@ class TestPDFExport:
         response = client.get('/manager/export-pdf/emp999')
         assert response.status_code == 200
         assert response.content_type == 'application/pdf'
+
+
+class TestTenetSelectionRule:
+    """Test the one tenet rule shared by peer and manager feedback"""
+
+    @pytest.mark.parametrize('strengths,improvements,valid', [
+        (['t1', 't2', 't3'], ['t4', 't5'], True),
+        (['t1', 't2', 't3'], ['t4', 't5', 't6'], True),
+        (['t1', 't2'], ['t4', 't5'], False),
+        (['t1', 't2', 't3', 't4'], ['t5', 't6'], False),
+        (['t1', 't2', 't3'], ['t4'], False),
+        (['t1', 't2', 't3'], ['t4', 't5', 't6', 't7'], False),
+        ('abc', ['t4', 't5'], False),            # a 3-char string is not 3 tenets
+        (['t1', 't2', 3], ['t4', 't5'], False),  # IDs are strings
+    ])
+    def test_tenet_selection_error(self, strengths, improvements, valid):
+        """Test which selections the rule accepts"""
+        from app import tenet_selection_error
+
+        assert (tenet_selection_error(strengths, improvements) is None) == valid
+
+    def test_peer_and_manager_apis_reject_the_same_selection(self, client):
+        """Test both APIs answer an incomplete selection the same way"""
+        with client.session_transaction() as sess:
+            sess['user_id'] = 'emp001'
+            sess['manager_uid'] = 'mgr001'
+
+        peer = client.post('/api/feedback', json={
+            'to_user_id': 'emp002', 'strengths': ['tenet1'], 'improvements': ['tenet2', 'tenet3']})
+        manager = client.post('/api/manager-feedback', json={
+            'team_member_uid': 'emp002', 'selected_strengths': ['tenet1'],
+            'selected_improvements': ['tenet2', 'tenet3']})
+
+        assert peer.status_code == manager.status_code == 400
+        assert peer.get_json()['error'] == manager.get_json()['error']
