@@ -234,7 +234,7 @@ Set `"active": false` to temporarily disable a tenet without deleting it.
 - **SQLAlchemy**: ORM for database operations
 - **SQLite**: Local database (feedback.db)
 - **Jinja2**: Template engine
-- **Chart.js**: Butterfly chart visualizations
+- **Butterfly charts**: Plain HTML/CSS bars in the browser, matplotlib in the PDF
 - **Vanilla JavaScript**: No frameworks, simple and maintainable
 
 ### Database Schema

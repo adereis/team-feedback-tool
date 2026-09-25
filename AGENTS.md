@@ -12,6 +12,7 @@
 | `models.py` | SQLAlchemy models (Person, Feedback, ManagerFeedback, WorkdayFeedback) |
 | `reports.py` | Tenet tallies for charts: manager view, employee view (PDF), team charts |
 | `static/style.css` | Shared styles and color variables for every page, loaded by `base.html` |
+| `static/butterfly.js` | Butterfly chart (`Butterfly.render`), used by the report page and dashboard |
 | `static/workday_format.js` | Copy-for-Workday text (`WorkdayFormat.peer` / `.manager`), loaded by `base.html` |
 | `demo_mode.py` | Demo mode session isolation (per-visitor SQLite databases) |
 | `scripts/import_orgchart.py` | Orgchart CSV import (CLI) |
@@ -41,7 +42,8 @@
 
 1. **Privacy-first**: SQLite only, no cloud/telemetry, all data local
 2. **Auto-save**: 2-second debounce on all editable fields, no save buttons
-3. **Vanilla JS**: No frameworks, use fetch API, Chart.js for charts
+3. **Vanilla JS**: No frameworks and no CDN scripts, use fetch API; charts are plain
+   HTML/CSS (`static/butterfly.js`), so pages work offline
 4. **No popups**: Use inline indicators ("Saved"), never `alert()`, `confirm()` or
    `prompt()`; destructive actions confirm inline (two-click button or inline panel).
    `tests/test_pages.py` rejects dialog calls in templates
@@ -144,9 +146,13 @@ def endpoint():
 - Counts come from `reports.py` only: `MemberFeedback.manager_view()` (report
   page), `employee_view()` (PDF), `orgchart_team_tally()` / `workday_team_tally()`
   (dashboard). Routes never tally tenets themselves.
-- Individual Chart.js instance per tenet row in CSS Grid
-- Strengths (green, right), Improvements (red, left)
-- Manager highlights = darker bars, +1 to counts
+- Drawn by `static/butterfly.js` as HTML/CSS bars with a count at each tip
+  (styles under `.butterfly` in `style.css`); `tests/test_butterfly.py` runs
+  its math under Node. The PDF draws the same chart with matplotlib.
+- Strengths (green, right), Improvements (red, left), one scale for both sides
+- Manager picks = darker bar plus ★, and +1 to counts. The report page's
+  counts include the picks saved at page load; `Butterfly.withPicks` moves
+  that +1 as the manager changes picks, keeping the row order.
 
 ### Copy-for-Workday Format
 - Produced only by `static/workday_format.js`; parsed on import by
