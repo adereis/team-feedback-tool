@@ -10,6 +10,7 @@
 |------|---------|
 | `app.py` | Flask routes, API endpoints, session management |
 | `models.py` | SQLAlchemy models (Person, Feedback, ManagerFeedback, WorkdayFeedback) |
+| `reports.py` | Tenet tallies for charts: manager view, employee view (PDF), team charts |
 | `demo_mode.py` | Demo mode session isolation (per-visitor SQLite databases) |
 | `scripts/import_orgchart.py` | Orgchart CSV import (CLI) |
 | `scripts/import_workday.py` | Workday XLSX import; column mapping from root `workday_config.json` |
@@ -126,6 +127,9 @@ def endpoint():
 ```
 
 ### Butterfly Charts
+- Counts come from `reports.py` only: `MemberFeedback.manager_view()` (report
+  page), `employee_view()` (PDF), `orgchart_team_tally()` / `workday_team_tally()`
+  (dashboard). Routes never tally tenets themselves.
 - Individual Chart.js instance per tenet row in CSS Grid
 - Strengths (green, right), Improvements (red, left)
 - Manager highlights = darker bars, +1 to counts
@@ -134,7 +138,8 @@ def endpoint():
 - The PDF is the **employee's view**; the report page is the manager's view.
   The PDF deliberately excludes Workday feedback (some may not be visible to
   the employee), so its chart counts only in-tool peer feedback plus the
-  manager's picks. Do not "fix" this to match the report page.
+  manager's picks (`MemberFeedback.employee_view()`). Do not "fix" this to
+  match the report page.
 - WeasyPrint for HTML-to-PDF, separate `*_pdf.html` templates (no JS)
 - Charts via matplotlib as base64 PNG images
 - Filename: `{Type}_{Name}_{YYYYMMDD}.pdf`

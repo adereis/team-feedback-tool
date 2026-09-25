@@ -22,6 +22,7 @@ from flask import (
 )
 from models import create_db_engine, Person, Feedback, ManagerFeedback, WorkdayFeedback, name_to_user_id
 from scripts.import_workday import import_workday_xlsx, get_available_date_ranges
+from reports import load_member_feedback, orgchart_team_tally, workday_team_tally
 from demo_mode import (
     get_demo_db, get_session_id, reset_session_data, demo_response_wrapper,
     start_cleanup_thread
@@ -610,77 +611,12 @@ def get_team_butterfly_data():
 
     session = get_db()
 
-    # Aggregate tenet counts across all team members
-    tenet_strengths = defaultdict(int)
-    tenet_improvements = defaultdict(int)
-
     if manager_uid:
-        # UID-based workflow (from orgchart)
-        team_members = session.query(Person).filter_by(manager_uid=manager_uid).all()
-        team_member_ids = [tm.user_id for tm in team_members]
-        team_member_names = [tm.name for tm in team_members]
-
-        # Get legacy feedback for team members
-        all_feedbacks = session.query(Feedback).filter(Feedback.to_user_id.in_(team_member_ids)).all()
-
-        for fb in all_feedbacks:
-            for tenet_id in fb.get_strengths():
-                tenet_strengths[tenet_id] += 1
-            for tenet_id in fb.get_improvements():
-                tenet_improvements[tenet_id] += 1
-
-        # Add manager's own feedback for each team member
-        manager_feedbacks = session.query(ManagerFeedback).filter_by(manager_uid=manager_uid).all()
-        for mfb in manager_feedbacks:
-            for tenet_id in mfb.get_selected_strengths():
-                tenet_strengths[tenet_id] += 1
-            for tenet_id in mfb.get_selected_improvements():
-                tenet_improvements[tenet_id] += 1
-
-        # Also include Workday structured feedback for team members
-        wd_feedbacks = session.query(WorkdayFeedback).filter(
-            WorkdayFeedback.about.in_(team_member_names),
-            WorkdayFeedback.is_structured == 1
-        ).all()
-
-        for fb in wd_feedbacks:
-            for tenet_id in fb.get_strengths():
-                tenet_strengths[tenet_id] += 1
-            for tenet_id in fb.get_improvements():
-                tenet_improvements[tenet_id] += 1
-
+        tally = orgchart_team_tally(session, manager_uid)
     else:
-        # Name-based workflow (Workday only)
-        # Get team from Workday feedback recipients
-        wd_recipients = session.query(WorkdayFeedback.about).distinct().all()
-        team_member_names = [r.about for r in wd_recipients]
+        tally = workday_team_tally(session)
 
-        # Get structured Workday feedback for all recipients
-        wd_feedbacks = session.query(WorkdayFeedback).filter(
-            WorkdayFeedback.is_structured == 1
-        ).all()
-
-        for fb in wd_feedbacks:
-            for tenet_id in fb.get_strengths():
-                tenet_strengths[tenet_id] += 1
-            for tenet_id in fb.get_improvements():
-                tenet_improvements[tenet_id] += 1
-
-    tenets = load_tenets()
-
-    # Build butterfly chart data
-    butterfly_data = []
-    for tenet in tenets:
-        butterfly_data.append({
-            'id': tenet['id'],
-            'name': tenet['name'],
-            'strength_count': tenet_strengths.get(tenet['id'], 0),
-            'improvement_count': tenet_improvements.get(tenet['id'], 0)
-        })
-
-    # Sort by net score
-    butterfly_data.sort(key=lambda x: (x['strength_count'] - x['improvement_count']), reverse=True)
-
+    butterfly_data = tally.butterfly(load_tenets())
 
     return jsonify({
         "success": True,
@@ -960,73 +896,16 @@ def view_report(user_id=None):
                 'email': None
             }
 
-    # Get legacy feedback (only if not a derived ID)
-    feedbacks = []
-    if team_member_user_id and not team_member_user_id.startswith('wd_'):
-        feedbacks = session.query(Feedback).filter_by(to_user_id=team_member_user_id).all()
-
-    # Get Workday feedback by name (both structured and generic)
-    wd_feedbacks = session.query(WorkdayFeedback).filter(
-        WorkdayFeedback.about == team_member_name
-    ).order_by(WorkdayFeedback.date.desc()).all()
-
-    # Separate structured vs generic Workday feedback
-    wd_structured = [fb for fb in wd_feedbacks if fb.is_structured]
-    wd_generic = [fb for fb in wd_feedbacks if not fb.is_structured]
-
-    # Aggregate tenet counts from legacy feedback
-    tenet_strengths = defaultdict(int)
-    tenet_improvements = defaultdict(int)
-
-    for fb in feedbacks:
-        for tenet_id in fb.get_strengths():
-            tenet_strengths[tenet_id] += 1
-        for tenet_id in fb.get_improvements():
-            tenet_improvements[tenet_id] += 1
-
-    # Add structured Workday feedback to tenet counts
-    for fb in wd_structured:
-        for tenet_id in fb.get_strengths():
-            tenet_strengths[tenet_id] += 1
-        for tenet_id in fb.get_improvements():
-            tenet_improvements[tenet_id] += 1
-
-    # Get manager's own feedback
     # Use manager_uid or derived ID from manager_name
     effective_manager_uid = manager_uid or name_to_user_id(manager_name)
-
-    manager_feedback = None
-    if team_member_user_id and effective_manager_uid:
-        manager_feedback = session.query(ManagerFeedback).filter_by(
-            manager_uid=effective_manager_uid,
-            team_member_uid=team_member_user_id
-        ).first()
-
-    # Add manager's selections to the counts (manager's input counts as +1)
-    if manager_feedback:
-        for tenet_id in manager_feedback.get_selected_strengths():
-            tenet_strengths[tenet_id] += 1
-        for tenet_id in manager_feedback.get_selected_improvements():
-            tenet_improvements[tenet_id] += 1
+    member = load_member_feedback(session, team_member_user_id, team_member_name, effective_manager_uid)
 
     tenets = load_tenets()
-
-    # Build butterfly chart data
-    butterfly_data = []
-    for tenet in tenets:
-        butterfly_data.append({
-            'id': tenet['id'],
-            'name': tenet['name'],
-            'strength_count': tenet_strengths.get(tenet['id'], 0),
-            'improvement_count': tenet_improvements.get(tenet['id'], 0)
-        })
-
-    # Sort by net score
-    butterfly_data.sort(key=lambda x: (x['strength_count'] - x['improvement_count']), reverse=True)
+    butterfly_data = member.manager_view().butterfly(tenets)
 
     # Prepare legacy feedback with giver names for manager view (non-anonymous)
     feedbacks_with_names = []
-    for fb in feedbacks:
+    for fb in member.peer:
         fb_dict = fb.to_dict()
         # Get giver's name
         giver = session.query(Person).filter_by(user_id=fb.from_user_id).first()
@@ -1035,20 +914,19 @@ def view_report(user_id=None):
         feedbacks_with_names.append(fb_dict)
 
     # Add structured Workday feedback
-    for fb in wd_structured:
+    for fb in member.workday_structured:
         fb_dict = fb.to_dict()
         fb_dict['from_name'] = fb.from_name
         fb_dict['source'] = 'workday_structured'
         feedbacks_with_names.append(fb_dict)
 
-
     return render_template(
         'report.html',
         team_member=team_member_info,
         feedbacks=feedbacks_with_names,
-        generic_feedbacks=[fb.to_dict() for fb in wd_generic],
+        generic_feedbacks=[fb.to_dict() for fb in member.workday_generic],
         butterfly_data=butterfly_data,
-        manager_feedback=manager_feedback.to_dict() if manager_feedback else None,
+        manager_feedback=member.manager.to_dict() if member.manager else None,
         tenets=tenets
     )
 
@@ -1229,52 +1107,13 @@ def export_pdf_report(user_id):
     # Get manager info
     manager = session.query(Person).filter_by(user_id=effective_manager_uid).first()
 
-    # Get all feedback for this person
-    feedbacks = session.query(Feedback).filter_by(to_user_id=user_id).all()
+    member = load_member_feedback(session, user_id, team_member.name, effective_manager_uid)
+    manager_feedback = member.manager
+    manager_selected_strengths = manager_feedback.get_selected_strengths() if manager_feedback else []
+    manager_selected_improvements = manager_feedback.get_selected_improvements() if manager_feedback else []
 
-    # Aggregate tenet counts
-    tenet_strengths = defaultdict(int)
-    tenet_improvements = defaultdict(int)
-
-    for fb in feedbacks:
-        for tenet_id in fb.get_strengths():
-            tenet_strengths[tenet_id] += 1
-        for tenet_id in fb.get_improvements():
-            tenet_improvements[tenet_id] += 1
-
-    # Get manager's own feedback
-    manager_feedback = session.query(ManagerFeedback).filter_by(
-        manager_uid=effective_manager_uid,
-        team_member_uid=user_id
-    ).first()
-
-    # Add manager's selections to the counts
-    manager_selected_strengths = []
-    manager_selected_improvements = []
-
-    if manager_feedback:
-        manager_selected_strengths = manager_feedback.get_selected_strengths()
-        manager_selected_improvements = manager_feedback.get_selected_improvements()
-
-        for tenet_id in manager_selected_strengths:
-            tenet_strengths[tenet_id] += 1
-        for tenet_id in manager_selected_improvements:
-            tenet_improvements[tenet_id] += 1
-
-    tenets = load_tenets()
-
-    # Build butterfly chart data
-    butterfly_data = []
-    for tenet in tenets:
-        butterfly_data.append({
-            'id': tenet['id'],
-            'name': tenet['name'],
-            'strength_count': tenet_strengths.get(tenet['id'], 0),
-            'improvement_count': tenet_improvements.get(tenet['id'], 0)
-        })
-
-    # Sort by net score
-    butterfly_data.sort(key=lambda x: (x['strength_count'] - x['improvement_count']), reverse=True)
+    # Employee view: no Workday feedback (see docstring)
+    butterfly_data = member.employee_view().butterfly(load_tenets())
 
     # Generate butterfly chart image
     chart_image = generate_butterfly_chart_image(
@@ -1283,17 +1122,16 @@ def export_pdf_report(user_id):
         manager_selected_improvements
     )
 
-    # Organize feedback comments
-    strengths_comments = [fb.strengths_text for fb in feedbacks if fb.strengths_text]
-    improvements_comments = [fb.improvements_text for fb in feedbacks if fb.improvements_text]
-
+    # Peer comments given in this tool, anonymous in the PDF
+    strengths_comments = [fb.strengths_text for fb in member.peer if fb.strengths_text]
+    improvements_comments = [fb.improvements_text for fb in member.peer if fb.improvements_text]
 
     # Render PDF template
     html_content = render_template(
         'report_pdf.html',
         team_member=team_member.to_dict(),
         manager=manager.to_dict() if manager else {'name': manager_name or effective_manager_uid},
-        feedback_count=len(feedbacks),
+        feedback_count=len(member.peer),
         chart_image=chart_image,
         strengths_comments=strengths_comments,
         improvements_comments=improvements_comments,

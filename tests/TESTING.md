@@ -9,6 +9,7 @@ This project uses **pytest** for testing with these test suites:
 - **test_app.py**: Integration tests for Flask routes and API endpoints
 - **test_integration.py**: End-to-end workflow tests
 - **test_workday.py**: Workday XLSX import, column detection and `[TENETS]` parsing
+- **test_reports.py**: Tenet tallies per view (manager, employee/PDF, team charts)
 - **test_modes.py**: Hosted-mode route guards, demo sandbox endpoints and session cookies
 
 ## Quick Start
