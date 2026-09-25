@@ -486,13 +486,13 @@ document.addEventListener('DOMContentLoaded', function() {
                     statusEl.className = 'db-status';
                     let parts = [];
                     if (data.total_people > 0) {
-                        parts.push(`${data.total_people} people (${data.managers} managers)`);
+                        parts.push(`${plural(data.total_people, 'person', 'people')} (${plural(data.managers, 'manager')})`);
                     }
                     if (data.peer_feedback > 0) {
-                        parts.push(`${data.peer_feedback} peer feedback`);
+                        parts.push(plural(data.peer_feedback, 'peer feedback entry', 'peer feedback entries'));
                     }
                     if (data.manager_reviews > 0) {
-                        parts.push(`${data.manager_reviews} manager reviews`);
+                        parts.push(plural(data.manager_reviews, 'manager review'));
                     }
                     statusEl.textContent = parts.join(' | ');
                 }

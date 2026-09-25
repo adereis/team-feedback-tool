@@ -7,6 +7,7 @@ Tests cover:
 - Links and fetches follow the mode that served the page
 - Errors render as styled pages with a way back, never bare text
 - Markup stays balanced, and pages never open browser dialogs
+- Counts read as real plurals ("1 entry", "3 entries"), never "entry(s)"
 """
 
 import glob
@@ -233,3 +234,30 @@ class TestErrorPages:
 
         assert response.status_code == 404
         assert response.get_json() == {"success": False, "error": "Not found"}
+
+
+class TestPlurals:
+    """Tests for how counts are worded."""
+
+    @pytest.mark.parametrize('count,expected', [
+        (0, '0 entries'), (1, '1 entry'), (2, '2 entries'),
+    ])
+    def test_plural_filter_words_count(self, count, expected):
+        """Test the Jinja plural filter picks the word form for the count"""
+        from app import plural_filter
+
+        assert plural_filter(count, 'entry', 'entries') == expected
+
+    def test_plural_filter_defaults_to_adding_s(self):
+        """Test the plural form defaults to the singular plus an s"""
+        from app import plural_filter
+
+        assert plural_filter(3, 'manager review') == '3 manager reviews'
+
+    @pytest.mark.parametrize('path', TEMPLATES, ids=os.path.basename)
+    def test_template_has_no_parenthesized_plurals(self, path):
+        """Test no template writes "feedback(s)"-style counts"""
+        with open(path) as f:
+            source = f.read()
+
+        assert re.findall(r'\w\(s\)', source) == []

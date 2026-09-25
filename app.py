@@ -203,6 +203,12 @@ def not_found(error):
                       "There is no page at this address. It may have moved, or the link may be mistyped.")
 
 
+@app.template_filter('plural')
+def plural_filter(count, singular, plural=None):
+    """'1 entry', '3 entries': {{ n | plural('entry', 'entries') }}."""
+    return f"{count} {singular if count == 1 else (plural or singular + 's')}"
+
+
 @app.context_processor
 def inject_mode_flags():
     """Make mode flags available to all templates"""

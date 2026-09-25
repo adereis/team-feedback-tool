@@ -116,7 +116,7 @@
             <tr>
                 <th class="sortable" data-sort="name">Name</th>
                 <th class="sortable" data-sort="job">Job Title</th>
-                <th class="sortable" data-sort="feedback">Feedback Count</th>
+                <th class="sortable" data-sort="feedback">Feedback Entries</th>
                 <th>Actions</th>
             </tr>
         </thead>
@@ -126,7 +126,7 @@
             <tr data-name="{{ member.name | tojson }}" data-job="{{ (member.job_title or '') | tojson }}" data-feedback="{{ total_feedback }}">
                 <td><strong>{{ member.name }}</strong></td>
                 <td>{{ member.job_title or '-' }}</td>
-                <td>{{ total_feedback }} feedback(s)</td>
+                <td>{{ total_feedback }}</td>
                 <td>
                     <a href="{{ url_for(views ~ '.view_report', user_id=member.user_id) }}" class="btn" style="padding: 6px 16px;">Edit Report</a>
                 </td>
@@ -210,7 +210,7 @@ async function loadSampleWorkdayData() {
 
         if (data.success) {
             statusDiv.innerHTML = `<div class="success-message">
-                ✓ Loaded ${data.imported} sample feedback entries
+                ✓ Loaded ${plural(data.imported, 'sample feedback entry', 'sample feedback entries')}
                 <br><a href="" style="color: #155724; font-size: 13px;">Reload page</a> to see updated data.
             </div>`;
         } else {
@@ -254,9 +254,9 @@ async function importXlsxFile(file) {
             }
 
             let html = `<div class="success-message">
-                ✓ Imported ${data.imported} feedback entries from ${file.name}<br>
+                ✓ Imported ${plural(data.imported, 'feedback entry', 'feedback entries')} from ${escapeHtml(file.name)}<br>
                 <span style="font-size: 13px; color: #666;">
-                    ${data.recipient_count} team member${data.recipient_count !== 1 ? 's' : ''} •
+                    ${plural(data.recipient_count, 'team member')} •
                     Structured: ${data.structured_count} •
                     Generic: ${data.generic_count}
                     ${dateRangeText ? `• ${dateRangeText}` : ''}
@@ -266,7 +266,7 @@ async function importXlsxFile(file) {
 
             if (data.skipped_duplicates > 0) {
                 html += `<div style="color: #666; font-size: 13px; margin-top: 8px;">
-                    Skipped ${data.skipped_duplicates} duplicate entries (already imported)
+                    Skipped ${plural(data.skipped_duplicates, 'duplicate entry', 'duplicate entries')} (already imported)
                 </div>`;
             }
 
@@ -448,12 +448,12 @@ function loadWorkdayFeedbackSummary(startDate = null, endDate = null) {
                 const generic = total - structured;
 
                 summaryEl.innerHTML = `
-                    <strong>${total} feedback entries</strong> from Workday
+                    <strong>${plural(total, 'feedback entry', 'feedback entries')}</strong> from Workday
                     <span style="margin-left: 16px; color: #666;">
                         ${structured} structured (with tenets) • ${generic} generic
                     </span>
                     <span style="margin-left: 16px; color: #666;">
-                        ${data.recipients.length} recipients
+                        ${plural(data.recipients.length, 'recipient')}
                     </span>
                 `;
             } else {

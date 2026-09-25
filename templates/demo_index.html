@@ -290,7 +290,7 @@
 
     {% if stats %}
     <div class="db-stats">
-        Demo data: {{ stats.total_people }} people | {{ stats.peer_feedback }} peer feedback entries | {{ stats.manager_reviews }} manager reviews
+        Demo data: {{ stats.total_people | plural('person', 'people') }} | {{ stats.peer_feedback | plural('peer feedback entry', 'peer feedback entries') }} | {{ stats.manager_reviews | plural('manager review') }}
     </div>
     {% endif %}
 </div>

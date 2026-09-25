@@ -31,7 +31,7 @@
     </p>
 
     <div class="info-box">
-        <strong>{{ feedbacks|length }} structured feedback(s)</strong>
+        <strong>{{ feedbacks|length | plural('structured feedback entry', 'structured feedback entries') }}</strong>
         {% if generic_feedbacks|length > 0 %}
         <span style="margin-left: 12px; color: #856404;">+ {{ generic_feedbacks|length }} additional from Workday</span>
         {% endif %}

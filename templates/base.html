@@ -129,6 +129,11 @@
         };
     })();
 
+    // '1 entry', '3 entries': plural(n, 'entry', 'entries'); the plural defaults to word + 's'
+    function plural(count, singular, pluralWord) {
+        return `${count} ${count === 1 ? singular : (pluralWord || singular + 's')}`;
+    }
+
     // Escape text for interpolation into innerHTML templates.
     function escapeHtml(value) {
         return String(value ?? '')
