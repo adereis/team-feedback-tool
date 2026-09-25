@@ -204,10 +204,10 @@ Paige Duty,pduty,Staff SRE,Remote US,pduty@example.com,dgate</pre>
 
     <div id="feedbackForm" style="display: none;">
         <div id="feedbackChecklist" class="feedback-checklist">
-            <strong id="checklistTitle">Feedback Progress:</strong>
+            <strong data-check="title"></strong>
             <ul>
-                <li id="checkStrengths">Select 3 strengths (0/3)</li>
-                <li id="checkImprovements">Select 2-3 improvements (0/3)</li>
+                <li data-check="strengths"></li>
+                <li data-check="improvements"></li>
             </ul>
         </div>
 
@@ -309,96 +309,15 @@ const allPeople = {{ all_people | tojson | safe }};
 const existingFeedback = {{ existing_feedback | tojson | safe }};
 
 let selectedColleague = null;
-let selectedStrengths = [];
-let selectedImprovements = [];
 
-function renderTenets() {
-    const strengthsDiv = document.getElementById('strengthsSelector');
-    const improvementsDiv = document.getElementById('improvementsSelector');
-
-    strengthsDiv.innerHTML = '';
-    improvementsDiv.innerHTML = '';
-
-    tenets.forEach(tenet => {
-        // Strength selector
-        const strengthItem = document.createElement('div');
-        strengthItem.className = 'tenet-item';
-        if (selectedStrengths.includes(tenet.id)) {
-            strengthItem.classList.add('selected-strength');
-        }
-        // Disable if already selected as improvement
-        if (selectedImprovements.includes(tenet.id)) {
-            strengthItem.classList.add('disabled');
-        }
-        strengthItem.innerHTML = `
-            <div class="tenet-name">${tenet.name}</div>
-            <div class="tenet-description">${tenet.description}</div>
-        `;
-        strengthItem.onclick = () => toggleStrength(tenet.id);
-        strengthsDiv.appendChild(strengthItem);
-
-        // Improvement selector
-        const improvementItem = document.createElement('div');
-        improvementItem.className = 'tenet-item';
-        if (selectedImprovements.includes(tenet.id)) {
-            improvementItem.classList.add('selected-improvement');
-        }
-        // Disable if already selected as strength
-        if (selectedStrengths.includes(tenet.id)) {
-            improvementItem.classList.add('disabled');
-        }
-        improvementItem.innerHTML = `
-            <div class="tenet-name">${tenet.name}</div>
-            <div class="tenet-description">${tenet.description}</div>
-        `;
-        improvementItem.onclick = () => toggleImprovement(tenet.id);
-        improvementsDiv.appendChild(improvementItem);
-    });
-}
-
-function toggleStrength(tenetId) {
-    const index = selectedStrengths.indexOf(tenetId);
-    if (index > -1) {
-        selectedStrengths.splice(index, 1);
-    } else {
-        // Check if already selected as improvement
-        if (selectedImprovements.includes(tenetId)) {
-            // Don't allow selecting same tenet for both
-            return;
-        }
-        if (selectedStrengths.length < 3) {
-            selectedStrengths.push(tenetId);
-        } else {
-            // Don't show alert, just don't add it
-            return;
-        }
-    }
-    renderTenets();
-    validateFeedback(); // Update inline errors
-    scheduleAutoSave();
-}
-
-function toggleImprovement(tenetId) {
-    const index = selectedImprovements.indexOf(tenetId);
-    if (index > -1) {
-        selectedImprovements.splice(index, 1);
-    } else {
-        // Check if already selected as strength
-        if (selectedStrengths.includes(tenetId)) {
-            // Don't allow selecting same tenet for both
-            return;
-        }
-        if (selectedImprovements.length < 3) {
-            selectedImprovements.push(tenetId);
-        } else {
-            // Don't show alert, just don't add it
-            return;
-        }
-    }
-    renderTenets();
-    validateFeedback(); // Update inline errors
-    scheduleAutoSave();
-}
+const picker = TenetPicker.create({
+    tenets: tenets,
+    strengthsEl: document.getElementById('strengthsSelector'),
+    improvementsEl: document.getElementById('improvementsSelector'),
+    checklistEl: document.getElementById('feedbackChecklist'),
+    completeTitle: '✓ Ready: saves automatically',
+    onChange: scheduleAutoSave
+});
 
 function selectColleague() {
     const userId = document.getElementById('colleagueSelect').value;
@@ -412,20 +331,9 @@ function selectColleague() {
     // Load existing feedback if any (copies: existingFeedback mirrors what the
     // server has saved, so edits must not change it until a save succeeds)
     const existing = existingFeedback.find(f => f.to_user_id === userId);
-    if (existing) {
-        selectedStrengths = [...existing.strengths];
-        selectedImprovements = [...existing.improvements];
-        document.getElementById('strengthsText').value = existing.strengths_text || '';
-        document.getElementById('improvementsText').value = existing.improvements_text || '';
-    } else {
-        selectedStrengths = [];
-        selectedImprovements = [];
-        document.getElementById('strengthsText').value = '';
-        document.getElementById('improvementsText').value = '';
-    }
-
-    renderTenets();
-    updateChecklist(); // Initialize checklist
+    picker.set(existing || { strengths: [], improvements: [] });  // the picker keeps its own copy
+    document.getElementById('strengthsText').value = existing ? existing.strengths_text || '' : '';
+    document.getElementById('improvementsText').value = existing ? existing.improvements_text || '' : '';
     document.getElementById('feedbackForm').style.display = 'block';
 
     // Add auto-save listeners to textareas
@@ -435,10 +343,11 @@ function selectColleague() {
 
 // Collect feedback data for saving (a snapshot, detached from later edits)
 function collectFeedbackData() {
+    const selection = picker.get();
     return {
         to_user_id: selectedColleague,
-        strengths: [...selectedStrengths],
-        improvements: [...selectedImprovements],
+        strengths: selection.strengths,
+        improvements: selection.improvements,
         strengths_text: document.getElementById('strengthsText').value,
         improvements_text: document.getElementById('improvementsText').value
     };
@@ -446,10 +355,7 @@ function collectFeedbackData() {
 
 // Check if feedback data is valid for saving
 function isValidForSave() {
-    if (!selectedColleague) return false;
-    if (selectedStrengths.length !== 3) return false;
-    if (selectedImprovements.length < 2 || selectedImprovements.length > 3) return false;
-    return true;
+    return Boolean(selectedColleague) && TenetPicker.status(picker.get()).complete;
 }
 
 function scheduleAutoSave() {
@@ -588,64 +494,17 @@ function copyFeedbackForWorkday(index) {
     });
 }
 
-function updateChecklist() {
-    const strengthsDone = selectedStrengths.length === 3;
-    const improvementsDone = selectedImprovements.length >= 2 && selectedImprovements.length <= 3;
-    const allDone = strengthsDone && improvementsDone;
-
-    // Update strengths checklist item
-    const strengthsItem = document.getElementById('checkStrengths');
-    strengthsItem.textContent = `Select 3 strengths (${selectedStrengths.length}/3)`;
-    if (strengthsDone) {
-        strengthsItem.classList.add('done');
-    } else {
-        strengthsItem.classList.remove('done');
-    }
-
-    // Update improvements checklist item
-    const improvementsItem = document.getElementById('checkImprovements');
-    if (selectedImprovements.length > 3) {
-        improvementsItem.textContent = `Select 2-3 improvements (${selectedImprovements.length}/3 - deselect ${selectedImprovements.length - 3})`;
-        improvementsItem.classList.remove('done');
-    } else {
-        improvementsItem.textContent = `Select 2-3 improvements (${selectedImprovements.length}/3)`;
-        if (improvementsDone) {
-            improvementsItem.classList.add('done');
-        } else {
-            improvementsItem.classList.remove('done');
-        }
-    }
-
-    // Update checklist box color
-    const checklistBox = document.getElementById('feedbackChecklist');
-    const checklistTitle = document.getElementById('checklistTitle');
-
-    if (allDone) {
-        checklistBox.classList.add('complete');
-        checklistTitle.textContent = '✓ Ready to save (auto-saves in 2 seconds)';
-    } else {
-        checklistBox.classList.remove('complete');
-        checklistTitle.textContent = 'Feedback Progress:';
-    }
-
-    return allDone;
-}
-
-function validateFeedback() {
-    return updateChecklist();
-}
-
 function cancelFeedback() {
     // Check if there's any data entered
-    const hasAnyData = selectedStrengths.length > 0 ||
-                       selectedImprovements.length > 0 ||
+    const selection = picker.get();
+    const hasAnyData = selection.strengths.length > 0 ||
+                       selection.improvements.length > 0 ||
                        document.getElementById('strengthsText').value.trim() !== '' ||
                        document.getElementById('improvementsText').value.trim() !== '';
 
     // If there's data, validate it
     if (hasAnyData) {
-        const isValid = updateChecklist();
-        if (!isValid) {
+        if (!TenetPicker.status(selection).complete) {
             // Keep form open, checklist shows what's missing
             return;
         }
@@ -655,8 +514,7 @@ function cancelFeedback() {
     document.getElementById('colleagueSelect').value = '';
     document.getElementById('feedbackForm').style.display = 'none';
     selectedColleague = null;
-    selectedStrengths = [];
-    selectedImprovements = [];
+    picker.set({ strengths: [], improvements: [] });
 
     // Scroll to top of feedback list
     document.querySelector('.feedback-list').scrollIntoView({ behavior: 'smooth' });

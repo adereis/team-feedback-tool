@@ -65,10 +65,10 @@
 
 <div class="card">
     <div id="feedbackChecklist" class="feedback-checklist">
-        <strong id="checklistTitle">Feedback Progress:</strong>
+        <strong data-check="title"></strong>
         <ul>
-            <li id="checkStrengths">Select 3 strengths (0/3)</li>
-            <li id="checkImprovements">Select 2-3 improvements (0/3)</li>
+            <li data-check="strengths"></li>
+            <li data-check="improvements"></li>
             <li id="checkComments">Add comments (optional but encouraged)</li>
         </ul>
     </div>
@@ -76,34 +76,20 @@
     <!-- Strengths Section -->
     <div class="strengths-section" style="margin-bottom: 24px;">
         <div class="section-title">Strengths (select exactly 3)</div>
-        <div class="tenet-selector" id="strengthsSelector">
-            {% for tenet in tenets %}
-            <div class="tenet-item" data-id="{{ tenet.id }}" data-type="strength" onclick="toggleTenet(this, 'strength')">
-                <div class="tenet-name">{{ tenet.name }}</div>
-                <div class="tenet-description">{{ tenet.description }}</div>
-            </div>
-            {% endfor %}
-        </div>
+        <div class="tenet-selector" id="strengthsSelector"></div>
         <div class="form-group">
             <label for="strengthsText">Strengths Comments</label>
-            <textarea id="strengthsText" rows="3" placeholder="Provide context or examples for the strengths you selected..." oninput="updateChecklist(); updatePreview()"></textarea>
+            <textarea id="strengthsText" rows="3" placeholder="Provide context or examples for the strengths you selected..." oninput="updateCommentsCheck(); updatePreview()"></textarea>
         </div>
     </div>
 
     <!-- Improvements Section -->
     <div class="improvements-section">
         <div class="section-title">Areas for Improvement (select 2-3)</div>
-        <div class="tenet-selector" id="improvementsSelector">
-            {% for tenet in tenets %}
-            <div class="tenet-item" data-id="{{ tenet.id }}" data-type="improvement" onclick="toggleTenet(this, 'improvement')">
-                <div class="tenet-name">{{ tenet.name }}</div>
-                <div class="tenet-description">{{ tenet.description }}</div>
-            </div>
-            {% endfor %}
-        </div>
+        <div class="tenet-selector" id="improvementsSelector"></div>
         <div class="form-group">
             <label for="improvementsText">Improvement Comments</label>
-            <textarea id="improvementsText" rows="3" placeholder="Suggest specific ways this person could grow in these areas..." oninput="updateChecklist(); updatePreview()"></textarea>
+            <textarea id="improvementsText" rows="3" placeholder="Suggest specific ways this person could grow in these areas..." oninput="updateCommentsCheck(); updatePreview()"></textarea>
         </div>
     </div>
 </div>
@@ -116,7 +102,7 @@
     </p>
     <div class="copy-preview" id="copyPreview">
         <!-- Preview will be populated by JavaScript -->
-        <em style="color: #999;">Complete the feedback above to see preview...</em>
+        <em class="empty-note">Pick 3 strengths and 2 or 3 improvements to see the text to copy.</em>
     </div>
     <button class="btn" id="copyBtn" onclick="copyToClipboard()" disabled>Copy to Clipboard</button>
     <span class="inline-status ok" id="copySuccess" hidden>✓ Copied!</span>
@@ -137,92 +123,30 @@
 const recipientName = {{ recipient_name | tojson | safe }};
 const tenets = {{ tenets | tojson | safe }};
 
-let selectedStrengths = [];
-let selectedImprovements = [];
-
-function toggleTenet(element, type) {
-    const tenetId = element.getAttribute('data-id');
-
-    if (type === 'strength') {
-        if (element.classList.contains('selected-strength')) {
-            // Deselect
-            element.classList.remove('selected-strength');
-            selectedStrengths = selectedStrengths.filter(id => id !== tenetId);
-        } else if (selectedStrengths.length < 3 && !selectedImprovements.includes(tenetId)) {
-            // Select if under limit and not already selected as improvement
-            element.classList.add('selected-strength');
-            selectedStrengths.push(tenetId);
-        }
-    } else {
-        if (element.classList.contains('selected-improvement')) {
-            // Deselect
-            element.classList.remove('selected-improvement');
-            selectedImprovements = selectedImprovements.filter(id => id !== tenetId);
-        } else if (selectedImprovements.length < 3 && !selectedStrengths.includes(tenetId)) {
-            // Select if under limit and not already selected as strength
-            element.classList.add('selected-improvement');
-            selectedImprovements.push(tenetId);
-        }
-    }
-
-    updateDisabledState();
-    updateChecklist();
-    updatePreview();
-}
-
-function updateDisabledState() {
-    // Disable unselected strengths if at limit OR if selected as improvement
-    document.querySelectorAll('#strengthsSelector .tenet-item').forEach(item => {
-        const tenetId = item.getAttribute('data-id');
-        if (!item.classList.contains('selected-strength')) {
-            if (selectedStrengths.length >= 3 || selectedImprovements.includes(tenetId)) {
-                item.classList.add('disabled');
-            } else {
-                item.classList.remove('disabled');
-            }
-        }
-    });
-
-    // Disable unselected improvements if at limit OR if selected as strength
-    document.querySelectorAll('#improvementsSelector .tenet-item').forEach(item => {
-        const tenetId = item.getAttribute('data-id');
-        if (!item.classList.contains('selected-improvement')) {
-            if (selectedImprovements.length >= 3 || selectedStrengths.includes(tenetId)) {
-                item.classList.add('disabled');
-            } else {
-                item.classList.remove('disabled');
-            }
-        }
-    });
-}
-
-function updateChecklist() {
-    const strengthsDone = selectedStrengths.length === 3;
-    const improvementsDone = selectedImprovements.length >= 2;
+// Comments are optional, so they tick their own checklist item and never
+// hold back the "Ready to copy" state
+function updateCommentsCheck() {
     const hasComments = document.getElementById('strengthsText').value.trim() ||
                         document.getElementById('improvementsText').value.trim();
-
-    document.getElementById('checkStrengths').textContent = `Select 3 strengths (${selectedStrengths.length}/3)`;
-    document.getElementById('checkStrengths').classList.toggle('done', strengthsDone);
-    document.getElementById('checkImprovements').textContent = `Select 2-3 improvements (${selectedImprovements.length}/3)`;
-    document.getElementById('checkImprovements').classList.toggle('done', improvementsDone);
     document.getElementById('checkComments').classList.toggle('done', Boolean(hasComments));
-
-    const complete = strengthsDone && improvementsDone;
-    document.getElementById('feedbackChecklist').classList.toggle('complete', complete);
-    document.getElementById('checklistTitle').textContent =
-        complete ? '✓ Ready to copy' : 'Feedback Progress:';
 }
+
+const picker = TenetPicker.create({
+    tenets: tenets,
+    strengthsEl: document.getElementById('strengthsSelector'),
+    improvementsEl: document.getElementById('improvementsSelector'),
+    checklistEl: document.getElementById('feedbackChecklist'),
+    completeTitle: '✓ Ready to copy',
+    onChange: updatePreview
+});
 
 function updatePreview() {
     const previewEl = document.getElementById('copyPreview');
     const copyBtn = document.getElementById('copyBtn');
 
-    // Check if feedback is complete
-    const isComplete = selectedStrengths.length === 3 && selectedImprovements.length >= 2;
-
-    if (!isComplete) {
-        previewEl.innerHTML = '<em style="color: #999;">Complete the feedback above to see preview...</em>';
+    const selection = picker.get();
+    if (!TenetPicker.status(selection).complete) {
+        previewEl.innerHTML = '<em class="empty-note">Pick 3 strengths and 2 or 3 improvements to see the text to copy.</em>';
         copyBtn.disabled = true;
         return;
     }
@@ -230,8 +154,8 @@ function updatePreview() {
     copyBtn.disabled = false;
 
     const output = WorkdayFormat.peer(tenets, {
-        strengths: selectedStrengths,
-        improvements: selectedImprovements,
+        strengths: selection.strengths,
+        improvements: selection.improvements,
         strengths_text: document.getElementById('strengthsText').value,
         improvements_text: document.getElementById('improvementsText').value
     });
@@ -261,7 +185,7 @@ function copyToClipboard() {
 
 // Initialize
 document.addEventListener('DOMContentLoaded', function() {
-    updateChecklist();
+    updateCommentsCheck();
     updatePreview();
 });
 

@@ -122,10 +122,10 @@
     </p>
 
     <div id="feedbackChecklist" class="feedback-checklist">
-        <strong id="checklistTitle">Selection Progress:</strong>
+        <strong data-check="title"></strong>
         <ul>
-            <li id="checkStrengths">Select 3 strengths (0/3)</li>
-            <li id="checkImprovements">Select 2-3 improvements (0/3)</li>
+            <li data-check="strengths"></li>
+            <li data-check="improvements"></li>
         </ul>
     </div>
 
@@ -148,7 +148,7 @@
             Copy your manager feedback (tenet selections + text) to paste into Workday.
         </p>
         <div class="copy-preview" id="managerCopyPreview">
-            <em style="color: #999;">Complete 3 strengths and 2-3 improvements to see preview...</em>
+            <em class="empty-note">Pick 3 strengths and 2 or 3 improvements to see the text to copy.</em>
         </div>
         <button class="btn" id="managerCopyBtn" onclick="copyManagerFeedback()" disabled>Copy to Clipboard</button>
         <span class="inline-status ok" id="managerCopySuccess" hidden>✓ Copied!</span>
@@ -175,123 +175,48 @@ const butterflyData = {{ butterfly_data | tojson | safe }};
 const tenets = {{ tenets | tojson | safe }};
 const teamMemberId = {{ team_member.user_id | tojson }};
 
-let managerSelectedStrengths = {{ (manager_feedback.selected_strengths if manager_feedback else []) | tojson | safe }};
-let managerSelectedImprovements = {{ (manager_feedback.selected_improvements if manager_feedback else []) | tojson | safe }};
+// The picks saved on the server when the page loaded
+const savedPicks = {
+    strengths: {{ (manager_feedback.selected_strengths if manager_feedback else []) | tojson | safe }},
+    improvements: {{ (manager_feedback.selected_improvements if manager_feedback else []) | tojson | safe }}
+};
 
-// The server's counts include the picks saved when the page loaded;
-// Butterfly.withPicks moves that +1 to the picks as they are now.
-const savedPicks = { strengths: [...managerSelectedStrengths], improvements: [...managerSelectedImprovements] };
-
+// The server's counts include the saved picks; Butterfly.withPicks moves
+// that +1 to the picks as they are now.
 function renderButterflyChart() {
-    const current = { strengths: managerSelectedStrengths, improvements: managerSelectedImprovements };
+    const current = picker.get();
     Butterfly.render(document.getElementById('butterflyChart'),
                      Butterfly.withPicks(butterflyData, savedPicks, current), current);
 }
 
-// Render manager tenet selectors
-function renderManagerTenetSelectors() {
-    const strengthsDiv = document.getElementById('managerStrengthsSelector');
-    const improvementsDiv = document.getElementById('managerImprovementsSelector');
-
-    strengthsDiv.innerHTML = '';
-    improvementsDiv.innerHTML = '';
-
-    tenets.forEach(tenet => {
-        // Strength selector
-        const strengthItem = document.createElement('div');
-        strengthItem.className = 'tenet-item';
-        if (managerSelectedStrengths.includes(tenet.id)) {
-            strengthItem.classList.add('selected-strength');
-        }
-        // Disable if already selected as improvement
-        if (managerSelectedImprovements.includes(tenet.id)) {
-            strengthItem.classList.add('disabled');
-        }
-        strengthItem.innerHTML = `
-            <div class="tenet-name">${tenet.name}</div>
-            <div class="tenet-description">${tenet.description}</div>
-        `;
-        strengthItem.onclick = () => toggleManagerStrength(tenet.id);
-        strengthsDiv.appendChild(strengthItem);
-
-        // Improvement selector
-        const improvementItem = document.createElement('div');
-        improvementItem.className = 'tenet-item';
-        if (managerSelectedImprovements.includes(tenet.id)) {
-            improvementItem.classList.add('selected-improvement');
-        }
-        // Disable if already selected as strength
-        if (managerSelectedStrengths.includes(tenet.id)) {
-            improvementItem.classList.add('disabled');
-        }
-        improvementItem.innerHTML = `
-            <div class="tenet-name">${tenet.name}</div>
-            <div class="tenet-description">${tenet.description}</div>
-        `;
-        improvementItem.onclick = () => toggleManagerImprovement(tenet.id);
-        improvementsDiv.appendChild(improvementItem);
-    });
-}
-
-function toggleManagerStrength(tenetId) {
-    const index = managerSelectedStrengths.indexOf(tenetId);
-    if (index > -1) {
-        managerSelectedStrengths.splice(index, 1);
-    } else {
-        // Don't allow selecting if already selected as improvement
-        if (managerSelectedImprovements.includes(tenetId)) {
-            return;
-        }
-        // Enforce exactly 3 strengths limit
-        if (managerSelectedStrengths.length >= 3) {
-            return;
-        }
-        managerSelectedStrengths.push(tenetId);
+const picker = TenetPicker.create({
+    tenets: tenets,
+    strengthsEl: document.getElementById('managerStrengthsSelector'),
+    improvementsEl: document.getElementById('managerImprovementsSelector'),
+    checklistEl: document.getElementById('feedbackChecklist'),
+    completeTitle: '✓ Ready: saves automatically',
+    selected: savedPicks,
+    onChange: () => {
+        renderButterflyChart();
+        updateManagerCopyPreview();
+        scheduleAutoSave();
     }
-    renderManagerTenetSelectors();
-    renderButterflyChart();
-    updateChecklist();
-    updateManagerCopyPreview();
-    scheduleAutoSave();
-}
-
-function toggleManagerImprovement(tenetId) {
-    const index = managerSelectedImprovements.indexOf(tenetId);
-    if (index > -1) {
-        managerSelectedImprovements.splice(index, 1);
-    } else {
-        // Don't allow selecting if already selected as strength
-        if (managerSelectedStrengths.includes(tenetId)) {
-            return;
-        }
-        // Enforce 2-3 improvements limit
-        if (managerSelectedImprovements.length >= 3) {
-            return;
-        }
-        managerSelectedImprovements.push(tenetId);
-    }
-    renderManagerTenetSelectors();
-    renderButterflyChart();
-    updateChecklist();
-    updateManagerCopyPreview();
-    scheduleAutoSave();
-}
+});
 
 // Collect manager feedback data for saving (a snapshot, detached from later edits)
 function collectManagerFeedbackData() {
+    const selection = picker.get();
     return {
         team_member_uid: teamMemberId,
-        selected_strengths: [...managerSelectedStrengths],
-        selected_improvements: [...managerSelectedImprovements],
+        selected_strengths: selection.strengths,
+        selected_improvements: selection.improvements,
         feedback_text: document.getElementById('managerFeedbackText').value
     };
 }
 
 // Check if manager feedback is valid for saving
 function isManagerFeedbackValid() {
-    if (managerSelectedStrengths.length !== 3) return false;
-    if (managerSelectedImprovements.length < 2 || managerSelectedImprovements.length > 3) return false;
-    return true;
+    return TenetPicker.status(picker.get()).complete;
 }
 
 function scheduleAutoSave() {
@@ -305,44 +230,6 @@ function scheduleAutoSave() {
     );
 }
 
-function updateChecklist() {
-    const strengthsDone = managerSelectedStrengths.length === 3;
-    const improvementsDone = managerSelectedImprovements.length >= 2 && managerSelectedImprovements.length <= 3;
-    const allDone = strengthsDone && improvementsDone;
-
-    // Update strengths checklist item
-    const strengthsItem = document.getElementById('checkStrengths');
-    strengthsItem.textContent = `Select 3 strengths (${managerSelectedStrengths.length}/3)`;
-    if (strengthsDone) {
-        strengthsItem.classList.add('done');
-    } else {
-        strengthsItem.classList.remove('done');
-    }
-
-    // Update improvements checklist item
-    const improvementsItem = document.getElementById('checkImprovements');
-    improvementsItem.textContent = `Select 2-3 improvements (${managerSelectedImprovements.length}/3)`;
-    if (improvementsDone) {
-        improvementsItem.classList.add('done');
-    } else {
-        improvementsItem.classList.remove('done');
-    }
-
-    // Update checklist box color
-    const checklistBox = document.getElementById('feedbackChecklist');
-    const checklistTitle = document.getElementById('checklistTitle');
-
-    if (allDone) {
-        checklistBox.classList.add('complete');
-        checklistTitle.textContent = '✓ Ready to save (auto-saves in 2 seconds)';
-    } else {
-        checklistBox.classList.remove('complete');
-        checklistTitle.textContent = 'Selection Progress:';
-    }
-
-    return allDone;
-}
-
 function exportPDF() {
     // Trigger download by navigating to PDF export endpoint
     window.location.href = VIEWS_ROOT + '/manager/export-pdf/' + encodeURIComponent(teamMemberId);
@@ -352,13 +239,9 @@ function updateManagerCopyPreview() {
     const previewEl = document.getElementById('managerCopyPreview');
     const copyBtn = document.getElementById('managerCopyBtn');
 
-    // Check if manager feedback is complete
-    const strengthsDone = managerSelectedStrengths.length === 3;
-    const improvementsDone = managerSelectedImprovements.length >= 2 && managerSelectedImprovements.length <= 3;
-    const isComplete = strengthsDone && improvementsDone;
-
-    if (!isComplete) {
-        previewEl.innerHTML = '<em style="color: #999;">Complete 3 strengths and 2-3 improvements to see preview...</em>';
+    const selection = picker.get();
+    if (!TenetPicker.status(selection).complete) {
+        previewEl.innerHTML = '<em class="empty-note">Pick 3 strengths and 2 or 3 improvements to see the text to copy.</em>';
         copyBtn.disabled = true;
         return;
     }
@@ -366,8 +249,8 @@ function updateManagerCopyPreview() {
     copyBtn.disabled = false;
 
     const output = WorkdayFormat.manager(tenets, {
-        strengths: managerSelectedStrengths,
-        improvements: managerSelectedImprovements,
+        strengths: selection.strengths,
+        improvements: selection.improvements,
         feedback_text: document.getElementById('managerFeedbackText').value
     });
 
@@ -394,10 +277,8 @@ function copyManagerFeedback() {
     });
 }
 
-// Initialize
+// Initialize (the picker drew itself when created)
 renderButterflyChart();
-renderManagerTenetSelectors();
-updateChecklist();
 updateManagerCopyPreview();
 
 // Add auto-save and preview update to feedback text

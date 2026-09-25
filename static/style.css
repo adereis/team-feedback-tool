@@ -504,12 +504,23 @@ tr:hover {
     }
 }
 
+/* Tenets are toggle buttons (TenetPicker); look like cards, not buttons */
 .tenet-item {
+    display: block;
+    width: 100%;
+    text-align: left;
+    background: var(--surface);
+    color: inherit;
     border: 2px solid var(--border);
     border-radius: 6px;
     padding: 10px;
     cursor: pointer;
     transition: all 0.2s;
+}
+
+.tenet-item:focus-visible {
+    outline: 3px solid rgba(102, 126, 234, 0.5);
+    outline-offset: 2px;
 }
 
 .tenet-item:hover {
@@ -536,12 +547,14 @@ tr:hover {
 }
 
 .tenet-name {
+    display: block;
     font-weight: 600;
     margin-bottom: 2px;
     font-size: 13px;
 }
 
 .tenet-description {
+    display: block;
     font-size: 11px;
     color: var(--muted);
     line-height: 1.3;

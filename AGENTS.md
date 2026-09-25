@@ -13,6 +13,7 @@
 | `reports.py` | Tenet tallies for charts: manager view, employee view (PDF), team charts |
 | `static/style.css` | Shared styles and color variables for every page, loaded by `base.html` |
 | `static/butterfly.js` | Butterfly chart (`Butterfly.render`), used by the report page and dashboard |
+| `static/tenet_picker.js` | Tenet selection grids and checklist (`TenetPicker.create`), loaded by `base.html` |
 | `static/workday_format.js` | Copy-for-Workday text (`WorkdayFormat.peer` / `.manager`), loaded by `base.html` |
 | `demo_mode.py` | Demo mode session isolation (per-visitor SQLite databases) |
 | `scripts/import_orgchart.py` | Orgchart CSV import (CLI) |
@@ -102,7 +103,8 @@ in `app.py`.
 ### Never Change Without Full Audit
 - Tenet validation (3 strengths, 2-3 improvements, no overlap) - update all validation points
   (server: `tenet_selection_error()` in `app.py`, used by the peer and manager
-  APIs; pages: `feedback.html`, `individual_feedback.html`, `report.html`)
+  APIs; pages: `LIMITS` in `static/tenet_picker.js`, shared by `feedback.html`,
+  `individual_feedback.html` and `report.html`)
 - Session keys (`user_id`, `manager_uid`) - update all references
 - Auto-save debounce timing (`DELAY_MS` in `base.html`)
 
@@ -141,6 +143,16 @@ def endpoint():
     # ... logic ...
     return jsonify({"success": True})
 ```
+
+### Tenet Picker
+- Every page that picks tenets uses `TenetPicker.create()` from
+  `static/tenet_picker.js`; never hand-roll a selector. Tenets are
+  `<button aria-pressed>` toggles, so they work from the keyboard.
+- A tenet that cannot be picked (limit reached, or in the other list) is
+  greyed out with `aria-disabled` and a title saying why; it stays focusable.
+- Checklist markup: an element with `[data-check=title|strengths|improvements]`
+  children, passed as `checklistEl`. Read the selection with `picker.get()`
+  (a copy) and `TenetPicker.status(selection).complete`.
 
 ### Butterfly Charts
 - Counts come from `reports.py` only: `MemberFeedback.manager_view()` (report
