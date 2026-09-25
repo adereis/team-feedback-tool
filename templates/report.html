@@ -231,7 +231,7 @@
             <span style="background: #e7f3ff; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">Workday</span>
             {% endif %}
         </div>
-        {{ fb.strengths_text }}
+        <div class="user-text">{{ fb.strengths_text }}</div>
     </div>
     {% endif %}
     {% endfor %}
@@ -247,7 +247,7 @@
             <span style="background: #e7f3ff; padding: 2px 6px; border-radius: 3px; font-size: 11px; margin-left: 8px;">Workday</span>
             {% endif %}
         </div>
-        {{ fb.improvements_text }}
+        <div class="user-text">{{ fb.improvements_text }}</div>
     </div>
     {% endif %}
     {% endfor %}
@@ -273,7 +273,7 @@
             Q: {{ fb.question[:100] }}{% if fb.question|length > 100 %}...{% endif %}
         </div>
         {% endif %}
-        <div>{{ fb.feedback }}</div>
+        <div class="user-text">{{ fb.feedback }}</div>
     </div>
     {% endfor %}
 </div>

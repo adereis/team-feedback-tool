@@ -662,14 +662,14 @@ function renderFeedbackList() {
                             <ul class="tenet-list strengths">
                                 ${strengthTenets.map(name => `<li>${escapeHtml(name)}</li>`).join('')}
                             </ul>
-                            ${fb.strengths_text ? `<div style="margin-top: 8px; font-size: 13px; color: #495057; font-style: italic;">${escapeHtml(fb.strengths_text)}</div>` : ''}
+                            ${fb.strengths_text ? `<div class="user-text" style="margin-top: 8px; font-size: 13px; color: #495057; font-style: italic;">${escapeHtml(fb.strengths_text)}</div>` : ''}
                         </div>
                         <div class="tenet-group improvements">
                             <div class="tenet-group-title">Improvements (${fb.improvements.length})</div>
                             <ul class="tenet-list improvements">
                                 ${improvementTenets.map(name => `<li>${escapeHtml(name)}</li>`).join('')}
                             </ul>
-                            ${fb.improvements_text ? `<div style="margin-top: 8px; font-size: 13px; color: #495057; font-style: italic;">${escapeHtml(fb.improvements_text)}</div>` : ''}
+                            ${fb.improvements_text ? `<div class="user-text" style="margin-top: 8px; font-size: 13px; color: #495057; font-style: italic;">${escapeHtml(fb.improvements_text)}</div>` : ''}
                         </div>
                     </div>
                 </div>

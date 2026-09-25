@@ -3,6 +3,7 @@ Tests for the structure of rendered pages.
 
 Tests cover:
 - Page styles are emitted as their own <style> elements, never nested
+- Typed text sits alone in an element that keeps its line breaks
 """
 
 import os
@@ -12,6 +13,8 @@ from html.parser import HTMLParser
 import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from models import Feedback
 
 
 class StyleCollector(HTMLParser):
@@ -78,3 +81,21 @@ class TestPageStyles:
 
         for css in styles_of(html):
             assert '<style' not in css
+
+
+class TestTypedText:
+    """Tests for how text people typed is shown on pages."""
+
+    def test_report_comment_alone_in_line_preserving_element(self, client, db_session):
+        """Test a peer comment sits alone in a .user-text element.
+
+        .user-text keeps line breaks, so any template whitespace inside it
+        would show up as blank lines around the comment.
+        """
+        feedback = db_session.query(Feedback).filter_by(to_user_id='emp001').one()
+        feedback.strengths_text = 'Owns incidents.\n\nWrites the follow-up.'
+        db_session.commit()
+
+        html = render(client, 'manager_uid', 'mgr001', '/manager/report/emp001')
+
+        assert '<div class="user-text">Owns incidents.\n\nWrites the follow-up.</div>' in html

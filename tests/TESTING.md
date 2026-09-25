@@ -12,6 +12,8 @@ This project uses **pytest** for testing with these test suites:
 - **test_reports.py**: Tenet tallies per view (manager, employee/PDF, team charts)
 - **test_workday_format.py**: Copy-for-Workday text round trip, JS producer to Python parser (needs Node; skipped otherwise)
 - **test_modes.py**: Hosted-mode route guards, demo sandbox endpoints and session cookies
+- **test_pages.py**: Structure of rendered pages (style blocks, typed-text markup)
+- **test_pdf.py**: What the exported PDF says, read back with pypdf
 
 ## Quick Start
 

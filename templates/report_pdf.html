@@ -76,6 +76,12 @@
             height: auto;
         }
 
+        /* Typed text: keep its line breaks (the element holds only the text) */
+        .feedback-comment,
+        .manager-feedback-box {
+            white-space: pre-line;
+        }
+
         .feedback-comment {
             background: #f8f9fa;
             padding: 10px 12px;
@@ -156,9 +162,7 @@
     <p class="no-data">No strength comments received yet.</p>
     {% else %}
     {% for comment in strengths_comments %}
-    <div class="feedback-comment">
-        {{ comment }}
-    </div>
+    <div class="feedback-comment">{{ comment }}</div>
     {% endfor %}
     {% endif %}
 
@@ -167,17 +171,13 @@
     <p class="no-data">No improvement comments received yet.</p>
     {% else %}
     {% for comment in improvements_comments %}
-    <div class="feedback-comment">
-        {{ comment }}
-    </div>
+    <div class="feedback-comment">{{ comment }}</div>
     {% endfor %}
     {% endif %}
 
     {% if manager_feedback_text %}
     <h2>Manager Feedback</h2>
-    <div class="manager-feedback-box">
-        {{ manager_feedback_text }}
-    </div>
+    <div class="manager-feedback-box">{{ manager_feedback_text }}</div>
     {% endif %}
 
     <div class="footer">

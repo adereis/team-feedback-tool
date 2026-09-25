@@ -390,6 +390,13 @@
             line-height: 1.3;
         }
 
+        /* Text people typed: keep their paragraphs and line breaks. Put the
+           text alone in the element; template whitespace around it would show. */
+        .user-text {
+            white-space: pre-line;
+            overflow-wrap: anywhere;
+        }
+
         /* Auto-save failure state (see AutoSave below); pages style the base .save-indicator */
         .save-indicator.error {
             color: #dc3545;
