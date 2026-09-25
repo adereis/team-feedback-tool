@@ -5,6 +5,7 @@ Tests cover:
 - Page styles are emitted as their own <style> elements, never nested
 - Typed text sits alone in an element that keeps its line breaks
 - Links and fetches follow the mode that served the page
+- Errors render as styled pages with a way back, never bare text
 """
 
 import glob
@@ -134,3 +135,46 @@ class TestModeLinks:
 
         assert re.search(r'<a href="/demo"[^>]*>(?:←|&larr;) Back to Home', html)
         assert 'href="/"' not in html
+
+
+class TestErrorPages:
+    """Tests that people never land on a bare text error."""
+
+    @pytest.mark.parametrize('manager,path,status,action', [
+        (None, '/manager/report/emp001', 400, ('/manager', 'Go to Manager Dashboard')),
+        (None, '/manager/export-pdf/emp001', 400, ('/manager', 'Go to Manager Dashboard')),
+        ('mgr001', '/manager/report', 400, ('/manager', 'Go to Manager Dashboard')),
+        ('mgr001', '/manager/report/nobody', 404, ('/manager', 'Back to Dashboard')),
+        ('mgr001', '/manager/report/emp003', 403, ('/manager', 'Back to Dashboard')),
+        ('mgr001', '/manager/export-pdf/emp003', 403, ('/manager', 'Back to Dashboard')),
+        (None, '/manager/nobody', 404, ('/manager', 'Choose a Manager')),
+        (None, '/no/such/page', 404, ('/', 'Back to Home')),
+    ])
+    def test_error_is_styled_page_with_way_back(self, client, manager, path, status, action):
+        """Test the status code is kept and the page offers the next step"""
+        url, label = action
+        if manager:
+            with client.session_transaction() as sess:
+                sess['manager_uid'] = manager
+
+        response = client.get(path)
+        html = response.get_data(as_text=True)
+
+        assert response.status_code == status
+        assert response.content_type.startswith('text/html')
+        assert '<header>' in html  # the site layout, not a bare string
+        assert f'<a href="{url}" class="btn">{label}</a>' in html
+
+    def test_demo_error_links_back_into_demo(self, client, demo_db):
+        """Test an error under /demo keeps the visitor in the demo"""
+        html = client.get('/demo/manager/report/sbx001').get_data(as_text=True)
+
+        assert '<a href="/demo/manager" class="btn">Go to Manager Dashboard</a>' in html
+
+    @pytest.mark.parametrize('path', ['/api/no-such-endpoint', '/demo/api/no-such-endpoint'])
+    def test_unknown_api_path_returns_json_404(self, client, path):
+        """Test fetch() callers still get JSON they can parse"""
+        response = client.get(path)
+
+        assert response.status_code == 404
+        assert response.get_json() == {"success": False, "error": "Not found"}

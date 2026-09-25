@@ -177,6 +177,32 @@ def local_only(f):
     return decorated_function
 
 
+def error_page(status, title, message, action_url=None, action_label=None):
+    """Render a styled error page with a way back, never a bare text response.
+
+    Without an action the page links to the current mode's home page.
+    """
+    return render_template('error.html', error_title=title, error_message=message,
+                           action_url=action_url, action_label=action_label), status
+
+
+def is_api_request():
+    """True for /api/... and /demo/api/..., whose callers expect JSON."""
+    path = request.path
+    if is_demo_request():
+        path = path[len(DEMO_PREFIX):]
+    return path.startswith('/api/')
+
+
+@app.errorhandler(404)
+def not_found(error):
+    """Unknown URLs: JSON for API callers, the styled error page for people."""
+    if is_api_request():
+        return jsonify({"success": False, "error": "Not found"}), 404
+    return error_page(404, "Page Not Found",
+                      "There is no page at this address. It may have moved, or the link may be mistyped.")
+
+
 @app.context_processor
 def inject_mode_flags():
     """Make mode flags available to all templates"""
@@ -685,7 +711,9 @@ def manager_login(manager_uid):
     manager = session.query(Person).filter_by(user_id=manager_uid).first()
 
     if not manager:
-        return "Manager not found", 404
+        return error_page(404, "Manager Not Found",
+                          f"No one with the ID \"{manager_uid}\" is in the imported orgchart.",
+                          url_for('.manager_dashboard'), "Choose a Manager")
 
     # Set manager in session
     flask_session[session_key('manager_uid')] = manager_uid
@@ -862,6 +890,26 @@ def get_date_ranges():
     })
 
 
+def no_manager_session_page():
+    """Report and PDF URLs opened without a manager chosen (or after sign-out)."""
+    return error_page(400, "Choose Your Team First",
+                      "Reports open from the Manager Dashboard once you have chosen "
+                      "your name. Your manager session may have ended.",
+                      url_for('.manager_dashboard'), "Go to Manager Dashboard")
+
+
+def team_member_not_found_page():
+    return error_page(404, "Team Member Not Found",
+                      "This person is not in the orgchart or the imported Workday feedback.",
+                      url_for('.manager_dashboard'), "Back to Dashboard")
+
+
+def not_in_team_page():
+    return error_page(403, "Not on Your Team",
+                      "This person does not report to the manager you are signed in as.",
+                      url_for('.manager_dashboard'), "Back to Dashboard")
+
+
 @views.route('/manager/report/<user_id>')
 @views.route('/manager/report')
 @local_only
@@ -877,13 +925,15 @@ def view_report(user_id=None):
     manager_name = flask_session.get(session_key('manager_name'))
 
     if not manager_uid and not manager_name:
-        return "Please access via the manager dashboard first", 400
+        return no_manager_session_page()
 
     # Get team member name from query param if no user_id
     team_member_name = request.args.get('name', '').strip() if not user_id else None
 
     if not user_id and not team_member_name:
-        return "Missing team member identifier", 400
+        return error_page(400, "No Team Member Chosen",
+                          "Open a report from your team list on the Manager Dashboard.",
+                          url_for('.manager_dashboard'), "Go to Manager Dashboard")
 
     session = get_db()
 
@@ -898,11 +948,11 @@ def view_report(user_id=None):
         # Real user_id from orgchart
         team_member = session.query(Person).filter_by(user_id=user_id).first()
         if not team_member:
-            return "Team member not found", 404
+            return team_member_not_found_page()
 
         # Verify team membership if using orgchart workflow
         if manager_uid and team_member.manager_uid != manager_uid:
-            return "Team member not in your team", 403
+            return not_in_team_page()
 
         team_member_info = team_member.to_dict()
         team_member_name = team_member.name
@@ -919,7 +969,7 @@ def view_report(user_id=None):
                 break
 
         if not team_member_name:
-            return "Team member not found", 404
+            return team_member_not_found_page()
 
         # Try to find in orgchart for enrichment
         team_member = session.query(Person).filter_by(name=team_member_name).first()
@@ -1142,7 +1192,7 @@ def export_pdf_report(user_id):
     manager_uid = flask_session.get(session_key('manager_uid'))
     manager_name = flask_session.get(session_key('manager_name'))
     if not manager_uid and not manager_name:
-        return "Please select your manager ID first", 400
+        return no_manager_session_page()
 
     effective_manager_uid = manager_uid or name_to_user_id(manager_name)
 
@@ -1151,11 +1201,11 @@ def export_pdf_report(user_id):
     # Get team member
     team_member = session.query(Person).filter_by(user_id=user_id).first()
     if not team_member:
-        return "Team member not found", 404
+        return team_member_not_found_page()
 
     # Verify team membership if using orgchart workflow
     if manager_uid and team_member.manager_uid != manager_uid:
-        return "Team member not in your team", 403
+        return not_in_team_page()
 
     # Get manager info
     manager = session.query(Person).filter_by(user_id=effective_manager_uid).first()

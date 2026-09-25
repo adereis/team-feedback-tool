@@ -5,8 +5,8 @@
 
 {% block content %}
 <div class="card content-centered" style="text-align: center; padding: 60px 40px;">
-    <h2 style="color: #e74c3c; margin-bottom: 20px;">{{ error_title }}</h2>
-    <p style="color: #666; font-size: 16px; margin-bottom: 30px;">
+    <h2 style="color: var(--improvement); margin-bottom: 20px;">{{ error_title }}</h2>
+    <p class="muted" style="font-size: 16px; margin-bottom: 30px;">
         {{ error_message }}
     </p>
 
@@ -14,12 +14,12 @@
     <p style="margin-bottom: 20px;">
         <a href="{{ url_for('demo_index') }}" class="btn">Try the Demo</a>
     </p>
-    <p style="color: #888; font-size: 14px;">
-        Or <a href="https://github.com/adereis/team-feedback-tool" style="color: #667eea;">get the code</a> to run locally.
+    <p class="hint">
+        Or <a href="https://github.com/adereis/team-feedback-tool">get the code</a> to run locally.
     </p>
     {% else %}
     <p>
-        <a href="{{ url_for('index') }}" class="btn">Back to Home</a>
+        <a href="{{ action_url or url_for(home_endpoint) }}" class="btn">{{ action_label or 'Back to Home' }}</a>
     </p>
     {% endif %}
 </div>
