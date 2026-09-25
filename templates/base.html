@@ -363,68 +363,93 @@
             line-height: 1.3;
         }
 
+        /* Auto-save failure state (see AutoSave below); pages style the base .save-indicator */
+        .save-indicator.error {
+            color: #dc3545;
+        }
+
         {% block extra_styles %}{% endblock %}
     </style>
 
     <!-- Global Auto-Save Manager: Handles debounced saves with keepalive on page unload -->
     <script>
     window.AutoSave = (function() {
-        const pending = {};  // { id: { timer, saveFn, data } }
+        const DELAY_MS = 2000;
+        const pending = {};  // { id: { timer, url, data, onSaved } }
+        let hideTimer = null;
 
-        // Save with keepalive (survives page navigation)
-        function saveWithKeepalive(url, data) {
-            fetch(url, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data),
-                keepalive: true
-            }).catch(() => {});
+        // Report the outcome on the page's #saveIndicator (inline, never a popup).
+        // Success fades out; failure stays visible until the next successful save.
+        function showStatus(ok, message) {
+            const indicator = document.getElementById('saveIndicator');
+            if (!indicator) return;
+            clearTimeout(hideTimer);
+            indicator.textContent = ok ? '✓ Saved' : '✗ Not saved: ' + message;
+            indicator.classList.toggle('error', !ok);
+            indicator.classList.add('show');
+            if (ok) {
+                hideTimer = setTimeout(() => indicator.classList.remove('show'), 2000);
+            }
         }
 
-        // Flush all pending saves on page unload
+        function send(entry) {
+            fetch(entry.url, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(entry.data)
+            })
+            .then(r => r.json().then(body => {
+                if (!r.ok || !body.success) {
+                    throw new Error(body.error || `HTTP ${r.status}`);
+                }
+                showStatus(true);
+                if (entry.onSaved) entry.onSaved(entry.data);
+            }))
+            .catch(err => {
+                console.error('Auto-save failed:', err);
+                showStatus(false, err.message);
+            });
+        }
+
+        // Flush all pending saves on page unload; keepalive lets the request
+        // outlive the page, but its response can no longer be shown.
         window.addEventListener('beforeunload', function() {
             Object.keys(pending).forEach(id => {
                 const entry = pending[id];
-                if (entry.timer) {
-                    clearTimeout(entry.timer);
-                    // Execute the keepalive save
-                    if (entry.url && entry.getData) {
-                        saveWithKeepalive(entry.url, entry.getData());
-                    }
-                    delete pending[id];
-                }
+                clearTimeout(entry.timer);
+                fetch(entry.url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(entry.data),
+                    keepalive: true
+                }).catch(() => {});
+                delete pending[id];
             });
         });
 
         return {
             /**
-             * Register a debounced auto-save that survives page navigation.
+             * Schedule a debounced save that survives page navigation.
+             *
+             * The data is captured now, not when the timer fires, so a save
+             * always sends the state it was scheduled for even if the page
+             * has moved on (e.g. the user picked another colleague).
              *
              * @param {string} id - Unique identifier for this save operation
              * @param {string} url - API endpoint to POST to
-             * @param {function} getData - Function that returns the data object to save
-             * @param {number} delayMs - Debounce delay in milliseconds (default: 2000)
+             * @param {object} data - Payload to save (last call within the delay wins)
+             * @param {function} [onSaved] - Called with the payload once the server confirms
              */
-            debounce: function(id, url, getData, delayMs = 2000) {
-                // Clear existing timer
-                if (pending[id] && pending[id].timer) {
+            debounce: function(id, url, data, onSaved) {
+                if (pending[id]) {
                     clearTimeout(pending[id].timer);
                 }
-
-                // Store the save info and start new timer
-                pending[id] = {
-                    url: url,
-                    getData: getData,
-                    timer: setTimeout(() => {
-                        // Normal save (with response handling possible)
-                        fetch(url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(getData())
-                        }).then(r => r.json()).catch(() => {});
-                        delete pending[id];
-                    }, delayMs)
-                };
+                const entry = { url: url, data: data, onSaved: onSaved };
+                entry.timer = setTimeout(() => {
+                    delete pending[id];
+                    send(entry);
+                }, DELAY_MS);
+                pending[id] = entry;
             },
 
             /**
@@ -444,16 +469,10 @@
              */
             flush: function(id) {
                 if (pending[id]) {
-                    clearTimeout(pending[id].timer);
                     const entry = pending[id];
-                    if (entry.url && entry.getData) {
-                        fetch(entry.url, {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify(entry.getData())
-                        }).then(r => r.json()).catch(() => {});
-                    }
+                    clearTimeout(entry.timer);
                     delete pending[id];
+                    send(entry);
                 }
             }
         };

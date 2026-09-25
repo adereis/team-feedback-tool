@@ -63,7 +63,7 @@
 ### Never Change Without Full Audit
 - Tenet validation (3 strengths, 2-3 improvements) - update all validation points
 - Session keys (`user_id`, `manager_uid`) - update all references
-- Auto-save debounce timing
+- Auto-save debounce timing (`DELAY_MS` in `base.html`)
 
 ### Never Add
 - Cloud dependencies or external API calls
@@ -75,13 +75,19 @@
 ## Key Patterns
 
 ### Auto-Save
+Use the shared `window.AutoSave` in `base.html` (2s debounce, keepalive flush on
+unload, result shown on the page's `#saveIndicator`):
 ```javascript
-let saveTimer = null;
-function scheduleSave() {
-    if (saveTimer) clearTimeout(saveTimer);
-    saveTimer = setTimeout(() => saveData(), 2000);
-}
+window.AutoSave.debounce(
+    `feedback_${selectedColleague}`,   // one pending save per record
+    API_PREFIX + '/feedback',
+    collectFeedbackData(),             // snapshot now: later edits must not leak in
+    rememberSavedFeedback              // optional: runs after the server confirms
+);
 ```
+Pass a snapshot (copy arrays), not a getter: a getter read when the timer fires
+sends whatever record the page shows by then. Update client-side caches only in
+the confirmation callback.
 
 ### API Endpoints
 ```python

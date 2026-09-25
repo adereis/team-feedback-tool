@@ -529,11 +529,12 @@ function selectColleague() {
 
     selectedColleague = userId;
 
-    // Load existing feedback if any
+    // Load existing feedback if any (copies: existingFeedback mirrors what the
+    // server has saved, so edits must not change it until a save succeeds)
     const existing = existingFeedback.find(f => f.to_user_id === userId);
     if (existing) {
-        selectedStrengths = existing.strengths;
-        selectedImprovements = existing.improvements;
+        selectedStrengths = [...existing.strengths];
+        selectedImprovements = [...existing.improvements];
         document.getElementById('strengthsText').value = existing.strengths_text || '';
         document.getElementById('improvementsText').value = existing.improvements_text || '';
     } else {
@@ -552,12 +553,12 @@ function selectColleague() {
     document.getElementById('improvementsText').addEventListener('input', scheduleAutoSave);
 }
 
-// Collect feedback data for saving
+// Collect feedback data for saving (a snapshot, detached from later edits)
 function collectFeedbackData() {
     return {
         to_user_id: selectedColleague,
-        strengths: selectedStrengths,
-        improvements: selectedImprovements,
+        strengths: [...selectedStrengths],
+        improvements: [...selectedImprovements],
         strengths_text: document.getElementById('strengthsText').value,
         improvements_text: document.getElementById('improvementsText').value
     };
@@ -574,52 +575,13 @@ function isValidForSave() {
 function scheduleAutoSave() {
     if (!isValidForSave()) return;
 
-    // Use global AutoSave manager - handles debounce and keepalive on unload
+    // Use global AutoSave manager - handles debounce, status and keepalive on unload
     window.AutoSave.debounce(
         `feedback_${selectedColleague}`,
         API_PREFIX + '/feedback',
-        collectFeedbackData,
-        2000
+        collectFeedbackData(),
+        rememberSavedFeedback
     );
-}
-
-function saveFeedback() {
-    if (!selectedColleague) {
-        return;
-    }
-
-    // Only save if we have valid selections
-    if (selectedStrengths.length !== 3) {
-        return;
-    }
-
-    if (selectedImprovements.length < 2 || selectedImprovements.length > 3) {
-        return;
-    }
-
-    const data = {
-        to_user_id: selectedColleague,
-        strengths: selectedStrengths,
-        improvements: selectedImprovements,
-        strengths_text: document.getElementById('strengthsText').value,
-        improvements_text: document.getElementById('improvementsText').value
-    };
-
-    fetch(API_PREFIX + '/feedback', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showSaveIndicator();
-            updateFeedbackList();
-        }
-    })
-    .catch(err => {
-        console.error('Auto-save error:', err);
-    });
 }
 
 function updateColleagueDropdownIndicators() {
@@ -642,25 +604,13 @@ function updateColleagueDropdownIndicators() {
     });
 }
 
-function updateFeedbackList() {
-    // Update the existing feedback entry in the list without full page reload
-    const existing = existingFeedback.find(f => f.to_user_id === selectedColleague);
-
-    if (existing) {
-        // Update existing entry
-        existing.strengths = selectedStrengths;
-        existing.improvements = selectedImprovements;
-        existing.strengths_text = document.getElementById('strengthsText').value;
-        existing.improvements_text = document.getElementById('improvementsText').value;
+// Record a server-confirmed save in the list, without a full page reload
+function rememberSavedFeedback(saved) {
+    const index = existingFeedback.findIndex(f => f.to_user_id === saved.to_user_id);
+    if (index > -1) {
+        existingFeedback[index] = { ...existingFeedback[index], ...saved };
     } else {
-        // Add new entry
-        existingFeedback.push({
-            to_user_id: selectedColleague,
-            strengths: selectedStrengths,
-            improvements: selectedImprovements,
-            strengths_text: document.getElementById('strengthsText').value,
-            improvements_text: document.getElementById('improvementsText').value
-        });
+        existingFeedback.push(saved);
     }
 
     renderFeedbackList();
@@ -754,14 +704,6 @@ function copyFeedbackForWorkday(index) {
     });
 }
 
-function showSaveIndicator() {
-    const indicator = document.getElementById('saveIndicator');
-    indicator.classList.add('show');
-    setTimeout(() => {
-        indicator.classList.remove('show');
-    }, 2000);
-}
-
 function updateChecklist() {
     const strengthsDone = selectedStrengths.length === 3;
     const improvementsDone = selectedImprovements.length >= 2 && selectedImprovements.length <= 3;
@@ -845,6 +787,9 @@ function deleteFeedback(userId) {
     if (!confirm('Are you sure you want to delete this feedback?')) {
         return;
     }
+
+    // A pending auto-save would re-create the feedback right after deletion
+    window.AutoSave.cancel(`feedback_${userId}`);
 
     fetch(`/api/feedback/${userId}`, {
         method: 'DELETE'

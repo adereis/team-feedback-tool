@@ -567,12 +567,12 @@ function toggleManagerImprovement(tenetId) {
     scheduleAutoSave();
 }
 
-// Collect manager feedback data for saving
+// Collect manager feedback data for saving (a snapshot, detached from later edits)
 function collectManagerFeedbackData() {
     return {
         team_member_uid: teamMemberId,
-        selected_strengths: managerSelectedStrengths,
-        selected_improvements: managerSelectedImprovements,
+        selected_strengths: [...managerSelectedStrengths],
+        selected_improvements: [...managerSelectedImprovements],
         feedback_text: document.getElementById('managerFeedbackText').value
     };
 }
@@ -587,21 +587,12 @@ function isManagerFeedbackValid() {
 function scheduleAutoSave() {
     if (!isManagerFeedbackValid()) return;
 
-    // Use global AutoSave manager - handles debounce and keepalive on unload
+    // Use global AutoSave manager - handles debounce, status and keepalive on unload
     window.AutoSave.debounce(
         `manager_feedback_${teamMemberId}`,
         API_PREFIX + '/manager-feedback',
-        collectManagerFeedbackData,
-        2000
+        collectManagerFeedbackData()
     );
-}
-
-function showSaveIndicator() {
-    const indicator = document.getElementById('saveIndicator');
-    indicator.classList.add('show');
-    setTimeout(() => {
-        indicator.classList.remove('show');
-    }, 2000);
 }
 
 function updateChecklist() {
@@ -640,40 +631,6 @@ function updateChecklist() {
     }
 
     return allDone;
-}
-
-function saveManagerFeedback() {
-    // Only save if requirements are met
-    if (managerSelectedStrengths.length !== 3) {
-        return;
-    }
-    if (managerSelectedImprovements.length < 2 || managerSelectedImprovements.length > 3) {
-        return;
-    }
-
-    const data = {
-        team_member_uid: teamMemberId,
-        selected_strengths: managerSelectedStrengths,
-        selected_improvements: managerSelectedImprovements,
-        feedback_text: document.getElementById('managerFeedbackText').value
-    };
-
-    fetch(API_PREFIX + '/manager-feedback', {
-        method: 'POST',
-        headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify(data)
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showSaveIndicator();
-        } else {
-            console.error('Error saving manager feedback:', data.error);
-        }
-    })
-    .catch(error => {
-        console.error('Error saving manager feedback:', error);
-    });
 }
 
 function exportPDF() {
