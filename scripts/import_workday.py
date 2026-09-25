@@ -15,6 +15,7 @@ import json
 import os
 import sys
 from datetime import datetime
+from sqlalchemy import func, extract
 
 # Add parent directory to path for imports when running as standalone script
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -391,17 +392,15 @@ def import_workday_xlsx(file_path, db_path='feedback.db', config=None):
     return result
 
 
-def get_available_date_ranges(db_path='feedback.db'):
+def get_available_date_ranges(session):
     """Get date ranges that have feedback available.
+
+    Args:
+        session: SQLAlchemy session to query (the caller owns and closes it)
 
     Returns:
         List of (year, month, count) tuples sorted by date descending
     """
-    session = init_db(db_path)
-
-    # Query distinct year-month combinations with counts
-    from sqlalchemy import func, extract
-
     results = session.query(
         extract('year', WorkdayFeedback.date).label('year'),
         extract('month', WorkdayFeedback.date).label('month'),
@@ -415,8 +414,6 @@ def get_available_date_ranges(db_path='feedback.db'):
         extract('year', WorkdayFeedback.date).desc(),
         extract('month', WorkdayFeedback.date).desc()
     ).all()
-
-    session.close()
 
     return [(int(r.year), int(r.month), r.count) for r in results]
 

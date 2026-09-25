@@ -622,7 +622,7 @@ function loadWorkdayFeedbackSummary(startDate = null, endDate = null) {
     const summaryEl = document.getElementById('feedbackSummary');
     summaryEl.textContent = 'Loading...';
 
-    let url = '/api/workday-feedback/recipients';
+    let url = API_PREFIX + '/workday-feedback/recipients';
     // Note: The recipients endpoint doesn't filter by date yet.
     // For now, show the overall summary. Date filtering applies to individual reports.
 

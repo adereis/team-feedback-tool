@@ -793,20 +793,25 @@ function deleteFeedback(userId) {
     // A pending auto-save would re-create the feedback right after deletion
     window.AutoSave.cancel(`feedback_${userId}`);
 
-    fetch(`/api/feedback/${userId}`, {
+    fetch(`${API_PREFIX}/feedback/${encodeURIComponent(userId)}`, {
         method: 'DELETE'
     })
     .then(r => r.json())
     .then(data => {
-        if (data.success) {
-            // Remove from local array
-            const index = existingFeedback.findIndex(f => f.to_user_id === userId);
-            if (index > -1) {
-                existingFeedback.splice(index, 1);
-            }
-            renderFeedbackList();
-            updateColleagueDropdownIndicators();
+        if (!data.success) {
+            throw new Error(data.error);
         }
+        // Remove from local array
+        const index = existingFeedback.findIndex(f => f.to_user_id === userId);
+        if (index > -1) {
+            existingFeedback.splice(index, 1);
+        }
+        renderFeedbackList();
+        updateColleagueDropdownIndicators();
+    })
+    .catch(err => {
+        // The entry stays in the list, so the failure is visible there
+        console.error('Delete failed:', err);
     });
 }
 

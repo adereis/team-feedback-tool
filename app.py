@@ -49,6 +49,16 @@ def is_demo_request():
     return request.path.startswith('/demo')
 
 
+def get_db():
+    """Database session for this request: the visitor's sandbox under /demo, else the local DB."""
+    return get_demo_db() if is_demo_request() else init_db()
+
+
+def respond(response):
+    """Attach the demo session cookie to responses served under /demo."""
+    return demo_response_wrapper(response) if is_demo_request() else response
+
+
 def local_only(f):
     """Decorator to block routes in hosted mode (only accessible locally)."""
     @wraps(f)
@@ -683,6 +693,7 @@ def import_workday_xlsx_route():
 
 
 @app.route('/api/workday-feedback')
+@app.route('/demo/api/workday-feedback')
 def get_workday_feedback():
     """Get Workday feedback with optional date filtering.
 
@@ -697,7 +708,7 @@ def get_workday_feedback():
     start_date_str = request.args.get('start_date')
     end_date_str = request.args.get('end_date')
 
-    session = init_db()
+    session = get_db()
 
     query = session.query(WorkdayFeedback)
 
@@ -743,17 +754,18 @@ def get_workday_feedback():
     feedbacks = query.all()
     session.close()
 
-    return jsonify({
+    return respond(jsonify({
         "success": True,
         "feedbacks": [fb.to_dict() for fb in feedbacks],
         "total": len(feedbacks)
-    })
+    }))
 
 
 @app.route('/api/workday-feedback/recipients')
+@app.route('/demo/api/workday-feedback/recipients')
 def get_workday_recipients():
     """Get list of unique recipients with feedback counts"""
-    session = init_db()
+    session = get_db()
 
     # Get unique recipients with counts
     results = session.query(
@@ -773,24 +785,27 @@ def get_workday_recipients():
 
     session.close()
 
-    return jsonify({
+    return respond(jsonify({
         "success": True,
         "recipients": recipients
-    })
+    }))
 
 
 @app.route('/api/workday-feedback/date-ranges')
+@app.route('/demo/api/workday-feedback/date-ranges')
 def get_date_ranges():
     """Get available date ranges for filtering"""
-    ranges = get_available_date_ranges()
+    session = get_db()
+    ranges = get_available_date_ranges(session)
+    session.close()
 
-    return jsonify({
+    return respond(jsonify({
         "success": True,
         "ranges": [
             {"year": r[0], "month": r[1], "count": r[2]}
             for r in ranges
         ]
-    })
+    }))
 
 
 @app.route('/manager/report/<user_id>')
